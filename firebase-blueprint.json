@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["siswa", "guru", "admin"] }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "StudentProgress": {
+      "title": "StudentProgress",
+      "description": "Daily student progress",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "score": { "type": "number" }
+      },
+      "required": ["studentId", "teacherId", "date", "description"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Student attendance",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["hadir", "izin", "sakit", "alpa"] },
+        "location": { "type": "string" }
+      },
+      "required": ["studentId", "date", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/students/{studentId}/progress/{progressId}": { "schema": "StudentProgress", "description": "Student progress reports" },
+    "/students/{studentId}/attendance/{attendanceId}": { "schema": "Attendance", "description": "Student attendance records" }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "RA Darusyifa Arjawinangun Portal",
+  "description": "School Information System and Web Portal for RA Darusyifa Arjawinangun",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}

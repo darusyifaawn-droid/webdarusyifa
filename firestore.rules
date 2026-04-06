@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: name (string), email (string), role (string: admin|guru|siswa)
+    //
+    // Collection: progress
+    // Fields: studentId (string), teacherId (string), description (string), score (number), date (string)
+    //
+    // Collection: attendance
+    // Fields: studentId (string), date (string), timestamp (timestamp), location (map), status (string)
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData() != null && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((getUserData() != null && getUserData().role == 'admin') || 
+         (request.auth.token.email == "darusyifa.awn@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // Rules for Users
+    match /users/{userId} {
+      // Anyone authenticated can view their own profile or specific profiles
+      allow get: if isAuthenticated();
+      // Only admins can list all users
+      allow list: if isAdmin();
+      // Gurus can list users if they are students
+      allow list: if hasRole('guru') && request.query.filters.role == 'siswa';
+      
+      allow create: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Progress
+    match /progress/{progressId} {
+      // Students can only see their own progress
+      // Gurus and Admins can see all
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentId || 
+        hasRole('guru') || 
+        isAdmin()
+      );
+      
+      // Only gurus and admins can create/update progress
+      allow create: if hasRole('guru') || isAdmin();
+      allow update: if hasRole('guru') || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Attendance
+    match /attendance/{attendanceId} {
+      // Students can only see their own attendance
+      // Gurus and Admins can see all
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.studentId || 
+        hasRole('guru') || 
+        isAdmin()
+      );
+      
+      // Students can create their own attendance
+      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
+      allow update: if hasRole('guru') || isAdmin();
+      allow delete: if isAdmin();
+    }
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    // Settings
+    match /settings/{settingId} {
+      allow read: if true; // Publicly readable for landing page
+      allow write: if isAdmin();
+    }
+  }
+}
