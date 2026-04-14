@@ -34,7 +34,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         ((getUserData() != null && getUserData().role == 'admin') || 
-         (request.auth.token.email == "darusyifa.awn@gmail.com" && request.auth.token.email_verified == true));
+         (request.auth.token != null && request.auth.token.email == "darusyifa.awn@gmail.com"));
     }
 
     // Rules for Users
@@ -42,9 +42,7 @@ service cloud.firestore {
       // Anyone authenticated can view their own profile or specific profiles
       allow get: if isAuthenticated();
       // Only admins can list all users
-      allow list: if isAdmin();
-      // Gurus can list users if they are students
-      allow list: if hasRole('guru') && request.query.filters.role == 'siswa';
+      allow list: if isAdmin() || hasRole('guru');
       
       allow create: if isAuthenticated() && (isOwner(userId) || isAdmin());
       allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());

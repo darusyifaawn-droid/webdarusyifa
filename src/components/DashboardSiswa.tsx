@@ -14,6 +14,7 @@ export default function DashboardSiswa() {
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -293,9 +294,13 @@ export default function DashboardSiswa() {
                   {attendance.slice(0, 5).map((a) => (
                     <div key={a.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-                          <Clock size={20} />
-                        </div>
+                        {a.photo ? (
+                          <img src={a.photo} alt="Absensi" className="w-10 h-10 rounded-xl object-cover cursor-pointer hover:opacity-80" onClick={() => setSelectedPhoto(a.photo)} />
+                        ) : (
+                          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
+                            <Clock size={20} />
+                          </div>
+                        )}
                         <div>
                           <p className="font-bold text-gray-800">{a.date}</p>
                           <p className="text-xs text-gray-400">Jam: {a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : '-'}</p>
@@ -342,7 +347,25 @@ export default function DashboardSiswa() {
                   </div>
                   <div className="pt-4 border-t border-white/10">
                     <p className="text-red-300 text-xs uppercase font-bold mb-1">Tunggakan</p>
-                    <p className="text-xl font-bold">Rp {(userData?.arrears || 0).toLocaleString()}</p>
+                    <p className="text-xl font-bold mb-3">Rp {(userData?.arrears || 0).toLocaleString()}</p>
+                    
+                    {/* Rincian Tunggakan */}
+                    {userData?.arrears_details && userData.arrears_details.length > 0 && (
+                      <div className="bg-white/10 rounded-xl p-4 mt-2">
+                        <p className="text-xs font-bold text-green-200 mb-2 uppercase">Rincian Tunggakan:</p>
+                        <ul className="space-y-2">
+                          {userData.arrears_details.map((detail: any, index: number) => (
+                            <li key={index} className="flex justify-between items-center text-sm border-b border-white/10 pb-2 last:border-0 last:pb-0">
+                              <div>
+                                <span className="block font-medium">{detail.name}</span>
+                                <span className="text-[10px] text-green-300">{detail.date}</span>
+                              </div>
+                              <span className="font-bold text-red-300">Rp {detail.amount.toLocaleString()}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -390,7 +413,24 @@ export default function DashboardSiswa() {
               <div className="p-8 bg-red-50 rounded-3xl border border-red-100">
                 <h4 className="text-red-800 font-bold mb-4 flex items-center gap-2"><CreditCard size={20} /> Tunggakan Biaya</h4>
                 <p className="text-3xl font-bold text-red-900">Rp {(userData?.arrears || 0).toLocaleString()}</p>
-                <p className="text-sm text-red-600 mt-2">Segera lakukan pelunasan di kantor administrasi.</p>
+                <p className="text-sm text-red-600 mt-2 mb-6">Segera lakukan pelunasan di kantor administrasi.</p>
+                
+                {userData?.arrears_details && userData.arrears_details.length > 0 && (
+                  <div className="mt-6 border-t border-red-200 pt-4">
+                    <h5 className="text-sm font-bold text-red-800 mb-3">Rincian Tunggakan:</h5>
+                    <ul className="space-y-2">
+                      {userData.arrears_details.map((detail: any) => (
+                        <li key={detail.id} className="flex justify-between items-center bg-white/50 p-3 rounded-xl text-sm">
+                          <div>
+                            <p className="font-bold text-red-900">{detail.name}</p>
+                            <p className="text-xs text-red-600">{detail.date}</p>
+                          </div>
+                          <span className="font-bold text-red-700">Rp {detail.amount.toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -439,33 +479,41 @@ export default function DashboardSiswa() {
 
         {/* Camera Modal */}
         {showCamera && (
-          <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-4 bg-gray-900 flex justify-between items-center text-white shrink-0">
-                <h3 className="font-bold">Ambil Foto Absensi</h3>
-                <button onClick={stopCamera} className="p-1 hover:bg-gray-800 rounded-full"><X size={20} /></button>
-              </div>
-              <div className="relative flex-1 bg-black min-h-0">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  className="w-full h-full object-cover"
-                />
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
-              <div className="p-4 sm:p-6 bg-white flex justify-center shrink-0">
-                <button 
-                  onClick={handleAttendance}
-                  className="bg-green-600 text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-3 hover:bg-green-700 hover:scale-105 transition-all shadow-lg w-full"
-                >
-                  <Camera size={24} /> Ambil Foto & Absen
-                </button>
-              </div>
+          <div className="fixed inset-0 bg-black z-[300] flex flex-col">
+            <div className="p-4 bg-gray-900 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-bold">Ambil Foto Absensi</h3>
+              <button onClick={stopCamera} className="p-2 hover:bg-gray-800 rounded-full"><X size={24} /></button>
+            </div>
+            <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-cover"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            <div className="p-6 bg-gray-900 flex justify-center shrink-0 pb-10">
+              <button 
+                onClick={handleAttendance}
+                className="bg-green-600 text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-3 hover:bg-green-700 hover:scale-105 transition-all shadow-lg w-full max-w-sm"
+              >
+                <Camera size={24} /> Ambil Foto & Absen
+              </button>
             </div>
           </div>
         )}
       </main>
+      {/* Photo Viewer Modal */}
+      {selectedPhoto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+          <div className="relative max-w-4xl w-full flex justify-center">
+            <button onClick={() => setSelectedPhoto(null)} className="absolute -top-12 right-0 text-white hover:text-gray-300"><X size={32} /></button>
+            <img src={selectedPhoto} alt="Absensi Full" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

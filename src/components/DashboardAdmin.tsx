@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
-import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload } from 'lucide-react';
+import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import * as XLSX from 'xlsx';
@@ -21,6 +21,8 @@ export default function DashboardAdmin() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
+  const [showTabunganModal, setShowTabunganModal] = useState(false);
+  const [showIuranModal, setShowIuranModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,15 +30,26 @@ export default function DashboardAdmin() {
   // Form States
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('123456');
   const [newUserRole, setNewUserRole] = useState('siswa');
   const [newUserKelas, setNewUserKelas] = useState('');
   const [newUserWhatsapp, setNewUserWhatsapp] = useState('');
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
   
+  // Finance Form States
+  const [financeStudentId, setFinanceStudentId] = useState('');
+  const [financeAmount, setFinanceAmount] = useState('');
+  const [financeDate, setFinanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [financeIuranName, setFinanceIuranName] = useState('');
+  const [financeIuranTarget, setFinanceIuranTarget] = useState('all');
+  
   // Profile Edit States
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
+  
+  // Photo Viewer State
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -59,20 +72,33 @@ export default function DashboardAdmin() {
           // Listeners
           const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
             setAllUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }, (error) => {
+            console.error("Error fetching users:", error);
+            alert("Gagal mengambil data users: " + error.message);
           });
 
           const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
             setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }, (error) => {
+            console.error("Error fetching attendance:", error);
+            alert("Gagal mengambil data absensi: " + error.message);
           });
 
           const unsubAnnounce = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc')), (snapshot) => {
             setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }, (error) => {
+            console.error("Error fetching announcements:", error);
+            alert("Gagal mengambil data pengumuman: " + error.message);
           });
 
           const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (docSnap) => {
             if (docSnap.exists()) {
               setSettings(docSnap.data());
             }
+            setLoading(false);
+          }, (error) => {
+            console.error("Error fetching settings:", error);
+            alert("Gagal mengambil data pengaturan: " + error.message);
             setLoading(false);
           });
 
@@ -101,12 +127,13 @@ export default function DashboardAdmin() {
       const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(auth.app.options, 'SecondaryApp');
       const secondaryAuth = getAuth(secondaryApp);
       
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, '123456');
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
       await secondaryAuth.signOut();
 
       const userData: any = {
         name: newUserName,
         email: newUserEmail,
+        plainPassword: newUserPassword,
         role: newUserRole,
         createdAt: serverTimestamp(),
         savings: 0,
@@ -122,10 +149,11 @@ export default function DashboardAdmin() {
       
       setNewUserName('');
       setNewUserEmail('');
+      setNewUserPassword('123456');
       setNewUserKelas('');
       setNewUserWhatsapp('');
       setShowAddUser(false);
-      alert('User berhasil ditambahkan! Guru/Siswa sekarang bisa login menggunakan email ini dengan password default: 123456');
+      alert(`User berhasil ditambahkan! Guru/Siswa sekarang bisa login menggunakan email ini dengan password: ${newUserPassword}`);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         alert('Email sudah terdaftar di sistem.');
@@ -188,22 +216,42 @@ export default function DashboardAdmin() {
         for (const row of data as any[]) {
           if (row.Nama && row.Email) {
             try {
-              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, row.Email, '123456');
+              const q = query(collection(db, 'users'), where('email', '==', row.Email));
+              const querySnapshot = await getDocs(q);
               
-              const userData: any = {
-                name: row.Nama,
-                email: row.Email,
-                role: row.Role?.toLowerCase() || 'siswa',
-                createdAt: serverTimestamp(),
-                savings: 0,
-                arrears: 0
-              };
-              if (userData.role === 'siswa') {
-                userData.kelas = row.Kelas || '';
-                userData.whatsapp = row.WhatsApp || '';
+              if (!querySnapshot.empty) {
+                // Update existing user
+                const userDoc = querySnapshot.docs[0];
+                const userData: any = {
+                  name: row.Nama,
+                  role: row.Role?.toLowerCase() || 'siswa',
+                };
+                if (userData.role === 'siswa') {
+                  userData.kelas = row.Kelas || '';
+                  userData.whatsapp = row.WhatsApp || '';
+                }
+                await updateDoc(doc(db, 'users', userDoc.id), userData);
+                successCount++;
+              } else {
+                // Create new user
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, row.Email, '123456');
+                
+                const userData: any = {
+                  name: row.Nama,
+                  email: row.Email,
+                  plainPassword: '123456',
+                  role: row.Role?.toLowerCase() || 'siswa',
+                  createdAt: serverTimestamp(),
+                  savings: 0,
+                  arrears: 0
+                };
+                if (userData.role === 'siswa') {
+                  userData.kelas = row.Kelas || '';
+                  userData.whatsapp = row.WhatsApp || '';
+                }
+                await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+                successCount++;
               }
-              await setDoc(doc(db, 'users', userCredential.user.uid), userData);
-              successCount++;
             } catch (err: any) {
               console.error(`Gagal mengimpor ${row.Email}:`, err.message);
               // Lanjutkan ke baris berikutnya jika email sudah ada atau error lain
@@ -250,12 +298,125 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleResetPassword = async (email: string) => {
+  const handleAddTabungan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!financeStudentId || !financeAmount || !financeDate) return;
     try {
-      await sendPasswordResetEmail(auth, email);
-      alert(`Email reset password telah dikirim ke ${email}`);
+      const student = allUsers.find(u => u.id === financeStudentId);
+      if (!student) return;
+      const newSavings = (student.savings || 0) + Number(financeAmount);
+      await updateDoc(doc(db, 'users', financeStudentId), { savings: newSavings });
+      
+      // Optional: Save history to a subcollection or separate collection
+      await addDoc(collection(db, 'savings_history'), {
+        studentId: financeStudentId,
+        amount: Number(financeAmount),
+        date: financeDate,
+        createdAt: serverTimestamp()
+      });
+
+      setShowTabunganModal(false);
+      setFinanceStudentId('');
+      setFinanceAmount('');
+      alert('Tabungan berhasil ditambahkan!');
+    } catch (error) {
+      alert('Gagal menambahkan tabungan.');
+      console.error(error);
+    }
+  };
+
+  const handleAddIuran = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!financeIuranName || !financeAmount) return;
+    try {
+      const amount = Number(financeAmount);
+      let targetStudents = [];
+      
+      if (financeIuranTarget === 'all') {
+        targetStudents = allUsers.filter(u => u.role === 'siswa');
+      } else if (financeIuranTarget.startsWith('kelas_')) {
+        const targetKelas = financeIuranTarget.replace('kelas_', '').toLowerCase();
+        targetStudents = allUsers.filter(u => {
+          if (u.role !== 'siswa') return false;
+          const k = (u.kelas || '').toLowerCase();
+          return k === targetKelas || k === `kelas ${targetKelas}` || k.includes(targetKelas);
+        });
+      } else {
+        const student = allUsers.find(u => u.id === financeIuranTarget);
+        if (student) targetStudents.push(student);
+      }
+
+      const newArrearDetail = {
+        id: Date.now().toString() + Math.random().toString(36).substring(7),
+        name: financeIuranName,
+        amount: amount,
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      for (const student of targetStudents) {
+        const newArrears = (student.arrears || 0) + amount;
+        const currentDetails = student.arrears_details || [];
+        await updateDoc(doc(db, 'users', student.id), { 
+          arrears: newArrears,
+          arrears_details: [...currentDetails, newArrearDetail]
+        });
+      }
+
+      setShowIuranModal(false);
+      setFinanceIuranName('');
+      setFinanceAmount('');
+      setFinanceIuranTarget('all');
+      alert('Iuran berhasil ditetapkan!');
+    } catch (error) {
+      alert('Gagal menetapkan iuran.');
+      console.error(error);
+    }
+  };
+
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [userToReset, setUserToReset] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToReset) return;
+    
+    try {
+      if (!userToReset.plainPassword) {
+        // Fallback to email reset
+        await sendPasswordResetEmail(auth, userToReset.email);
+        alert(`Password lama tidak tersimpan. Link reset password telah dikirim ke email ${userToReset.email}`);
+        setShowResetPassword(false);
+        setUserToReset(null);
+        setNewPassword('');
+        return;
+      }
+
+      if (!newPassword) return;
+
+      // Use secondary app to sign in and update password
+      const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(auth.app.options, 'SecondaryApp');
+      const secondaryAuth = getAuth(secondaryApp);
+      
+      await signInWithEmailAndPassword(secondaryAuth, userToReset.email, userToReset.plainPassword);
+      if (secondaryAuth.currentUser) {
+        const { updatePassword } = await import('firebase/auth');
+        await updatePassword(secondaryAuth.currentUser, newPassword);
+        await secondaryAuth.signOut();
+
+        // Update plainPassword in Firestore
+        await updateDoc(doc(db, 'users', userToReset.id), {
+          plainPassword: newPassword
+        });
+
+        alert(`Password untuk ${userToReset.email} berhasil diubah!`);
+        setShowResetPassword(false);
+        setUserToReset(null);
+        setNewPassword('');
+      }
     } catch (error: any) {
-      alert('Gagal mengirim email reset password: ' + error.message);
+      console.error(error);
+      alert('Gagal mereset password: ' + error.message);
     }
   };
 
@@ -305,7 +466,8 @@ export default function DashboardAdmin() {
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await setDoc(doc(db, 'settings', 'landingPage'), settings);
+      const cleanSettings = Object.fromEntries(Object.entries(settings).filter(([_, v]) => v !== undefined));
+      await setDoc(doc(db, 'settings', 'landingPage'), cleanSettings);
       alert('Pengaturan web berhasil diperbarui!');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'settings/landingPage');
@@ -333,6 +495,12 @@ export default function DashboardAdmin() {
         className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeTab === 'finance' ? 'bg-green-600 text-white' : 'hover:bg-gray-800 text-gray-400'}`}
       >
         <CreditCard size={20} /> Administrasi
+      </button>
+      <button 
+        onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${activeTab === 'attendance' ? 'bg-green-600 text-white' : 'hover:bg-gray-800 text-gray-400'}`}
+      >
+        <CheckCircle size={20} /> Absensi
       </button>
       <button 
         onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
@@ -518,7 +686,9 @@ export default function DashboardAdmin() {
                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Nama</th>
-                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Email (Username)</th>
+                    <th className="px-6 py-4">Password</th>
+                    <th className="px-6 py-4">Kelas</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Aksi</th>
                   </tr>
@@ -528,6 +698,8 @@ export default function DashboardAdmin() {
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{u.email}</td>
+                      <td className="px-6 py-4 text-gray-500 text-sm">{u.plainPassword || '***'}</td>
+                      <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
                           u.role === 'admin' ? 'bg-red-100 text-red-600' :
@@ -539,7 +711,7 @@ export default function DashboardAdmin() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-3">
-                          <button onClick={() => handleResetPassword(u.email)} className="text-gray-400 hover:text-yellow-600 transition-colors" title="Reset Password"><Key size={18} /></button>
+                          <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="text-gray-400 hover:text-yellow-600 transition-colors" title="Reset Password"><Key size={18} /></button>
                           <button onClick={() => { setEditingUser(u); setShowEditUser(true); }} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit size={18} /></button>
                           <button onClick={() => { setUserToDelete(u); setShowDeleteConfirm(true); }} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
                         </div>
@@ -552,66 +724,146 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        {activeTab === 'finance' && (
+        {activeTab === 'attendance' && (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-800">Administrasi & Tabungan</h3>
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Kelola Absensi Kehadiran</h3>
+              <button 
+                onClick={exportToCSV}
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              >
+                <Download size={18} /> Export CSV
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-4">Nama Siswa</th>
-                    <th className="px-6 py-4">Tabungan (Rp)</th>
-                    <th className="px-6 py-4">Tunggakan (Rp)</th>
+                    <th className="px-6 py-4">Siswa</th>
+                    <th className="px-6 py-4">Waktu</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Foto Absen</th>
+                    <th className="px-6 py-4">Lokasi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {allUsers.filter(u => u.role === 'siswa').map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            defaultValue={u.savings || 0}
-                            id={`savings-${u.id}`}
-                            className="w-full max-w-[150px] p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
-                          />
-                          <button 
-                            onClick={() => {
-                              const val = (document.getElementById(`savings-${u.id}`) as HTMLInputElement).value;
-                              updateFinance(u.id, 'savings', val);
-                            }}
-                            className="text-xs bg-green-100 text-green-700 px-3 py-2 rounded-lg font-bold hover:bg-green-200"
-                          >
-                            Simpan
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            defaultValue={u.arrears || 0}
-                            id={`arrears-${u.id}`}
-                            className="w-full max-w-[150px] p-2 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 focus:ring-2 focus:ring-red-500 outline-none"
-                          />
-                          <button 
-                            onClick={() => {
-                              const val = (document.getElementById(`arrears-${u.id}`) as HTMLInputElement).value;
-                              updateFinance(u.id, 'arrears', val);
-                            }}
-                            className="text-xs bg-red-100 text-red-700 px-3 py-2 rounded-lg font-bold hover:bg-red-200"
-                          >
-                            Simpan
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {attendance.map((a) => {
+                    const student = allUsers.find(u => u.id === a.studentId);
+                    return (
+                      <tr key={a.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-800">{student?.name || 'Unknown'}</div>
+                          <div className="text-xs text-gray-400">{student?.kelas || '-'}</div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-sm">
+                          {a.date} <br/>
+                          <span className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${a.status === 'masuk' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {a.photo ? (
+                            <img src={a.photo} alt="Absensi" className="h-12 w-12 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setSelectedPhoto(a.photo)} />
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-xs">
+                          <a href={`https://www.google.com/maps?q=${a.location?.latitude},${a.location?.longitude}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                            <MapPin size={12} /> Lihat Maps
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'finance' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h3 className="text-lg font-bold text-gray-800">Administrasi & Keuangan</h3>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={() => setShowTabunganModal(true)}
+                  className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
+                >
+                  <Plus size={18} /> Input Tabungan
+                </button>
+                <button 
+                  onClick={() => setShowIuranModal(true)}
+                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                >
+                  <Plus size={18} /> Penetapan Iuran
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4">Nama Siswa</th>
+                      <th className="px-6 py-4">Kelas</th>
+                      <th className="px-6 py-4">Total Tabungan (Rp)</th>
+                      <th className="px-6 py-4">Total Tunggakan (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {allUsers.filter(u => u.role === 'siswa').map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
+                        <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number" 
+                              defaultValue={u.savings || 0}
+                              id={`savings-${u.id}`}
+                              className="w-full max-w-[150px] p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                            />
+                            <button 
+                              onClick={() => {
+                                const val = (document.getElementById(`savings-${u.id}`) as HTMLInputElement).value;
+                                updateFinance(u.id, 'savings', val);
+                              }}
+                              className="text-xs bg-green-100 text-green-700 px-3 py-2 rounded-lg font-bold hover:bg-green-200"
+                            >
+                              Simpan
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number" 
+                              defaultValue={u.arrears || 0}
+                              id={`arrears-${u.id}`}
+                              className="w-full max-w-[150px] p-2 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 focus:ring-2 focus:ring-red-500 outline-none"
+                            />
+                            <button 
+                              onClick={() => {
+                                const val = (document.getElementById(`arrears-${u.id}`) as HTMLInputElement).value;
+                                updateFinance(u.id, 'arrears', val);
+                              }}
+                              className="text-xs bg-red-100 text-red-700 px-3 py-2 rounded-lg font-bold hover:bg-red-200"
+                            >
+                              Simpan
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -817,6 +1069,26 @@ export default function DashboardAdmin() {
           </div>
         )}
 
+        {showResetPassword && userToReset && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl relative">
+              <button onClick={() => { setShowResetPassword(false); setUserToReset(null); setNewPassword(''); }} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Key size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Reset Password</h3>
+              <p className="text-gray-500 mb-6 text-center text-sm">Ubah password untuk <strong>{userToReset.name}</strong> ({userToReset.email})</p>
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password Baru</label>
+                  <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Masukkan password baru" required minLength={6} />
+                </div>
+                <button type="submit" className="w-full px-4 py-3 bg-yellow-500 text-white rounded-xl font-bold hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-200">Simpan Password</button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {showAddUser && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
@@ -828,8 +1100,12 @@ export default function DashboardAdmin() {
                   <input type="text" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email (Username)</label>
                   <input type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                  <input type="text" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required minLength={6} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
@@ -857,6 +1133,69 @@ export default function DashboardAdmin() {
           </div>
         )}
 
+        {showTabunganModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+              <button onClick={() => setShowTabunganModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">Input Tabungan Siswa</h3>
+              <form onSubmit={handleAddTabungan} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa</label>
+                  <select value={financeStudentId} onChange={(e) => setFinanceStudentId(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
+                    <option value="">-- Pilih Siswa --</option>
+                    {allUsers.filter(u => u.role === 'siswa').map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tanggal</label>
+                  <input type="date" value={financeDate} onChange={(e) => setFinanceDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nominal (Rp)</label>
+                  <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" placeholder="Contoh: 10000" required min="0" />
+                </div>
+                <button type="submit" className="w-full px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-xl shadow-green-200 transition-all mt-4">Simpan Tabungan</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showIuranModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+              <button onClick={() => setShowIuranModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">Penetapan Iuran</h3>
+              <form onSubmit={handleAddIuran} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Iuran (Group)</label>
+                  <input type="text" value={financeIuranName} onChange={(e) => setFinanceIuranName(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: SPP Bulan Juli" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nominal (Rp)</label>
+                  <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 50000" required min="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
+                  <select value={financeIuranTarget} onChange={(e) => setFinanceIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="all">Semua Siswa</option>
+                    <option value="kelas_A">Semua Siswa Kelas A</option>
+                    <option value="kelas_B">Semua Siswa Kelas B</option>
+                    <option value="kelas_C">Semua Siswa Kelas C</option>
+                    <optgroup label="Pilih Siswa Spesifik">
+                      {allUsers.filter(u => u.role === 'siswa').map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Tetapkan Iuran</button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {showAnnounceModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
@@ -877,6 +1216,16 @@ export default function DashboardAdmin() {
           </div>
         )}
       </main>
+      {/* Photo Viewer Modal */}
+      {selectedPhoto && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>
+          <div className="relative max-w-4xl w-full flex justify-center">
+            <button onClick={() => setSelectedPhoto(null)} className="absolute -top-12 right-0 text-white hover:text-gray-300"><X size={32} /></button>
+            <img src={selectedPhoto} alt="Absensi Full" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

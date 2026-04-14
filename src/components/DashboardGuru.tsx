@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where } from 'firebase/firestore';
 import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -27,6 +27,9 @@ export default function DashboardGuru() {
   const [showCamera, setShowCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Photo Viewer State
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -43,8 +46,8 @@ export default function DashboardGuru() {
           setUser(user);
 
           // Listeners
-          const unsubStudents = onSnapshot(query(collection(db, 'users')), (snapshot) => {
-            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).filter(u => u.role === 'siswa'));
+          const unsubStudents = onSnapshot(query(collection(db, 'users'), where('role', '==', 'siswa')), (snapshot) => {
+            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
           });
 
           const unsubProgress = onSnapshot(query(collection(db, 'progress'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -438,29 +441,27 @@ export default function DashboardGuru() {
 
         {/* Camera Modal */}
         {showCamera && (
-          <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-4 bg-gray-900 flex justify-between items-center text-white shrink-0">
-                <h3 className="font-bold">Ambil Foto Absensi</h3>
-                <button onClick={stopCamera} className="p-1 hover:bg-gray-800 rounded-full"><X size={20} /></button>
-              </div>
-              <div className="relative flex-1 bg-black min-h-0">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  className="w-full h-full object-cover"
-                />
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
-              <div className="p-4 sm:p-6 bg-white flex justify-center shrink-0">
-                <button 
-                  onClick={handleAttendance}
-                  className="bg-green-600 text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-3 hover:bg-green-700 hover:scale-105 transition-all shadow-lg w-full"
-                >
-                  <Camera size={24} /> Ambil Foto & Absen
-                </button>
-              </div>
+          <div className="fixed inset-0 bg-black z-[300] flex flex-col">
+            <div className="p-4 bg-gray-900 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-bold">Ambil Foto Absensi</h3>
+              <button onClick={stopCamera} className="p-2 hover:bg-gray-800 rounded-full"><X size={24} /></button>
+            </div>
+            <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-cover"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            <div className="p-6 bg-gray-900 flex justify-center shrink-0 pb-10">
+              <button 
+                onClick={handleAttendance}
+                className="bg-green-600 text-white px-8 py-4 rounded-full font-bold flex items-center justify-center gap-3 hover:bg-green-700 hover:scale-105 transition-all shadow-lg w-full max-w-sm"
+              >
+                <Camera size={24} /> Ambil Foto & Absen
+              </button>
             </div>
           </div>
         )}
