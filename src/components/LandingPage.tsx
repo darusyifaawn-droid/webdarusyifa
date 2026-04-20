@@ -39,6 +39,10 @@ export default function LandingPage() {
   const logoUrl = settings?.logoUrl || "https://ui-avatars.com/api/?name=RA+Darusyifa&background=16a34a&color=fff&size=128";
   const heroImageUrl = settings?.heroImageUrl || "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1000&q=80";
   const accreditationText = settings?.accreditationText || "Terakreditasi B";
+  const schoolName = settings?.schoolName || "RA Darusyifa Arjawinangun";
+  const aboutTitle = settings?.aboutTitle || "Membangun Generasi Cerdas & Berakhlak Mulia";
+  const aboutText = settings?.aboutText || "RA Darusyifa Arjawinangun hadir untuk memberikan pendidikan anak usia dini yang berkualitas dengan nilai-nilai Islami yang kuat dan menyenangkan.";
+  const address = settings?.address || "Jl. Raya Arjawinangun No. 123, Cirebon, Jawa Barat.";
   const whatsappNumber = settings?.whatsappNumber || "6283199863444";
   const whatsappLink = `https://wa.me/${whatsappNumber}`;
 
@@ -68,7 +72,7 @@ export default function LandingPage() {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <h1 className="text-xl font-bold text-green-800 hidden sm:block">RA Darusyifa Arjawinangun</h1>
+            <h1 className="text-xl font-bold text-green-800 hidden sm:block">{schoolName}</h1>
           </div>
           
           {/* Desktop Nav */}
@@ -105,11 +109,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 text-center lg:text-left">
             <span className="inline-block px-4 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-bold mb-6">{accreditationText}</span>
-            <h2 className="text-5xl lg:text-6xl font-extrabold text-green-900 leading-tight mb-6">
-              Membangun Generasi <span className="text-green-600">Cerdas & Berakhlak</span> Mulia
+            <h2 className="text-5xl lg:text-6xl font-extrabold text-green-900 leading-tight mb-6 whitespace-pre-line">
+              {aboutTitle}
             </h2>
-            <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              RA Darusyifa Arjawinangun hadir untuk memberikan pendidikan anak usia dini yang berkualitas dengan nilai-nilai Islami yang kuat dan menyenangkan.
+            <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed whitespace-pre-line">
+              {aboutText}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link to="/login" className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-all shadow-xl shadow-green-200">
@@ -172,15 +176,15 @@ export default function LandingPage() {
       </section>
 
       {/* Program Unggulan */}
-      <section id="program" className="py-24 px-4 bg-green-900 text-white overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-10 left-10 w-64 h-64 border-4 border-white rounded-full"></div>
-          <div className="absolute bottom-10 right-10 w-96 h-96 border-4 border-white rounded-full"></div>
+      <section id="program" className="py-24 px-4 bg-green-50 text-gray-900 overflow-hidden relative">
+        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
+          <div className="absolute top-10 left-10 w-64 h-64 border-4 border-green-600 rounded-full"></div>
+          <div className="absolute bottom-10 right-10 w-96 h-96 border-4 border-green-600 rounded-full"></div>
         </div>
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold mb-4">Program Kurikulum RA</h3>
-            <p className="text-green-200">Keunggulan pendidikan yang kami tawarkan untuk masa depan buah hati Anda.</p>
+            <h3 className="text-3xl font-bold mb-4 text-green-900">Program Kurikulum RA</h3>
+            <p className="text-green-700">Keunggulan pendidikan yang kami tawarkan untuk masa depan buah hati Anda.</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
@@ -189,10 +193,10 @@ export default function LandingPage() {
               { icon: <Users />, title: "Pembiasaan Ibadah", desc: "Praktik ibadah harian, doa, dan hafalan surat-surat pendek Al-Qur'an." },
               { icon: <Shield />, title: "Ruang Ber-AC & CCTV", desc: "Kelas nyaman ber-AC dengan sistem CCTV untuk keamanan dan kenyamanan belajar anak." }
             ].map((item, i) => (
-              <div key={i} className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl border border-white/20 hover:bg-white/20 transition-all group">
-                <div className="text-green-400 mb-6 group-hover:scale-110 transition-transform">{item.icon}</div>
-                <h5 className="text-xl font-bold mb-3">{item.title}</h5>
-                <p className="text-green-100 text-sm leading-relaxed">{item.desc}</p>
+              <div key={i} className="bg-white p-8 rounded-2xl border border-green-100 hover:shadow-xl transition-all group shadow-sm">
+                <div className="text-green-600 mb-6 group-hover:scale-110 transition-transform">{item.icon}</div>
+                <h5 className="text-xl font-bold mb-3 text-green-800">{item.title}</h5>
+                <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -223,11 +227,11 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16 px-4">
+      <footer className="bg-white border-t border-green-100 text-gray-800 py-16 px-4">
         <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center p-1">
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center p-1 border border-green-600">
                 <img 
                   src={logoUrl} 
                   alt="Logo RA Darusyifa" 
@@ -236,48 +240,48 @@ export default function LandingPage() {
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <h4 className="text-xl font-bold text-green-400">RA Darusyifa Arjawinangun</h4>
+              <h4 className="text-xl font-bold text-green-700">RA Darusyifa Arjawinangun</h4>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            <p className="text-gray-600 text-sm leading-relaxed mb-6">
               Membangun generasi cerdas, berakhlak mulia, dan berwawasan islami melalui pendidikan anak usia dini yang berkualitas.
             </p>
-            <div className="space-y-3 text-sm text-gray-400">
+            <div className="space-y-3 text-sm text-gray-500">
               <p className="flex items-start gap-3">
-                <MapPin className="text-green-500 shrink-0" size={18} />
-                <span>Jl. Raya Arjawinangun No. 123, Cirebon, Jawa Barat.</span>
+                <MapPin className="text-green-600 shrink-0" size={18} />
+                <span>{address}</span>
               </p>
               <p className="flex items-center gap-3">
-                <MessageCircle className="text-green-500 shrink-0" size={18} />
-                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">{whatsappNumber}</a>
+                <MessageCircle className="text-green-600 shrink-0" size={18} />
+                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:text-green-600 transition-colors">{whatsappNumber}</a>
               </p>
             </div>
           </div>
           <div>
-            <h4 className="text-lg font-bold text-white mb-6">Tautan Cepat</h4>
-            <ul className="space-y-3 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-green-400 transition-colors">Beranda</a></li>
-              <li><a href="#profil" className="hover:text-green-400 transition-colors">Profil Sekolah</a></li>
-              <li><a href="#program" className="hover:text-green-400 transition-colors">Program Kurikulum</a></li>
-              <li><a href="#galeri" className="hover:text-green-400 transition-colors">Galeri Kegiatan</a></li>
-              <li><a href="https://share.google/fSo0QoTWvc8t6csYc" target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors flex items-center gap-2"><MapPin size={14} /> Lokasi Google Maps</a></li>
+            <h4 className="text-lg font-bold text-green-800 mb-6">Tautan Cepat</h4>
+            <ul className="space-y-3 text-sm text-gray-500">
+              <li><a href="#" className="hover:text-green-600 transition-colors">Beranda</a></li>
+              <li><a href="#profil" className="hover:text-green-600 transition-colors">Profil Sekolah</a></li>
+              <li><a href="#program" className="hover:text-green-600 transition-colors">Program Kurikulum</a></li>
+              <li><a href="#galeri" className="hover:text-green-600 transition-colors">Galeri Kegiatan</a></li>
+              <li><a href="https://share.google/fSo0QoTWvc8t6csYc" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 transition-colors flex items-center gap-2"><MapPin size={14} /> Lokasi Google Maps</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-lg font-bold text-white mb-6">Media Sosial</h4>
+            <h4 className="text-lg font-bold text-green-800 mb-6">Media Sosial</h4>
             <div className="flex gap-4 mb-8">
-              <a href="https://web.facebook.com/radarusyifa.arjawinangun.5?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-green-600 transition-all cursor-pointer">FB</a>
-              <a href="https://www.instagram.com/ra.darusyifa.arjawinangun/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-green-600 transition-all cursor-pointer">IG</a>
-              <a href="https://www.tiktok.com/@ra.darusyifaarjawinangun" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-green-600 transition-all cursor-pointer">TK</a>
+              <a href="https://web.facebook.com/radarusyifa.arjawinangun.5?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600 hover:bg-green-600 hover:text-white transition-all cursor-pointer border border-green-200">FB</a>
+              <a href="https://www.instagram.com/ra.darusyifa.arjawinangun/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600 hover:bg-green-600 hover:text-white transition-all cursor-pointer border border-green-200">IG</a>
+              <a href="https://www.tiktok.com/@ra.darusyifaarjawinangun" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600 hover:bg-green-600 hover:text-white transition-all cursor-pointer border border-green-200">TK</a>
             </div>
-            <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
-              <p className="text-sm font-bold mb-2">Butuh Bantuan?</p>
-              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-block bg-green-600 text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-green-700 transition-all">
+            <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+              <p className="text-sm font-bold text-green-800 mb-2">Butuh Bantuan?</p>
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-block bg-green-600 text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-green-700 transition-all shadow-md shadow-green-100">
                 Chat WhatsApp
               </a>
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/10 text-center text-gray-500 text-xs">
+        <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-green-100 text-center text-gray-400 text-xs">
           &copy; 2024 RA Darusyifa Arjawinangun. All rights reserved.
         </div>
       </footer>

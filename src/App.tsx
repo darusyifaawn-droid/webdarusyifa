@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import DashboardSiswa from './components/DashboardSiswa';
 import DashboardGuru from './components/DashboardGuru';
@@ -17,7 +16,7 @@ export default function App() {
     <ErrorBoundary>
       <Router>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/siswa-dashboard" element={<DashboardSiswa />} />
           <Route path="/guru-dashboard" element={<DashboardGuru />} />

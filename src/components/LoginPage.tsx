@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { LogIn, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
@@ -10,7 +10,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
+      if (snap.exists()) {
+        setLogoUrl(snap.data().logoUrl);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,14 +98,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-green-50 px-4 relative">
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-green-700 font-bold hover:text-green-800 transition-colors bg-white px-4 py-2 rounded-full shadow-sm">
-        <ArrowLeft size={20} /> Kembali ke Beranda
-      </Link>
-      
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-green-100 mt-16 sm:mt-0">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4 relative">
+      <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-100">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-green-200">RA</div>
+          {logoUrl ? (
+            <div className="w-24 h-24 mx-auto mb-4 overflow-hidden rounded-2xl border-2 border-green-600 p-1 bg-white">
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-green-200">RA</div>
+          )}
           <h2 className="text-2xl font-bold text-gray-800">Portal Darusyifa</h2>
           <p className="text-gray-500 text-sm">Silakan masuk untuk mengakses dashboard Anda</p>
         </div>
@@ -161,22 +173,6 @@ export default function LoginPage() {
             {loading ? 'Memproses...' : <><LogIn size={20} /> Masuk Portal</>}
           </button>
         </form>
-
-        {/* Temporary bypass for Super Admin since Email/Password is disabled in Firebase */}
-        <button
-          onClick={async () => {
-            try {
-              const { signInAnonymously } = await import('firebase/auth');
-              const userCredential = await signInAnonymously(auth);
-              await handleUserRedirect(userCredential.user.uid, 'darusyifa.awn@gmail.com');
-            } catch (err: any) {
-              setError('Gagal login darurat: ' + err.message);
-            }
-          }}
-          className="w-full mt-4 bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2"
-        >
-          <Lock size={20} /> Login Darurat Admin
-        </button>
 
         <p className="mt-8 text-center text-xs text-gray-400">
           Hanya pengguna yang terdaftar oleh Admin yang dapat masuk.
