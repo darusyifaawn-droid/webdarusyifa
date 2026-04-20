@@ -5,7 +5,7 @@ import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, Credi
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 export default function DashboardSiswa() {
   const [user, setUser] = useState<any>(null);
@@ -380,21 +380,36 @@ export default function DashboardSiswa() {
 
   const NavItems = () => (
     <nav className="space-y-2 flex-1">
-      {[
-        { id: 'overview', label: 'Beranda', icon: Calendar },
-        { id: 'progress', label: 'Laporan Belajar', icon: BookOpen },
-        { id: 'finance', label: 'Administrasi', icon: CreditCard },
-        { id: 'announcements', label: 'Info Sekolah', icon: Bell },
-      ].map((item) => (
-        <button 
-          key={item.id}
-          onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-          className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold text-sm ${activeTab === item.id ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'hover:bg-gray-50 text-gray-500'}`}
-        >
-          <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'text-gray-400'} />
-          {item.label}
-        </button>
-      ))}
+      <button 
+        onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'overview' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Calendar size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-400'} /> Beranda
+      </button>
+      <button 
+        onClick={() => { setActiveTab('progress'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'progress' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
+      </button>
+      <button 
+        onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'finance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <CreditCard size={20} className={activeTab === 'finance' ? 'text-white' : 'text-gray-400'} /> Administrasi
+      </button>
+      <button 
+        onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Bell size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-400'} /> Info Sekolah
+      </button>
+      <button 
+        onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-400'} /> Profil Saya
+      </button>
     </nav>
   );
 
@@ -445,166 +460,173 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 flex justify-around items-center p-3 z-50 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.05)] rounded-t-[32px]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-gray-100 flex justify-around items-center p-3 z-50 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem]">
         {[
           { id: 'overview', icon: Calendar, label: 'Beranda' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
           { id: 'finance', icon: CreditCard, label: 'Biaya' },
           { id: 'announcements', icon: Bell, label: 'Info' },
+          { id: 'profile', icon: User, label: 'Profil' },
         ].map(item => (
           <button 
             key={item.id}
             onClick={() => setActiveTab(item.id)} 
-            className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all ${activeTab === item.id ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1.5 p-1 transition-all ${activeTab === item.id ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-green-600 text-white shadow-lg shadow-green-200' : ''}`}>
+            <div className={`p-2.5 rounded-2xl transition-all ${activeTab === item.id ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'hover:bg-gray-50'}`}>
               <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
             </div>
-            <span className={`text-[9px] font-bold uppercase tracking-wider ${activeTab === item.id ? 'opacity-100' : 'opacity-0'}`}>{item.label}</span>
+            <span className={`text-[8px] font-black uppercase tracking-[1px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
           </button>
         ))}
       </div>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 overflow-hidden border-2 border-white shadow-lg">
-                {userData?.photoURL ? (
-                  <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={32} />
-                )}
-              </div>
-              <button 
-                onClick={() => setIsEditingProfile(true)}
-                className="absolute -bottom-1 -right-1 bg-white p-1.5 rounded-lg shadow-md text-gray-500 hover:text-green-600 transition-colors border border-gray-100"
-              >
-                <Edit size={14} />
-              </button>
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Halo, {userData?.name}!</h2>
-              <p className="text-gray-500 text-sm">Selamat datang di portal belajar RA Darusyifa.</p>
-            </div>
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Halo, {userData?.name || 'Siswa'}!</h2>
+            <p className="text-gray-500 text-sm">Selamat datang kembali di portal belajar Anda.</p>
           </div>
-          <button 
-            onClick={startCamera}
-            className="w-full sm:w-auto bg-green-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-green-700 transition-all shadow-xl shadow-green-100"
-          >
-            <Camera size={24} /> Absen Sekarang
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <button 
+              onClick={startCamera}
+              className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
+            >
+              <Camera size={20} /> Absen Sekarang
+            </button>
+            <button 
+              onClick={() => setActiveTab('progress')}
+              className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+            >
+              <BookOpen size={20} /> Lihat Laporan
+            </button>
+          </div>
         </header>
 
         {activeTab === 'overview' && (
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Stats */}
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                  <div className="text-blue-500 mb-2"><CheckCircle size={20} /></div>
-                  <p className="text-gray-500 text-xs font-bold uppercase">Hadir</p>
-                  <h4 className="text-2xl font-bold text-gray-800">{attendance.length} Hari</h4>
+          <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Kehadiran', value: attendance.length, color: 'bg-blue-500', icon: CheckCircle },
+                { label: 'Laporan Belajar', value: progress.length, color: 'bg-green-500', icon: BookOpen },
+                { label: 'Tabungan', value: `Rp ${(userData?.savings || 0).toLocaleString()}`, color: 'bg-orange-500', icon: CreditCard },
+                { label: 'Info Terbaru', value: announcements.length, color: 'bg-purple-500', icon: Bell },
+              ].map((stat, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center group hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                  <div className={`w-14 h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-4 group-hover:scale-110 transition-transform`}>
+                    <stat.icon size={28} />
+                  </div>
+                  <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                  <h4 className="text-lg font-black text-gray-800 tracking-tight">{stat.value}</h4>
                 </div>
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                  <div className="text-purple-500 mb-2"><BookOpen size={20} /></div>
-                  <p className="text-gray-500 text-xs font-bold uppercase">Materi</p>
-                  <h4 className="text-2xl font-bold text-gray-800">{progress.length} Laporan</h4>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+              <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex justify-between items-center mb-10">
+                  <h3 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                    <TrendingUp size={24} className="text-blue-500" /> Perkembangan Nilai
+                  </h3>
+                  <div className="flex gap-2">
+                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-bold uppercase text-gray-400">Statistik Belajar</span>
+                  </div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                  <div className="text-yellow-500 mb-2"><CreditCard size={20} /></div>
-                  <p className="text-gray-500 text-xs font-bold uppercase">Tabungan</p>
-                  <h4 className="text-2xl font-bold text-gray-800">Rp {(userData?.savings || 0).toLocaleString()}</h4>
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[...progress].reverse()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="date" fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+                      <YAxis fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} domain={[0, 100]} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px'}} />
+                      <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={5} dot={{r: 6, fill: '#3b82f6', strokeWidth: 3, stroke: '#fff'}} activeDot={{r: 8, strokeWidth: 0}} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-[300px]">
-                  <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                    <TrendingUp size={16} className="text-blue-600" /> Perkembangan Belajar
-                  </h3>
-                  <div className="h-[220px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={[...progress].reverse()}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                        <XAxis 
-                          dataKey="date" 
-                          fontSize={9} 
-                          tick={{fill: '#94a3b8'}} 
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis 
-                          fontSize={9} 
-                          tick={{fill: '#94a3b8'}} 
-                          domain={[0, 100]}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip 
-                          contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px'}}
-                        />
-                        <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                <h3 className="text-xl font-black text-gray-800 mb-10 flex items-center gap-3">
+                  <BarChartIcon size={24} className="text-purple-500" /> Status Kelulusan
+                </h3>
+                <div className="flex-1 min-h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Lulus', value: progress.filter(p => p.status === 'Lulus').length },
+                          { name: 'Ulang', value: progress.filter(p => p.status === 'Mengulang').length },
+                          { name: 'Belum', value: progress.filter(p => p.status === 'Belum Lulus').length },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={85}
+                        paddingAngle={8}
+                        dataKey="value"
+                      >
+                        <Cell fill="#10b981" />
+                        <Cell fill="#ef4444" />
+                        <Cell fill="#f59e0b" />
+                      </Pie>
+                      <Tooltip contentStyle={{borderRadius: '20px', border: 'none'}} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-[300px]">
-                  <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2 uppercase tracking-wide">
-                    <BarChartIcon size={16} className="text-green-600" /> Penguasaan Materi
-                  </h3>
-                  <div className="h-[220px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        { name: 'Lulus', count: progress.filter(p => p.status === 'Lulus').length },
-                        { name: 'Ulang', count: progress.filter(p => p.status === 'Mengulang').length },
-                        { name: 'Lanjut', count: progress.filter(p => p.status === 'Lanjut Perkembangan Lain').length },
-                      ]}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                        <XAxis dataKey="name" fontSize={9} tick={{fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                        <YAxis fontSize={9} tick={{fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          cursor={{fill: 'transparent'}}
-                          contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px'}}
-                        />
-                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                          {['Lulus', 'Ulang', 'Lanjut'].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : index === 1 ? '#ef4444' : '#8b5cf6'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                <div className="space-y-3 mt-6">
+                  {[
+                    { label: 'Lulus', color: 'bg-green-500', count: progress.filter(p => p.status === 'Lulus').length },
+                    { label: 'Ulang', color: 'bg-red-500', count: progress.filter(p => p.status === 'Mengulang').length },
+                    { label: 'Belum', color: 'bg-yellow-500', count: progress.filter(p => p.status === 'Belum Lulus').length },
+                  ].map(l => (
+                    <div key={l.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 ${l.color} rounded-full shadow-sm`}></div>
+                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider text-[10px]">{l.label}</span>
+                      </div>
+                      <span className="text-sm font-black text-gray-800">{l.count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
+            </div>
 
-              {/* Recent Attendance */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="text-lg font-bold text-gray-800">Riwayat Absensi</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Riwayat Absensi Terakhir</h3>
+                  <button onClick={() => setActiveTab('attendance')} className="text-xs font-bold text-green-600 hover:text-green-700">Lihat Semua</button>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {attendance.slice(0, 5).map((a) => (
                     <div key={a.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-4">
                         {a.photo ? (
-                          <img src={a.photo} alt="Absensi" className="w-10 h-10 rounded-xl object-cover cursor-pointer hover:opacity-80" onClick={() => setSelectedPhoto(a.photo)} />
+                          <div className="relative">
+                            <img src={a.photo} alt="Absensi" className="w-12 h-12 rounded-2xl object-cover cursor-pointer hover:opacity-80 ring-2 ring-gray-50" onClick={() => setSelectedPhoto(a.photo)} />
+                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${a.status === 'Hadir' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          </div>
                         ) : (
-                          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-                            <Clock size={20} />
+                          <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                            <Clock size={24} />
                           </div>
                         )}
                         <div>
-                          <p className="font-bold text-gray-800">{a.date}</p>
-                          <p className="text-xs text-gray-400">Jam: {a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : '-'}</p>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                            <span className="text-[10px] font-bold text-gray-400">{a.date}</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">{a.timestamp?.toDate ? a.timestamp.toDate().toLocaleTimeString('id-ID') : '00:00'}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-bold uppercase">Hadir</span>
+                      <div className="flex items-center gap-2">
+                        {a.location && a.location.latitude !== 0 && (
+                          <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all">
+                            <MapPin size={18} />
+                          </a>
+                        )}
                         <button onClick={async () => {
                           if(window.confirm('Hapus riwayat absensi ini?')) {
                             try {
@@ -618,65 +640,86 @@ export default function DashboardSiswa() {
                       </div>
                     </div>
                   ))}
-                  {attendance.length === 0 && (
-                    <div className="p-10 text-center text-gray-400">Belum ada riwayat absensi.</div>
-                  )}
+                  {attendance.length === 0 && <div className="p-10 text-center text-gray-400 text-sm font-medium">Belum ada riwayat absensi.</div>}
+                </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Info Sekolah</h3>
+                  <Bell size={20} className="text-yellow-500" />
+                </div>
+                <div className="space-y-6">
+                  {announcements.slice(0, 4).map((item) => (
+                    <div key={item.id} className="group cursor-pointer">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">{item.date}</p>
+                      <h4 className="text-sm font-bold text-gray-700 group-hover:text-green-600 transition-colors">{item.title}</h4>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.content}</p>
+                    </div>
+                  ))}
+                  {announcements.length === 0 && <p className="text-center text-gray-400 text-sm py-10">Belum ada info terbaru.</p>}
+                  <button onClick={() => setActiveTab('announcements')} className="w-full py-3 text-sm font-bold text-green-600 hover:bg-green-50 rounded-xl transition-all border border-dashed border-green-200 mt-4">
+                    Lihat Semua Info
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-8">
-              {/* Announcements */}
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                  <Bell size={20} className="text-yellow-500" /> Pengumuman
-                </h3>
-                <div className="space-y-4">
-                  {announcements.slice(0, 3).map(a => (
-                    <div key={a.id} className="p-4 bg-yellow-50 rounded-2xl border border-yellow-100">
-                      <h4 className="font-bold text-yellow-900 text-sm">{a.title}</h4>
-                      <p className="text-yellow-800 text-xs mt-1 line-clamp-2">{a.content}</p>
+            {/* Account Info (Savings/Arrears) */}
+            <div className="bg-emerald-900 text-white rounded-[2.5rem] p-10 shadow-xl shadow-green-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+              
+              <div className="relative z-10 grid md:grid-cols-2 gap-10">
+                <div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-white/10 rounded-2xl">
+                      <CreditCard size={24} className="text-emerald-300" />
                     </div>
-                  ))}
-                  {announcements.length === 0 && (
-                    <p className="text-center text-gray-400 text-sm py-4">Tidak ada pengumuman baru.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Finance Card */}
-              <div className="bg-green-900 text-white rounded-3xl p-8 shadow-xl shadow-green-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                <h3 className="text-lg font-bold mb-6">Informasi Keuangan</h3>
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-green-300 text-xs uppercase font-bold mb-1">Total Tabungan</p>
-                    <p className="text-3xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
+                    <div>
+                      <h3 className="text-lg font-bold">Status Keuangan</h3>
+                      <p className="text-emerald-300 text-xs">Informasi tabungan & administrasi</p>
+                    </div>
                   </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <p className="text-red-300 text-xs uppercase font-bold mb-1">Tunggakan</p>
-                    <p className="text-xl font-bold mb-3">Rp {(userData?.arrears || 0).toLocaleString()}</p>
-                    
-                    {/* Rincian Tunggakan */}
-                    {userData?.arrears_details && userData.arrears_details.length > 0 && (
-                      <div className="bg-white/10 rounded-xl p-4 mt-2">
-                        <p className="text-xs font-bold text-green-200 mb-2 uppercase">Rincian Tunggakan:</p>
-                        <ul className="space-y-2">
-                          {userData.arrears_details.map((detail: any, index: number) => (
-                            <li key={index} className="flex justify-between items-center text-sm border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                              <div>
-                                <span className="block font-medium">{detail.name}</span>
-                                <span className="text-[10px] text-green-300">{detail.date}</span>
-                              </div>
-                              <span className="font-bold text-red-300">Rp {detail.amount.toLocaleString()}</span>
-                            </li>
-                          ))}
-                        </ul>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-emerald-300 text-xs uppercase font-bold tracking-widest mb-1 opacity-70">Total Tabungan Anda</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-bold text-emerald-300">Rp</span>
+                        <span className="text-4xl font-black">{(userData?.savings || 0).toLocaleString()}</span>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="p-6 bg-white/10 rounded-3xl backdrop-blur-sm border border-white/5">
+                      <p className="text-red-300 text-[10px] uppercase font-black tracking-widest mb-2">Total Tunggakan</p>
+                      <p className="text-2xl font-black text-red-400">Rp {(userData?.arrears || 0).toLocaleString()}</p>
+                      {userData?.arrears > 0 && (
+                        <p className="text-[10px] text-red-200 mt-2">Mohon segera selesaikan administrasi Anda.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {userData?.arrears_details && userData.arrears_details.length > 0 && (
+                  <div className="bg-black/20 rounded-[2rem] p-8">
+                    <h4 className="text-sm font-bold text-emerald-100 mb-6 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                      Rincian Tunggakan
+                    </h4>
+                    <ul className="space-y-4 max-h-[240px] overflow-y-auto custom-scrollbar pr-2">
+                      {userData.arrears_details.map((detail: any, index: number) => (
+                        <li key={index} className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+                          <div>
+                            <span className="block font-bold text-sm">{detail.name}</span>
+                            <span className="text-[10px] text-emerald-300/60">{detail.date}</span>
+                          </div>
+                          <span className="font-black text-red-300 text-sm">Rp {detail.amount.toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -821,42 +864,70 @@ export default function DashboardSiswa() {
           </div>
         )}
 
-        {/* Profile Modal */}
-        {isEditingProfile && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
-              <button onClick={() => setIsEditingProfile(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6 font-display uppercase tracking-tight">Edit Profil</h3>
-              <form onSubmit={handleUpdateProfile} className="space-y-6">
-                <div className="flex flex-col items-center gap-4 mb-6">
-                  <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 overflow-hidden border-2 border-dashed border-gray-300 relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+        {activeTab === 'profile' && (
+          <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8 max-w-2xl mx-auto md:mx-0 animate-in slide-in-from-bottom duration-500">
+            <h3 className="text-2xl font-black text-gray-800 mb-10 tracking-tight">Pengaturan Profil Siswa</h3>
+            <form onSubmit={handleUpdateProfile} className="space-y-8">
+              <div className="flex flex-col items-center gap-6 bg-gray-50 p-10 rounded-[48px] border border-gray-100">
+                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                  <div className="w-40 h-40 rounded-[48px] bg-white overflow-hidden border-4 border-white shadow-2xl transition-transform hover:scale-105">
                     {editPhoto ? (
-                      <img src={editPhoto} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={editPhoto} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="flex flex-col items-center gap-1">
-                        <Camera size={24} />
-                        <span className="text-[10px] uppercase font-bold">Upload</span>
+                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                        <User size={80} />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Edit size={20} />
-                    </div>
                   </div>
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                  <p className="text-[10px] text-gray-400 uppercase font-bold text-center">Klik kotak di atas untuk ganti foto dari file</p>
+                  <div className="absolute inset-0 bg-black/40 rounded-[48px] flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera size={40} />
+                  </div>
                 </div>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                <div className="text-center">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[10px] font-black text-green-600 uppercase tracking-[2px] hover:underline">Ganti Foto Profil</button>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 tracking-widest leading-relaxed">RA Darusyifa - Portal Siswa</p>
+                </div>
+              </div>
 
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 tracking-widest">Nama Lengkap</label>
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-800" required />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-2 ml-1">Nama Lengkap Siswa</label>
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={(e) => setEditName(e.target.value)} 
+                    className="w-full p-5 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all font-bold text-gray-800" 
+                    placeholder="Masukkan nama lengkap..."
+                  />
                 </div>
-                
-                <div className="flex gap-4 pt-2">
-                  <button type="button" onClick={() => { setEditPhoto(''); }} className="flex-1 px-4 py-4 border border-red-100 text-red-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-red-50 transition-colors">Hapus Foto</button>
-                  <button type="submit" className="flex-1 px-4 py-4 bg-green-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-green-700 shadow-xl shadow-green-100 transition-all">Simpan</button>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-2 ml-1">Email / Username</label>
+                  <input 
+                    type="text" 
+                    value={user?.email} 
+                    readOnly 
+                    className="w-full p-5 bg-gray-100 border border-gray-100 rounded-3xl text-gray-400 font-bold cursor-not-allowed" 
+                  />
                 </div>
-              </form>
-            </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  type="button" 
+                  onClick={() => { setEditPhoto(''); }} 
+                  className="flex-1 px-4 py-5 border-2 border-red-50 text-red-600 rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95"
+                >
+                  Hapus Foto
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-[2] bg-green-600 text-white p-5 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-green-700 shadow-xl shadow-green-100 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <CheckCircle size={20} /> Simpan Profil
+                </button>
+              </div>
+            </form>
           </div>
         )}
 

@@ -15,6 +15,7 @@ export default function DashboardAdmin() {
   const [userData, setUserData] = useState<any>(null);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({ galleryImages: [], logoUrl: '', heroImageUrl: '' });
   const [showAddUser, setShowAddUser] = useState(false);
@@ -268,6 +269,14 @@ export default function DashboardAdmin() {
       }
     });
 
+    const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error fetching payments:", error);
+      }
+    });
+
     const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (docSnap) => {
       if (docSnap.exists()) {
         setSettings(docSnap.data());
@@ -284,6 +293,7 @@ export default function DashboardAdmin() {
       unsubUsers();
       unsubAttendance();
       unsubAnnounce();
+      unsubPayments();
       unsubSettings();
     };
   }, [user]);
@@ -772,6 +782,35 @@ export default function DashboardAdmin() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'settings/landingPage');
     }
+  };
+
+  const getMonthlyFinanceData = () => {
+    const months: { [key: string]: { month: string, savings: number, arrears: number } } = {};
+    const last6Months = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = d.toLocaleString('id-ID', { month: 'short', year: '2-digit' });
+      months[key] = { month: monthLabel, savings: 0, arrears: 0 };
+      last6Months.push(key);
+    }
+
+    payments.forEach(p => {
+      if (!p.date) return;
+      const [year, month] = p.date.split('-');
+      const key = `${year}-${month}`;
+      if (months[key]) {
+        if (p.type === 'tabungan' || p.type === 'savings') {
+          months[key].savings += p.amount || 0;
+        } else if (p.type === 'iuran' || p.type === 'arrears') {
+          months[key].arrears += p.amount || 0;
+        }
+      }
+    });
+
+    return last6Months.map(key => months[key]);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
@@ -1320,6 +1359,52 @@ export default function DashboardAdmin() {
                 >
                   <Plus size={18} /> Penetapan Iuran
                 </button>
+              </div>
+            </div>
+
+            {/* Visual Summary Chart */}
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h4 className="text-xl font-black text-gray-800 tracking-tight">Ringkasan Keuangan</h4>
+                  <p className="text-xs text-gray-400 font-bold uppercase mt-1">Total Tabungan vs Pelunasan Iuran (6 Bulan Terakhir)</p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">Tabungan</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">Iuran</span>
+                  </div>
+                </div>
+              </div>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ReBarChart data={getMonthlyFinanceData()}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }}
+                      tickFormatter={(value) => `Rp${(value / 1000).toLocaleString()}k`}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }}
+                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px' }}
+                      formatter={(value: any) => [`Rp ${value.toLocaleString()}`, '']}
+                    />
+                    <Bar dataKey="savings" fill="#10b981" radius={[6, 6, 0, 0]} name="Tabungan" barSize={25} />
+                    <Bar dataKey="arrears" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Pelunasan Iuran" barSize={25} />
+                  </ReBarChart>
+                </ResponsiveContainer>
               </div>
             </div>
             
