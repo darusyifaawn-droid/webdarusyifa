@@ -72,6 +72,7 @@ export default function DashboardAdmin() {
 
   // Attendance Filter States
   const [filterRole, setFilterRole] = useState<'semua' | 'siswa' | 'guru'>('semua');
+  const [filterSiswaStatus, setFilterSiswaStatus] = useState<'Aktif' | 'Alumni' | 'Tidak Aktif' | 'Pindah'>('Aktif');
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
@@ -299,6 +300,7 @@ export default function DashboardAdmin() {
       if (editingUser.role === 'siswa') {
         userData.kelas = editingUser.kelas || '';
         userData.whatsapp = editingUser.whatsapp || '';
+        userData.status = editingUser.status || 'Aktif';
       }
       await updateDoc(doc(db, 'users', editingUser.id), userData);
       setShowEditUser(false);
@@ -340,6 +342,8 @@ export default function DashboardAdmin() {
 
         for (const row of data as any[]) {
           if (row.Nama && row.Email) {
+            const userPassword = row.Password || '123456';
+            const userRole = row.Role?.toLowerCase() || 'siswa';
             try {
               const q = query(collection(db, 'users'), where('email', '==', row.Email));
               const querySnapshot = await getDocs(q);
@@ -349,8 +353,13 @@ export default function DashboardAdmin() {
                 const userDoc = querySnapshot.docs[0];
                 const userData: any = {
                   name: row.Nama,
-                  role: row.Role?.toLowerCase() || 'siswa',
+                  role: userRole,
                 };
+                if (userPassword && userPassword !== '123456' && !userDoc.data().plainPassword) {
+                   userData.plainPassword = userPassword;
+                   // Note: we can't easily update auth password here without old credentials,
+                   // so we mainly rely on initial creation for password setting via excel.
+                }
                 if (userData.role === 'siswa') {
                   userData.kelas = row.Kelas || '';
                   userData.whatsapp = row.WhatsApp || '';
@@ -359,13 +368,13 @@ export default function DashboardAdmin() {
                 successCount++;
               } else {
                 // Create new user
-                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, row.Email, '123456');
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, row.Email, userPassword);
                 
                 const userData: any = {
                   name: row.Nama,
                   email: row.Email,
-                  plainPassword: '123456',
-                  role: row.Role?.toLowerCase() || 'siswa',
+                  plainPassword: userPassword,
+                  role: userRole,
                   createdAt: serverTimestamp(),
                   savings: 0,
                   arrears: 0
@@ -561,11 +570,12 @@ export default function DashboardAdmin() {
       let targetStudents = [];
       
       if (financeIuranTarget === 'all') {
-        targetStudents = allUsers.filter(u => u.role === 'siswa');
+        targetStudents = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
       } else if (financeIuranTarget.startsWith('kelas_')) {
         const targetKelas = financeIuranTarget.replace('kelas_', '').toLowerCase();
         targetStudents = allUsers.filter(u => {
           if (u.role !== 'siswa') return false;
+          if ((u.status || 'Aktif') !== 'Aktif') return false;
           const k = (u.kelas || '').toLowerCase();
           return k === targetKelas || k === `kelas ${targetKelas}` || k.includes(targetKelas);
         });
@@ -779,22 +789,37 @@ export default function DashboardAdmin() {
   const handleMutasiMassal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedStudentsForMutasi.length === 0 || !mutasiTargetClass) {
-      alert('Pilih minimal 1 siswa dan kelas tujuan!');
+      alert('Pilih minimal 1 siswa dan target mutasi!');
       return;
     }
     
-    if (!window.confirm(`Yakin ingin memutasi ${selectedStudentsForMutasi.length} siswa ke ${mutasiTargetClass === 'Lulus' ? 'Lulus/Alumni' : 'Kelas ' + mutasiTargetClass}?`)) {
+    // Konfirmasi pesan sesuai dengan target
+    let targetName = `Kelas ${mutasiTargetClass}`;
+    if (mutasiTargetClass === 'Lulus') targetName = 'Lulus/Alumni';
+    if (mutasiTargetClass === 'Tidak Aktif') targetName = 'Tidak Aktif';
+    if (mutasiTargetClass === 'Pindah') targetName = 'Pindah Sekolah';
+    if (mutasiTargetClass === 'Hapus') targetName = 'HAPUS PERMANEN (Tindakan tidak dapat dibatalkan)';
+
+    if (!window.confirm(`Yakin ingin memutasi/mengubah ${selectedStudentsForMutasi.length} siswa menjadi ${targetName}?`)) {
       return;
     }
 
     try {
       setLoading(true);
       for (const studentId of selectedStudentsForMutasi) {
-        if (mutasiTargetClass === 'Lulus') {
+        if (mutasiTargetClass === 'Hapus') {
+          // Hard delete
+          await deleteDoc(doc(db, 'users', studentId));
+        } else if (mutasiTargetClass === 'Lulus') {
           // Mutasi menjadi alumni/lulus
           await updateDoc(doc(db, 'users', studentId), {
             kelas: 'Lulus',
             status: 'Alumni',
+            updatedAt: serverTimestamp()
+          });
+        } else if (mutasiTargetClass === 'Tidak Aktif' || mutasiTargetClass === 'Pindah') {
+          await updateDoc(doc(db, 'users', studentId), {
+            status: mutasiTargetClass,
             updatedAt: serverTimestamp()
           });
         } else {
@@ -802,13 +827,13 @@ export default function DashboardAdmin() {
           const classDoc = schoolClasses.find(c => c.id === mutasiTargetClass);
           await updateDoc(doc(db, 'users', studentId), {
             kelas: classDoc?.name || '',
+            status: 'Aktif',
             updatedAt: serverTimestamp()
           });
         }
       }
       setSelectedStudentsForMutasi([]);
-      setShowMutasiModal(false);
-      alert('Mutasi siswa berhasil!');
+      alert(mutasiTargetClass === 'Hapus' ? 'Siswa berhasil dihapus secara permanen!' : 'Mutasi status siswa berhasil!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'users (mutasi)');
     } finally {
@@ -935,12 +960,6 @@ export default function DashboardAdmin() {
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
         <Megaphone size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-400'} /> Pengumuman
-      </button>
-      <button 
-        onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'settings' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Settings size={20} className={activeTab === 'settings' ? 'text-white' : 'text-gray-400'} /> Pengaturan Web
       </button>
       <button 
         onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
@@ -1083,7 +1102,7 @@ export default function DashboardAdmin() {
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {[
-                  { label: 'Total Siswa', value: allUsers.filter(u => u.role === 'siswa').length, color: 'bg-blue-500', icon: Users },
+                  { label: 'Total Siswa Aktif', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, color: 'bg-blue-500', icon: Users },
                   { label: 'Total Guru', value: allUsers.filter(u => u.role === 'guru').length, color: 'bg-green-500', icon: Shield },
                   { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length, color: 'bg-purple-500', icon: CheckCircle },
                   { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard }
@@ -1214,21 +1233,8 @@ export default function DashboardAdmin() {
             <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-800">User Management</h3>
               <div className="flex items-center gap-3 w-full sm:w-auto">
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  ref={fileInputRef} 
-                  onChange={handleImportExcel} 
-                  className="hidden" 
-                />
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 sm:flex-none bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
-                >
-                  <Upload size={20} /> Import Excel
-                </button>
-                <button 
-                  onClick={() => setShowAddUser(true)}
+                  onClick={() => { setNewUserRole('siswa'); setShowAddUser(true); }}
                   className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
                 >
                   <Plus size={20} /> Tambah User
@@ -1244,6 +1250,7 @@ export default function DashboardAdmin() {
                     <th className="px-6 py-4">Password</th>
                     <th className="px-6 py-4">Kelas</th>
                     <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Aksi</th>
                   </tr>
                 </thead>
@@ -1264,6 +1271,20 @@ export default function DashboardAdmin() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        {u.role === 'siswa' ? (
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            (u.status || 'Aktif') === 'Aktif' ? 'bg-green-100 text-green-700' :
+                            u.status === 'Alumni' ? 'bg-purple-100 text-purple-700' : 
+                            u.status === 'Pindah' ? 'bg-orange-100 text-orange-700' : 
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {u.status || 'Aktif'}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex gap-3">
                           <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="text-gray-400 hover:text-yellow-600 transition-colors" title="Reset Password"><Key size={18} /></button>
                           <button onClick={() => { setEditingUser(u); setShowEditUser(true); }} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit size={18} /></button>
@@ -1280,6 +1301,50 @@ export default function DashboardAdmin() {
 
         {activeTab === 'academic' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            {/* Tambah Siswa / Import Siswa Section */}
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-gray-800 tracking-tight">Data Siswa Aktif</h3>
+                  <p className="text-xs text-gray-400 font-bold mt-1">Tambah siswa baru atau import dari Excel (Username, Password, Kelas).</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-nowrap items-center gap-3 w-full lg:w-auto">
+                  <input 
+                    type="file" 
+                    accept=".xlsx, .xls" 
+                    ref={fileInputRef} 
+                    onChange={handleImportExcel} 
+                    className="hidden" 
+                  />
+                  <button 
+                    onClick={() => {
+                        const ws = XLSX.utils.json_to_sheet([
+                            { Nama: "Contoh Siswa", Email: "siswa1@ra.com", Password: "password123", Kelas: "KELAS A" }
+                        ]);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "FormatSiswa");
+                        XLSX.writeFile(wb, "Format_Import_Siswa.xlsx");
+                    }}
+                    className="w-full text-gray-500 hover:text-green-600 bg-gray-50 hover:bg-green-50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-xs border border-gray-200"
+                  >
+                    <Download size={16} /> Download Format Excel
+                  </button>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-blue-50 text-blue-600 border border-blue-100 hover:border-blue-300 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-all text-xs"
+                  >
+                    <Upload size={16} /> Import Siswa via Excel
+                  </button>
+                  <button 
+                    onClick={() => { setNewUserRole('siswa'); setShowAddUser(true); }}
+                    className="w-full sm:col-span-2 lg:col-span-1 bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-xs shadow-lg shadow-green-100"
+                  >
+                    <Plus size={16} /> Tambah Siswa (Manual)
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Class Categories Manager */}
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden p-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -1313,28 +1378,44 @@ export default function DashboardAdmin() {
 
             {/* Mutasi & Rapot Table */}
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
+              <div className="p-8 border-b border-gray-50 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-gray-50/30">
                 <div>
                   <h3 className="text-xl font-black text-gray-800 tracking-tight">Akademik & Rapot Siswa</h3>
                   <p className="text-xs text-gray-400 font-bold mt-1">Pilih siswa untuk mutasi (kenaikan/kelulusan) atau cetak Rapot.</p>
                 </div>
-                {selectedStudentsForMutasi.length > 0 && (
-                  <div className="flex gap-3 items-center w-full sm:w-auto bg-blue-50 p-3 rounded-2xl border border-blue-100">
-                    <span className="text-xs font-bold text-blue-600 uppercase tracking-widest px-2">{selectedStudentsForMutasi.length} Dipilih</span>
-                    <select 
-                      value={mutasiTargetClass} 
-                      onChange={(e) => setMutasiTargetClass(e.target.value)} 
-                      className="text-xs p-2 rounded-xl border border-blue-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
-                    >
-                      <option value="">-- Pilih Tujuan --</option>
-                      {schoolClasses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                      <option value="Lulus">LULUS / ALUMNI</option>
-                    </select>
-                    <button onClick={handleMutasiMassal} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md">Eksekusi Mutasi</button>
-                  </div>
-                )}
+                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                  <select
+                    value={filterSiswaStatus}
+                    onChange={(e) => setFilterSiswaStatus(e.target.value as any)}
+                    className="text-xs p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600 bg-white"
+                  >
+                    <option value="Aktif">Tampilkan: Siswa Aktif</option>
+                    <option value="Alumni">Tampilkan: Alumni / Lulus</option>
+                    <option value="Pindah">Tampilkan: Pindah Sekolah</option>
+                    <option value="Tidak Aktif">Tampilkan: Tidak Aktif</option>
+                  </select>
+
+                  {selectedStudentsForMutasi.length > 0 && (
+                    <div className="flex gap-3 items-center w-full sm:w-auto bg-blue-50 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-blue-100">
+                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest px-2">{selectedStudentsForMutasi.length} Dipilih</span>
+                      <select 
+                        value={mutasiTargetClass} 
+                        onChange={(e) => setMutasiTargetClass(e.target.value)} 
+                        className="text-xs p-2 rounded-xl border border-blue-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 bg-white"
+                      >
+                        <option value="">-- Pilih Tujuan --</option>
+                        {schoolClasses.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                        <option value="Lulus">LULUS / ALUMNI</option>
+                        <option value="Pindah">PINDAH SEKOLAH</option>
+                        <option value="Tidak Aktif">TIDAK AKTIF</option>
+                        <option value="Hapus">HAPUS PERMANEN</option>
+                      </select>
+                      <button onClick={handleMutasiMassal} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md whitespace-nowrap">Eksekusi Mutasi</button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -1344,10 +1425,11 @@ export default function DashboardAdmin() {
                         <input 
                           type="checkbox" 
                           onChange={(e) => {
-                            if(e.target.checked) setSelectedStudentsForMutasi(allUsers.filter(u => u.role === 'siswa').map(u => u.id));
+                            const filtered = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus);
+                            if(e.target.checked) setSelectedStudentsForMutasi(filtered.map(u => u.id));
                             else setSelectedStudentsForMutasi([]);
                           }} 
-                          checked={selectedStudentsForMutasi.length === allUsers.filter(u => u.role === 'siswa').length && allUsers.filter(u => u.role === 'siswa').length > 0}
+                          checked={selectedStudentsForMutasi.length > 0 && selectedStudentsForMutasi.length === allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length}
                           className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
                         />
                       </th>
@@ -1358,7 +1440,7 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {allUsers.filter(u => u.role === 'siswa').map(student => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).map(student => (
                       <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <input 
@@ -1374,7 +1456,12 @@ export default function DashboardAdmin() {
                         <td className="px-6 py-4 font-bold text-gray-800">{student.name}</td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-500 uppercase tracking-widest">{student.kelas || 'Belum Ditentukan'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${student.status === 'Alumni' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            (student.status || 'Aktif') === 'Aktif' ? 'bg-green-100 text-green-700' :
+                            student.status === 'Alumni' ? 'bg-purple-100 text-purple-700' : 
+                            student.status === 'Pindah' ? 'bg-orange-100 text-orange-700' : 
+                            'bg-gray-100 text-gray-700'
+                          }`}>
                             {student.status || 'Aktif'}
                           </span>
                         </td>
@@ -1388,8 +1475,8 @@ export default function DashboardAdmin() {
                         </td>
                       </tr>
                     ))}
-                    {allUsers.filter(u => u.role === 'siswa').length === 0 && (
-                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">Brak data siswa ditemukan.</td></tr>
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">Data siswa dengan status tersebut belum tersedia.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1680,7 +1767,7 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allUsers.filter(u => u.role === 'siswa').map((u) => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
@@ -1750,111 +1837,7 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 max-w-4xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-8 flex items-center gap-2">
-              <Settings size={22} className="text-green-600" /> Editor Konten Website
-            </h3>
-            <form onSubmit={handleUpdateSettings} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Nama Sekolah</label>
-                  <input 
-                    type="text" 
-                    value={settings.schoolName || ''} 
-                    onChange={(e) => setSettings({...settings, schoolName: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                    placeholder="RA Darusyifa Arjawinangun"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Teks Akreditasi</label>
-                  <input 
-                    type="text" 
-                    value={settings.accreditationText || ''} 
-                    onChange={(e) => setSettings({...settings, accreditationText: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                    placeholder="Terakreditasi B"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Nomor WhatsApp (62...)</label>
-                  <input 
-                    type="text" 
-                    value={settings.whatsappNumber || ''} 
-                    onChange={(e) => setSettings({...settings, whatsappNumber: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Judul Tentang Kami</label>
-                  <input 
-                    type="text" 
-                    value={settings.aboutTitle || ''} 
-                    onChange={(e) => setSettings({...settings, aboutTitle: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Konten Tentang Kami</label>
-                <textarea 
-                  value={settings.aboutText || ''} 
-                  onChange={(e) => setSettings({...settings, aboutText: e.target.value})} 
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 h-32" 
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Alamat Sekolah</label>
-                <textarea 
-                  value={settings.address || ''} 
-                  onChange={(e) => setSettings({...settings, address: e.target.value})} 
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 h-24" 
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">URL Logo Sekolah</label>
-                  <input 
-                    type="url" 
-                    value={settings.logoUrl || ''} 
-                    onChange={(e) => setSettings({...settings, logoUrl: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                  />
-                  {settings.logoUrl && <img src={settings.logoUrl} alt="Logo Preview" className="mt-2 h-16 object-contain" referrerPolicy="no-referrer" />}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">URL Gambar Hero</label>
-                  <input 
-                    type="url" 
-                    value={settings.heroImageUrl || ''} 
-                    onChange={(e) => setSettings({...settings, heroImageUrl: e.target.value})} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
-                  />
-                  {settings.heroImageUrl && <img src={settings.heroImageUrl} alt="Hero Preview" className="mt-2 h-32 rounded-lg object-cover" referrerPolicy="no-referrer" />}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">URL Foto Kegiatan (Pisahkan dengan koma)</label>
-                <textarea 
-                  value={(settings.galleryImages || []).join(',\n')} 
-                  onChange={(e) => setSettings({...settings, galleryImages: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})} 
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 h-32" 
-                />
-              </div>
-              <button type="submit" className="w-full md:w-auto px-10 py-5 bg-green-600 text-white rounded-[24px] font-bold uppercase tracking-widest hover:bg-green-700 shadow-2xl shadow-green-100 transition-all flex items-center justify-center gap-3">
-                <CheckCircle size={24} /> Simpan Perubahan Website
-              </button>
-            </form>
-          </div>
-        )}
 
         {activeTab === 'profile' && (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-8 max-w-2xl">
@@ -1931,8 +1914,22 @@ export default function DashboardAdmin() {
                 {editingUser.role === 'siswa' && (
                   <>
                     <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Status Siswa</label>
+                      <select value={editingUser.status || 'Aktif'} onChange={(e) => setEditingUser({...editingUser, status: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
+                        <option value="Aktif">Aktif</option>
+                        <option value="Tidak Aktif">Tidak Aktif</option>
+                        <option value="Pindah">Pindah Sekolah</option>
+                        <option value="Alumni">Alumni / Lulus</option>
+                      </select>
+                    </div>
+                    <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kelas</label>
-                      <input type="text" value={editingUser.kelas || ''} onChange={(e) => setEditingUser({...editingUser, kelas: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+                      <select value={editingUser.kelas || ''} onChange={(e) => setEditingUser({...editingUser, kelas: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
+                        <option value="">-- Pilih Kelas --</option>
+                        {schoolClasses.map((c: any) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">No WhatsApp</label>
@@ -1983,45 +1980,129 @@ export default function DashboardAdmin() {
         )}
 
         {showAddUser && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
-              <button onClick={() => setShowAddUser(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Tambah User Baru</h3>
-              <form onSubmit={handleAddUser} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Lengkap</label>
-                  <input type="text" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300">
+              <button 
+                onClick={() => setShowAddUser(false)} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors z-10"
+              >
+                <X size={20} />
+              </button>
+              
+              {/* Left Decoration / Hero */}
+              <div className="hidden md:flex flex-col justify-end w-1/3 bg-gradient-to-br from-green-500 to-green-700 p-8 text-white relative overflow-hidden">
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+                
+                <div className="relative z-10">
+                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md">
+                    {newUserRole === 'siswa' ? <Users size={24} className="text-white" /> : <Shield size={24} className="text-white" />}
+                  </div>
+                  <h3 className="text-2xl font-black mb-2 leading-tight">Registrasi<br/>Data Baru</h3>
+                  <p className="text-sm font-medium text-green-50 opacity-90">
+                    Tambahkan data {newUserRole} secara manual ke sistem portal akademik.
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email (Username)</label>
-                  <input type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                  <input type="text" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required minLength={6} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
-                  <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500">
-                    <option value="siswa">Siswa</option>
-                    <option value="guru">Guru</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                {newUserRole === 'siswa' && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kelas</label>
-                      <input type="text" value={newUserKelas} onChange={(e) => setNewUserKelas(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+              </div>
+
+              {/* Form Content */}
+              <div className="w-full md:w-2/3 p-8 md:p-10 max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-black text-gray-800 mb-6 md:hidden">Tambah User Baru</h3>
+                
+                <form onSubmit={handleAddUser} className="space-y-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Role Akses</label>
+                      <select 
+                        value={newUserRole} 
+                        onChange={(e) => setNewUserRole(e.target.value)} 
+                        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700 transition-all cursor-pointer"
+                      >
+                        <option value="siswa">Siswa</option>
+                        <option value="guru">Guru</option>
+                        <option value="admin">Admin / Staff</option>
+                      </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">No WhatsApp</label>
-                      <input type="text" value={newUserWhatsapp} onChange={(e) => setNewUserWhatsapp(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+
+                    <div className="col-span-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Nama Lengkap</label>
+                      <input 
+                        type="text" 
+                        value={newUserName} 
+                        onChange={(e) => setNewUserName(e.target.value)} 
+                        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                        placeholder="Contoh: Ahmad Abdullah"
+                        required 
+                      />
                     </div>
-                  </>
-                )}
-                <button type="submit" className="w-full px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-xl shadow-green-200 transition-all mt-4">Simpan User</button>
-              </form>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Email Akses</label>
+                      <input 
+                        type="email" 
+                        value={newUserEmail} 
+                        onChange={(e) => setNewUserEmail(e.target.value)} 
+                        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                        placeholder="email@sekolah.com"
+                        required 
+                      />
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Password</label>
+                      <input 
+                        type="text" 
+                        value={newUserPassword} 
+                        onChange={(e) => setNewUserPassword(e.target.value)} 
+                        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                        placeholder="Min. 6 Karakter"
+                        required 
+                        minLength={6} 
+                      />
+                    </div>
+
+                    {newUserRole === 'siswa' && (
+                      <>
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Kategori Kelas</label>
+                          <select 
+                            value={newUserKelas} 
+                            onChange={(e) => setNewUserKelas(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700 transition-all cursor-pointer" 
+                            required
+                          >
+                            <option value="">-- PILIH KELAS --</option>
+                            {schoolClasses.map((c: any) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">WhatsApp Wali</label>
+                          <input 
+                            type="text" 
+                            value={newUserWhatsapp} 
+                            onChange={(e) => setNewUserWhatsapp(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                            placeholder="08123456789"
+                            required 
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="pt-4 mt-6 border-t border-gray-100">
+                    <button 
+                      type="submit" 
+                      className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-green-700 shadow-xl shadow-green-200 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      Simpan Data {newUserRole}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
@@ -2036,7 +2117,7 @@ export default function DashboardAdmin() {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa</label>
                   <select value={financeStudentId} onChange={(e) => setFinanceStudentId(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
                     <option value="">-- Pilih Siswa --</option>
-                    {allUsers.filter(u => u.role === 'siswa').map(u => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
                     ))}
                   </select>
@@ -2072,12 +2153,12 @@ export default function DashboardAdmin() {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
                   <select value={financeIuranTarget} onChange={(e) => setFinanceIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
-                    <option value="all">Semua Siswa</option>
-                    <option value="kelas_A">Semua Siswa Kelas A</option>
-                    <option value="kelas_B">Semua Siswa Kelas B</option>
-                    <option value="kelas_C">Semua Siswa Kelas C</option>
+                    <option value="all">Semua Siswa Aktif</option>
+                    <option value="kelas_A">Semua Siswa Aktif Kelas A</option>
+                    <option value="kelas_B">Semua Siswa Aktif Kelas B</option>
+                    <option value="kelas_C">Semua Siswa Aktif Kelas C</option>
                     <optgroup label="Pilih Siswa Spesifik">
-                      {allUsers.filter(u => u.role === 'siswa').map(u => (
+                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => (
                         <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
                       ))}
                     </optgroup>

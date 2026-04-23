@@ -78,7 +78,9 @@ export default function DashboardGuru() {
 
     // Listeners
     const unsubStudents = onSnapshot(query(collection(db, 'users'), where('role', '==', 'siswa')), (snapshot) => {
-      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+      // Filter out non-active students explicitly on client side (since we don't have composite index for status)
+      const mapped = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setStudents(mapped.filter(u => (u.status || 'Aktif') === 'Aktif'));
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
         console.error("Error fetching students:", error);
