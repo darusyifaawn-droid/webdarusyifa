@@ -94,6 +94,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Classes (Kategori Kelas)
+    match /classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // Subjects (Mata Pelajaran)
     match /subjects/{subjectId} {
       allow read: if isSignedIn();

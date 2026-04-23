@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc } from 'firebase/firestore';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
+import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 export default function DashboardSiswa() {
@@ -21,6 +22,88 @@ export default function DashboardSiswa() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
 
+  const getScoreGradeInfo = (score: number) => {
+    if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
+    if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
+    if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
+    return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handlePrintRapot = () => {
+    if (!userData) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    
+    // Sort progress ascending by date or createdAt
+    const sortedProgress = [...progress].sort((a,b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateA - dateB;
+    });
+
+    sortedProgress.forEach((p, idx) => {
+       const scoreNum = Number(p.score) || 0;
+       const gradeInfo = getScoreGradeInfo(scoreNum);
+       itemsHtml += `
+         <tr>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">
+             <strong style="display:block;">${p.title}</strong>
+             <small style="color: #666;">${p.category}</small>
+           </td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+         </tr>
+       `;
+    });
+
+    if (sortedProgress.length === 0) {
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Rapot Belajar - ${userData.name}</title>
+          <style>
+            ${getPrintStyles()}
+          </style>
+        </head>
+        <body onload="window.print();">
+          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR (RAPOT)', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="student-info">
+            <div>Nama Siswa</div><div>: ${userData.name}</div>
+            <div>NIS/NISN</div><div>: ${userData.email?.split('@')[0] || '-'}</div>
+            <div>Kelas</div><div>: ${userData.kelas || 'Belum Ditentukan'}</div>
+            <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th width="50">No</th>
+                <th>Mata Pelajaran / Evaluasi</th>
+                <th width="100" class="center">Nilai Angka</th>
+                <th width="120" class="center">Predikat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          ${getPrintSignatureHTML('', 'Mengetahui,<br>Orang Tua/Wali', 'Kepala Sekolah / Guru Kelas')}
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const handlePrintReceipt = (pay: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -33,113 +116,38 @@ export default function DashboardSiswa() {
     const html = `
       <html>
         <head>
-          <title>Struk Pembayaran - ${pay.description}</title>
+          <title>Bukti Pembayaran - ${pay.description}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-            body { 
-              font-family: 'JetBrains Mono', monospace; 
-              padding: 20px; 
-              color: #000; 
-              background: #f5f5f5;
-              display: flex;
-              justify-content: center;
-              -webkit-print-color-adjust: exact;
-            }
-            .receipt { 
-              background: #fff;
-              width: 300px; 
-              padding: 20px;
-              box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header h1 { font-size: 16px; margin: 0; text-transform: uppercase; font-weight: 700; }
-            .header p { font-size: 11px; margin: 5px 0 0; color: #666; }
-            
-            .info { font-size: 10px; margin-bottom: 15px; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; padding: 10px 0; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-            .info-label { color: #666; }
-            
-            .items { font-size: 10px; margin-bottom: 15px; }
-            .items-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
-            .item-row { margin-bottom: 10px; }
-            .item-main { display: flex; justify-content: space-between; font-weight: bold; }
-            .item-sub { color: #666; font-size: 9px; }
-            
-            .totals { font-size: 11px; border-top: 1px dashed #ccc; padding-top: 10px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-            .total-row.grand-total { font-weight: bold; font-size: 13px; margin-top: 5px; padding-top: 5px; border-top: 1px solid #000; }
-            .change-row { color: #166534; font-weight: bold; }
-            
-            .footer { margin-top: 25px; text-align: center; font-size: 9px; color: #666; border-top: 1px dashed #ccc; padding-top: 15px; line-height: 1.4; }
-            
-            @media print {
-              body { background: none; padding: 0; }
-              .receipt { box-shadow: none; width: 100%; border: none; }
-            }
+            ${getPrintStyles()}
           </style>
         </head>
         <body onload="window.print();">
-          <div class="receipt">
-            <div class="header">
-              <h1>${settings?.schoolName || 'RA DARUSYIFA'}</h1>
-              <p>Official Sales Receipt</p>
+          ${getPrintHeaderHTML('TANDA BUKTI PEMBAYARAN', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="receipt-details">
+            <div class="receipt-row">
+              <span class="receipt-label">Dibayarkan Oleh (Siswa)</span>
+              <span class="receipt-value">${userData?.name || 'Unknown'}</span>
             </div>
-            
-            <div class="info">
-              <div class="info-row">
-                <span class="info-label">Siswa:</span>
-                <span>${userData?.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">No. Transaksi:</span>
-                <span>${transactionId}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Tanggal:</span>
-                <span>${dateStr}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Metode:</span>
-                <span>${methodStr}</span>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">Keterangan Pembayaran</span>
+              <span class="receipt-value">${pay.description}</span>
             </div>
-
-            <div class="items">
-              <div class="items-header">
-                <span>ITEM</span>
-                <span>SUBTOTAL</span>
-              </div>
-              <div class="item-row">
-                <div class="item-main">
-                  <span>${pay.description}</span>
-                  <span>${formattedAmount}</span>
-                </div>
-                <div class="item-sub">1 x ${formattedAmount}</div>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">Metode Pembayaran</span>
+              <span class="receipt-value">${methodStr}</span>
             </div>
-
-            <div class="totals">
-              <div class="total-row grand-total">
-                <span>Total</span>
-                <span>${formattedAmount}</span>
-              </div>
-              <div class="total-row">
-                <span>Bayar</span>
-                <span>${formattedAmount}</span>
-              </div>
-              <div class="total-row change-row">
-                <span>Kembalian</span>
-                <span>Rp 0</span>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">No. Referensi Transaksi</span>
+              <span class="receipt-value receipt-trx">${transactionId}</span>
             </div>
-
-            <div class="footer">
-              Terima kasih telah melakukan pembayaran.<br>
-              Simpan struk ini sebagai bukti transaksi yang sah.<br>
-              <br>
-              © ${new Date().getFullYear()} ${settings?.schoolName || 'RA Darusyifa'}
+            <div class="receipt-row" style="background: #f0fdf4; border-bottom: none;">
+              <span class="receipt-label" style="color: #166534; padding-top: 5px;">Total Nominal</span>
+              <span class="receipt-amount">${formattedAmount}</span>
             </div>
           </div>
+
+          ${getPrintSignatureHTML(dateStr, 'Bendahara / Penerima', 'Kepala Sekolah')}
         </body>
       </html>
     `;
@@ -393,10 +401,16 @@ export default function DashboardSiswa() {
         <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
       </button>
       <button 
-        onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'finance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+        onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'attendance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <CreditCard size={20} className={activeTab === 'finance' ? 'text-white' : 'text-gray-400'} /> Administrasi
+        <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-400'} /> Riwayat Absensi
+      </button>
+      <button 
+        onClick={() => { setActiveTab('administration'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'administration' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <CreditCard size={20} className={activeTab === 'administration' ? 'text-white' : 'text-gray-400'} /> Administrasi
       </button>
       <button 
         onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
@@ -464,8 +478,8 @@ export default function DashboardSiswa() {
         {[
           { id: 'overview', icon: Calendar, label: 'Beranda' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
-          { id: 'finance', icon: CreditCard, label: 'Biaya' },
-          { id: 'announcements', icon: Bell, label: 'Info' },
+          { id: 'attendance', icon: CheckCircle, label: 'Absensi' },
+          { id: 'administration', icon: CreditCard, label: 'Admin' },
           { id: 'profile', icon: User, label: 'Profil' },
         ].map(item => (
           <button 
@@ -505,361 +519,121 @@ export default function DashboardSiswa() {
         </header>
 
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in duration-700">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: 'Total Kehadiran', value: attendance.length, color: 'bg-blue-500', icon: CheckCircle },
-                { label: 'Laporan Belajar', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                { label: 'Tabungan', value: `Rp ${(userData?.savings || 0).toLocaleString()}`, color: 'bg-orange-500', icon: CreditCard },
-                { label: 'Info Terbaru', value: announcements.length, color: 'bg-purple-500', icon: Bell },
-              ].map((stat, idx) => (
-                <div key={idx} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center group hover:shadow-xl hover:shadow-gray-200/50 transition-all">
-                  <div className={`w-14 h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-4 group-hover:scale-110 transition-transform`}>
-                    <stat.icon size={28} />
-                  </div>
-                  <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                  <h4 className="text-lg font-black text-gray-800 tracking-tight">{stat.value}</h4>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-              <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="flex justify-between items-center mb-10">
-                  <h3 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-3">
-                    <TrendingUp size={24} className="text-blue-500" /> Perkembangan Nilai
-                  </h3>
-                  <div className="flex gap-2">
-                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-bold uppercase text-gray-400">Statistik Belajar</span>
-                  </div>
-                </div>
-                <div className="h-[280px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={[...progress].reverse()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="date" fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                      <YAxis fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} domain={[0, 100]} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px'}} />
-                      <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={5} dot={{r: 6, fill: '#3b82f6', strokeWidth: 3, stroke: '#fff'}} activeDot={{r: 8, strokeWidth: 0}} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                <h3 className="text-xl font-black text-gray-800 mb-10 flex items-center gap-3">
-                  <BarChartIcon size={24} className="text-purple-500" /> Status Kelulusan
-                </h3>
-                <div className="flex-1 min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Lulus', value: progress.filter(p => p.status === 'Lulus').length },
-                          { name: 'Ulang', value: progress.filter(p => p.status === 'Mengulang').length },
-                          { name: 'Belum', value: progress.filter(p => p.status === 'Belum Lulus').length },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={85}
-                        paddingAngle={8}
-                        dataKey="value"
-                      >
-                        <Cell fill="#10b981" />
-                        <Cell fill="#ef4444" />
-                        <Cell fill="#f59e0b" />
-                      </Pie>
-                      <Tooltip contentStyle={{borderRadius: '20px', border: 'none'}} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-3 mt-6">
-                  {[
-                    { label: 'Lulus', color: 'bg-green-500', count: progress.filter(p => p.status === 'Lulus').length },
-                    { label: 'Ulang', color: 'bg-red-500', count: progress.filter(p => p.status === 'Mengulang').length },
-                    { label: 'Belum', color: 'bg-yellow-500', count: progress.filter(p => p.status === 'Belum Lulus').length },
-                  ].map(l => (
-                    <div key={l.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 ${l.color} rounded-full shadow-sm`}></div>
-                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider text-[10px]">{l.label}</span>
-                      </div>
-                      <span className="text-sm font-black text-gray-800">{l.count}</span>
+          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
+            {/* Top Stat Bubbles for Unified UI */}
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {[
+                  { label: 'Total Kehadiran', value: attendance.length, color: 'bg-blue-500', icon: CheckCircle },
+                  { label: 'Laporan Belajar', value: progress.length, color: 'bg-green-500', icon: BookOpen },
+                  { label: 'Pengumuman', value: announcements.length, color: 'bg-purple-500', icon: Bell },
+                  { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length > 0 ? 'Hadir' : '-', color: 'bg-orange-500', icon: Clock },
+                ].map((stat, idx) => (
+                  <div key={idx} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
+                      <stat.icon size={24} className="md:w-7 md:h-7" />
                     </div>
-                  ))}
-                </div>
+                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                    <h4 className="text-lg md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-8 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Riwayat Absensi Terakhir</h3>
-                  <button onClick={() => setActiveTab('attendance')} className="text-xs font-bold text-green-600 hover:text-green-700">Lihat Semua</button>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {attendance.slice(0, 5).map((a) => (
-                    <div key={a.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        {a.photo ? (
-                          <div className="relative">
-                            <img src={a.photo} alt="Absensi" className="w-12 h-12 rounded-2xl object-cover cursor-pointer hover:opacity-80 ring-2 ring-gray-50" onClick={() => setSelectedPhoto(a.photo)} />
-                            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${a.status === 'Hadir' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-                            <Clock size={24} />
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
-                            <span className="text-[10px] font-bold text-gray-400">{a.date}</span>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-0.5">{a.timestamp?.toDate ? a.timestamp.toDate().toLocaleTimeString('id-ID') : '00:00'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {a.location && a.location.latitude !== 0 && (
-                          <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all">
-                            <MapPin size={18} />
-                          </a>
-                        )}
-                        <button onClick={async () => {
-                          if(window.confirm('Hapus riwayat absensi ini?')) {
-                            try {
-                              await deleteDoc(doc(db, 'attendance', a.id));
-                              alert('Absensi berhasil dihapus!');
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.DELETE, `attendance/${a.id}`);
-                            }
-                          }
-                        }} className="text-gray-400 hover:text-red-600 p-2"><Trash2 size={18} /></button>
-                      </div>
-                    </div>
-                  ))}
-                  {attendance.length === 0 && <div className="p-10 text-center text-gray-400 text-sm font-medium">Belum ada riwayat absensi.</div>}
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Info Sekolah</h3>
-                  <Bell size={20} className="text-yellow-500" />
-                </div>
-                <div className="space-y-6">
-                  {announcements.slice(0, 4).map((item) => (
-                    <div key={item.id} className="group cursor-pointer">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">{item.date}</p>
-                      <h4 className="text-sm font-bold text-gray-700 group-hover:text-green-600 transition-colors">{item.title}</h4>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.content}</p>
-                    </div>
-                  ))}
-                  {announcements.length === 0 && <p className="text-center text-gray-400 text-sm py-10">Belum ada info terbaru.</p>}
-                  <button onClick={() => setActiveTab('announcements')} className="w-full py-3 text-sm font-bold text-green-600 hover:bg-green-50 rounded-xl transition-all border border-dashed border-green-200 mt-4">
-                    Lihat Semua Info
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Account Info (Savings/Arrears) */}
-            <div className="bg-emerald-900 text-white rounded-[2.5rem] p-10 shadow-xl shadow-green-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
-              
-              <div className="relative z-10 grid md:grid-cols-2 gap-10">
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 bg-white/10 rounded-2xl">
-                      <CreditCard size={24} className="text-emerald-300" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">Status Keuangan</h3>
-                      <p className="text-emerald-300 text-xs">Informasi tabungan & administrasi</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-emerald-300 text-xs uppercase font-bold tracking-widest mb-1 opacity-70">Total Tabungan Anda</p>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-bold text-emerald-300">Rp</span>
-                        <span className="text-4xl font-black">{(userData?.savings || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="p-6 bg-white/10 rounded-3xl backdrop-blur-sm border border-white/5">
-                      <p className="text-red-300 text-[10px] uppercase font-black tracking-widest mb-2">Total Tunggakan</p>
-                      <p className="text-2xl font-black text-red-400">Rp {(userData?.arrears || 0).toLocaleString()}</p>
-                      {userData?.arrears > 0 && (
-                        <p className="text-[10px] text-red-200 mt-2">Mohon segera selesaikan administrasi Anda.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {userData?.arrears_details && userData.arrears_details.length > 0 && (
-                  <div className="bg-black/20 rounded-[2rem] p-8">
-                    <h4 className="text-sm font-bold text-emerald-100 mb-6 uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
-                      Rincian Tunggakan
-                    </h4>
-                    <ul className="space-y-4 max-h-[240px] overflow-y-auto custom-scrollbar pr-2">
-                      {userData.arrears_details.map((detail: any, index: number) => (
-                        <li key={index} className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
-                          <div>
-                            <span className="block font-bold text-sm">{detail.name}</span>
-                            <span className="text-[10px] text-emerald-300/60">{detail.date}</span>
-                          </div>
-                          <span className="font-black text-red-300 text-sm">Rp {detail.amount.toLocaleString()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+            {/* Riwayat Absensi Terakhir */}
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+               <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                 <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Kehadiran Terakhir</h3>
+                <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-green-600 hover:text-green-700 uppercase tracking-widest">Kehadiran Lengkap</button>
+               </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                     <tr>
+                      <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
+                      <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
+                       <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                     {attendance.slice(0, 3).map((a) => (
+                       <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
+                         <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
+                         <td className="px-6 py-4 md:px-8 md:py-6">
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                        </td>
+                      </tr>
+                     ))}
+                     {attendance.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat absensi.</td>
+                      </tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'progress' && (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800">Perkembangan Belajar</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100">
+              <div>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Perkembangan Belajar</h3>
+                <p className="text-sm text-gray-400 font-medium">Monitoring nilai dan capaian pembelajaran.</p>
+              </div>
+              <button 
+                onClick={handlePrintRapot}
+                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              >
+                <Printer size={20} /> Cetak Rapot
+              </button>
+            </div>
             <div className="grid gap-6">
-              {progress.map(p => (
-                <div key={p.id} className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-start mb-6">
+              {progress.map(p => {
+                const scoreNum = Number(p.score) || 0;
+                const gradeInfo = getScoreGradeInfo(scoreNum);
+                return (
+                  <div key={p.id} className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                      <h4 className="text-lg font-bold text-gray-800">{p.title}</h4>
-                      <p className="text-sm text-gray-400">{p.date}</p>
-                      {p.target && <p className="text-blue-600 text-sm mt-2 font-medium">Target: {p.target}</p>}
-                      {p.status && (
-                        <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${
-                          p.status === 'Lulus' ? 'bg-green-100 text-green-700' :
-                          p.status === 'Mengulang' ? 'bg-red-100 text-red-700' :
-                          p.status === 'Lanjut Perkembangan Lain' ? 'bg-purple-100 text-purple-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {p.status}
-                        </span>
-                      )}
+                      <span className="px-4 py-1 bg-blue-100 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">{p.category}</span>
+                      <h4 className="text-xl font-bold text-gray-800 mt-4">{p.title}</h4>
+                      <p className="text-sm text-gray-400 mt-1 mb-4">{p.date}</p>
+                      <p className="text-gray-600 leading-relaxed mb-4">{p.description}</p>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        {p.status && (
+                          <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold ${
+                            p.status === 'Lulus' ? 'bg-green-100 text-green-700' :
+                            p.status === 'Mengulang' ? 'bg-red-100 text-red-700' :
+                            p.status === 'Lanjut Perkembangan Lain' ? 'bg-purple-100 text-purple-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {p.status}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-gray-400 font-bold bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                          <User size={14} /> Guru: {p.teacherName || 'Wali Kelas'}
+                        </div>
+                      </div>
                     </div>
-                    <span className="px-4 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold uppercase">{p.category}</span>
+                    
+                    <div className="flex-shrink-0 bg-gray-50 rounded-[24px] p-6 min-w-[140px] text-center border border-gray-200">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nilai</p>
+                      <h2 className={`text-4xl font-black ${gradeInfo.color}`}>{scoreNum}</h2>
+                      <p className="text-sm font-bold text-gray-500 mt-1">{gradeInfo.grade} - {gradeInfo.text}</p>
+                    </div>
                   </div>
-                  <p className="text-gray-600 leading-relaxed mb-6">{p.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <User size={14} /> Guru: {p.teacherName || 'Wali Kelas'}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {progress.length === 0 && (
-                <div className="bg-white p-12 rounded-3xl border border-dashed border-gray-200 text-center text-gray-400">
+                <div className="bg-white p-12 rounded-[32px] border border-dashed border-gray-200 text-center text-gray-400 font-medium">
                   Belum ada laporan perkembangan.
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'finance' && (
-          <div className="space-y-8">
-            <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8">
-              <h3 className="text-2xl font-bold text-gray-800 mb-10">Ringkasan Keuangan</h3>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="p-10 bg-gradient-to-br from-green-600 to-green-700 rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                  <h4 className="font-bold mb-4 flex items-center gap-3 text-green-100 uppercase tracking-widest text-xs"><CreditCard size={20} /> Saldo Tabungan</h4>
-                  <p className="text-4xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
-                  <p className="text-xs text-green-100/60 mt-4 leading-relaxed italic">Gunakan tabungan untuk keperluan sekolah yang terencana.</p>
-                </div>
-                <div className="p-10 bg-gradient-to-br from-red-500 to-red-600 rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                  <h4 className="font-bold mb-4 flex items-center gap-3 text-red-100 uppercase tracking-widest text-xs"><CreditCard size={20} /> Total Tunggakan</h4>
-                  <p className="text-4xl font-bold">Rp {(userData?.arrears || 0).toLocaleString()}</p>
-                  <p className="text-xs text-red-100/60 mt-4 leading-relaxed italic">Harap segera lunasi tunggakan untuk kelancaran administrasi.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                <h3 className="text-xl font-bold text-gray-800">Riwayat Pembayaran & Tabungan</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                    <tr>
-                      <th className="px-8 py-5">Tanggal</th>
-                      <th className="px-8 py-5">Keterangan</th>
-                      <th className="px-8 py-5">Jenis</th>
-                      <th className="px-8 py-5 text-right">Nominal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {payments.map((pay) => (
-                      <tr key={pay.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-8 py-6 font-medium text-gray-700">{pay.date}</td>
-                        <td className="px-8 py-6">
-                          <p className="font-bold text-gray-800">{pay.description}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {pay.id.substring(0,8)}</p>
-                            {pay.method && (
-                              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold uppercase tracking-widest">{pay.method}</span>
-                            )}
-                            {pay.proof && (
-                              <button 
-                                onClick={() => setSelectedPhoto(pay.proof)}
-                                className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest"
-                              >
-                                Lihat Bukti
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => handlePrintReceipt(pay)}
-                              className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
-                            >
-                              Cetak Bukti
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pay.type === 'tabungan' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {pay.type === 'tabungan' ? 'Tabungan' : 'Iuran/SPP'}
-                          </span>
-                        </td>
-                        <td className={`px-8 py-6 text-right font-bold text-lg ${pay.type === 'tabungan' ? 'text-green-600' : 'text-blue-600'}`}>
-                          Rp {pay.amount.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                    {payments.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat transaksi finansial.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'announcements' && (
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800">Semua Pengumuman</h3>
-            <div className="grid gap-4">
-              {announcements.map(a => (
-                <div key={a.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                  <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
-                  <div className="text-gray-600 text-sm mt-4 leading-relaxed whitespace-pre-wrap">{a.content}</div>
-                  <div className="mt-6 text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                    {a.author} • {a.createdAt ? new Date(a.createdAt.seconds * 1000).toLocaleString() : ''}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         )}
@@ -928,6 +702,146 @@ export default function DashboardSiswa() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {activeTab === 'attendance' && (
+          <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-bottom duration-500">
+            <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800">Riwayat Absensi Lengkap</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left whitespace-nowrap">
+                <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {attendance.map((a) => (
+                    <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
+                      <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
+                      <td className="px-6 py-4 md:px-8 md:py-6">
+                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {attendance.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat absensi.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'administration' && (
+          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Administrasi Keuangan</h3>
+               <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+                <div className="p-8 md:p-10 bg-gradient-to-br from-green-600 to-green-700 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                   <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 md:gap-3 text-green-100 uppercase tracking-widest text-[10px] md:text-xs"><CreditCard size={20} /> Saldo Tabungan</h4>
+                  <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
+                   <p className="text-[10px] md:text-xs text-green-100/60 mt-3 md:mt-4 leading-relaxed italic">Gunakan tabungan untuk keperluan sekolah yang terencana.</p>
+                 </div>
+                 <div className="p-8 md:p-10 bg-gradient-to-br from-red-500 to-red-600 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                   <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 md:gap-3 text-red-100 uppercase tracking-widest text-[10px] md:text-xs"><CreditCard size={20} /> Total Tunggakan</h4>
+                  <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.arrears || 0).toLocaleString()}</p>
+                   <p className="text-[10px] md:text-xs text-red-100/60 mt-3 md:mt-4 leading-relaxed italic">Harap segera lunasi tunggakan untuk kelancaran administrasi.</p>
+                </div>
+              </div>
+            </div>
+
+             <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+               <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Transaksi Finansial</h3>
+              </div>
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left whitespace-nowrap">
+                  <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                     <tr>
+                      <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
+                       <th className="px-6 py-4 md:px-8 md:py-5">Keterangan</th>
+                      <th className="px-6 py-4 md:px-8 md:py-5">Jenis</th>
+                       <th className="px-6 py-4 md:px-8 md:py-5 text-right">Nominal</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {payments.map((pay) => (
+                      <tr key={pay.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{pay.date}</td>
+                        <td className="px-6 py-4 md:px-8 md:py-6">
+                           <p className="font-bold text-gray-800">{pay.description}</p>
+                           <div className="flex items-center gap-2 mt-1">
+                             <p className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {pay.id.substring(0,8)}</p>
+                            {pay.method && (
+                              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold uppercase tracking-widest">{pay.method}</span>
+                            )}
+                             {pay.proof && (
+                              <button 
+                                 onClick={() => setSelectedPhoto(pay.proof)}
+                                 className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest"
+                               >
+                                 Lihat Bukti
+                               </button>
+                             )}
+                            <button 
+                               onClick={() => handlePrintReceipt(pay)}
+                               className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+                            >
+                              Cetak Bukti
+                            </button>
+                           </div>
+                         </td>
+                        <td className="px-6 py-4 md:px-8 md:py-6">
+                           <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pay.type === 'tabungan' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                             {pay.type === 'tabungan' ? 'Tabungan' : 'Iuran/SPP'}
+                          </span>
+                         </td>
+                         <td className={`px-6 py-4 md:px-8 md:py-6 text-right font-bold text-base md:text-lg ${pay.type === 'tabungan' ? 'text-green-600' : 'text-blue-600'}`}>
+                          Rp {pay.amount.toLocaleString()}
+                         </td>
+                       </tr>
+                    ))}
+                    {payments.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat transaksi finansial.</td>
+                      </tr>
+                     )}
+                   </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'announcements' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-8">Info & Pengumuman Sekolah</h3>
+            <div className="grid gap-6">
+              {announcements.map((ann) => (
+                <div key={ann.id} className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="text-lg md:text-xl font-bold text-gray-800">{ann.title}</h4>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{ann.date}</span>
+                  </div>
+                  <p className="text-gray-600 leading-relaxed text-sm md:text-base">{ann.content}</p>
+                </div>
+              ))}
+              {announcements.length === 0 && (
+                <div className="bg-white p-12 rounded-[32px] border border-dashed border-gray-200 text-center text-gray-400 font-medium">
+                  Belum ada pengumuman baru.
+                </div>
+              )}
+            </div>
           </div>
         )}
 

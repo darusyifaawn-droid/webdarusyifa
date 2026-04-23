@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs } from 'firebase/firestore';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
+import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 export default function DashboardGuru() {
@@ -25,10 +26,12 @@ export default function DashboardGuru() {
   const [editingProgress, setEditingProgress] = useState<any>(null);
   const [selectedStudent, setSelectedStudent] = useState('');
   const [progressTitle, setProgressTitle] = useState('');
-  const [progressCategory, setProgressCategory] = useState('Akademik');
+  const [progressCategory, setProgressCategory] = useState('');
   const [progressDesc, setProgressDesc] = useState('');
   const [progressTarget, setProgressTarget] = useState('');
-  const [progressStatus, setProgressStatus] = useState('Belum Lulus');
+  const [progressStatus, setProgressStatus] = useState('Lulus');
+  const [progressScore, setProgressScore] = useState<number>(90); // Penilaian A,B,C,D
+  const [progressDate, setProgressDate] = useState(new Date().toISOString().split('T')[0]);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<any>(null);
@@ -131,6 +134,86 @@ export default function DashboardGuru() {
       unsubSettings();
     };
   }, [user]);
+
+  const getScoreGradeInfo = (score: number) => {
+    if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
+    if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
+    if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
+    return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handlePrintRapot = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    // Get student's progress data and sort ascending by date
+    const studentProgressList = progress
+      .filter(p => p.studentId === studentId)
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    studentProgressList.forEach((p, idx) => {
+       const scoreNum = Number(p.score) || 0;
+       const gradeInfo = getScoreGradeInfo(scoreNum);
+       itemsHtml += `
+         <tr>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">
+             <strong style="display:block;">${p.title}</strong>
+             <small style="color: #666;">${p.category}</small>
+           </td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+         </tr>
+       `;
+    });
+
+    if (studentProgressList.length === 0) {
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Rapot Belajar - ${student.name}</title>
+          <style>
+            ${getPrintStyles()}
+          </style>
+        </head>
+        <body onload="window.print();">
+          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR (RAPOT)', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="student-info">
+            <div>Nama Siswa</div><div>: ${student.name}</div>
+            <div>NIS/NISN</div><div>: ${student.email?.split('@')[0] || '-'}</div>
+            <div>Kelas</div><div>: ${student.kelas || 'Belum Ditentukan'}</div>
+            <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th width="50">No</th>
+                <th>Mata Pelajaran / Evaluasi</th>
+                <th width="100" class="center">Nilai Angka</th>
+                <th width="120" class="center">Predikat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          ${getPrintSignatureHTML('', 'Mengetahui,<br>Orang Tua/Wali', 'Kepala Sekolah / Guru Kelas')}
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   const startCamera = async () => {
     setShowCamera(true);
@@ -259,12 +342,13 @@ export default function DashboardGuru() {
     try {
       const data = {
         studentId: selectedStudent,
-        title: progressTitle,
-        category: progressCategory, // This will now represent the Subject Name
+        title: progressCategory, // Use Mapel as Title to simplify
+        category: progressCategory,
         description: progressDesc,
         target: progressTarget,
         status: progressStatus,
-        date: new Date().toISOString().split('T')[0],
+        score: progressScore,
+        date: progressDate,
         teacherId: user.uid,
         teacherName: editName || 'Guru'
       };
@@ -311,10 +395,12 @@ export default function DashboardGuru() {
   const resetForm = () => {
     setSelectedStudent('');
     setProgressTitle('');
-    setProgressCategory('Akademik');
+    setProgressCategory('');
     setProgressDesc('');
     setProgressTarget('');
-    setProgressStatus('Belum Lulus');
+    setProgressStatus('Lulus');
+    setProgressScore(90);
+    setProgressDate(new Date().toISOString().split('T')[0]);
     setEditingProgress(null);
     setShowProgressModal(false);
   };
@@ -326,7 +412,9 @@ export default function DashboardGuru() {
     setProgressCategory(p.category);
     setProgressDesc(p.description);
     setProgressTarget(p.target || '');
-    setProgressStatus(p.status || 'Belum Lulus');
+    setProgressStatus(p.status || 'Lulus');
+    setProgressScore(p.score || 90);
+    setProgressDate(p.date || new Date().toISOString().split('T')[0]);
     setShowProgressModal(true);
   };
 
@@ -474,93 +562,94 @@ export default function DashboardGuru() {
         </header>
 
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in duration-700">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: 'Total Siswa', value: students.length, color: 'bg-blue-500', icon: Users },
-                { label: 'Laporan Dibuat', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                { label: 'Pengumuman', value: announcements.length, color: 'bg-orange-500', icon: Bell },
-                { label: 'Total Absensi', value: attendance.length, color: 'bg-purple-500', icon: Clock },
-              ].map((stat, idx) => (
-                <div key={idx} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center group hover:shadow-xl hover:shadow-gray-200/50 transition-all">
-                  <div className={`w-14 h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-4 group-hover:scale-110 transition-transform`}>
-                    <stat.icon size={28} />
+          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {[
+                  { label: 'Total Siswa', value: students.length, color: 'bg-blue-500', icon: Users },
+                  { label: 'Laporan Dibuat', value: progress.length, color: 'bg-green-500', icon: BookOpen },
+                  { label: 'Pengumuman', value: announcements.length, color: 'bg-orange-500', icon: Bell },
+                  { label: 'Total Absensi', value: attendance.length, color: 'bg-purple-500', icon: Clock },
+                ].map((stat, idx) => (
+                  <div key={idx} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
+                      <stat.icon size={24} className="md:w-7 md:h-7" />
+                    </div>
+                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                    <h4 className="text-xl md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
                   </div>
-                  <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-              <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="flex justify-between items-center mb-10">
-                  <h3 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-3">
-                    <TrendingUp size={24} className="text-blue-500" /> Tren Aktivitas Siswa
-                  </h3>
-                  <div className="flex gap-2">
-                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-bold uppercase text-gray-400">Live Analytics</span>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+              {/* Riwayat Absensi Terakhir */}
+              <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><Clock size={20} className="text-blue-500"/> Kehadiran Saya Terakhir</h3>
+                  <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Detail</button>
                 </div>
-                <div className="h-[280px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={progress.slice(0, 20).reverse()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="date" fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                      <YAxis fontSize={10} tick={{fill: '#94a3b8', fontWeight: 'bold'}} domain={[0, 100]} axisLine={false} tickLine={false} />
-                      <Tooltip 
-                        contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px'}}
-                      />
-                      <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={5} dot={{r: 6, fill: '#3b82f6', strokeWidth: 3, stroke: '#fff'}} activeDot={{r: 8, strokeWidth: 0}} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <div className="overflow-x-auto">
+                   <table className="w-full text-left whitespace-nowrap">
+                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                       <tr>
+                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-l-xl">Tanggal</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4">Waktu</th>
+                         <th className="px-4 py-3 md:px-6 md:py-4 rounded-r-xl">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                       {attendance.slice(0, 4).map((a) => (
+                         <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-gray-700 text-sm md:text-base">{a.date}</td>
+                           <td className="px-4 py-3 md:px-6 md:py-4 text-gray-500 text-xs md:text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
+                           <td className="px-4 py-3 md:px-6 md:py-4">
+                              <span className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                          </td>
+                        </tr>
+                       ))}
+                       {attendance.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-12 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</td>
+                        </tr>
+                       )}
+                     </tbody>
+                   </table>
+                 </div>
               </div>
 
-              <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                <h3 className="text-xl font-black text-gray-800 mb-10 flex items-center gap-3">
-                  <BarChartIcon size={24} className="text-purple-500" /> Distribusi Kelulusan
-                </h3>
-                <div className="flex-1 min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Lulus', value: progress.filter(p => p.status === 'Lulus').length },
-                          { name: 'Ulang', value: progress.filter(p => p.status === 'Mengulang').length },
-                          { name: 'Belum', value: progress.filter(p => p.status === 'Belum Lulus').length },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={90}
-                        paddingAngle={8}
-                        dataKey="value"
-                      >
-                        <Cell fill="#10b981" />
-                        <Cell fill="#ef4444" />
-                        <Cell fill="#f59e0b" />
-                      </Pie>
-                      <Tooltip contentStyle={{borderRadius: '20px', border: 'none'}} />
-                    </PieChart>
-                  </ResponsiveContainer>
+              {/* Laporan Belajar Terakhir */}
+              <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><BookOpen size={20} className="text-green-500"/> Laporan Terakhir</h3>
+                  <button onClick={() => setActiveTab('progress')} className="text-[10px] md:text-xs font-bold text-green-600 hover:underline uppercase tracking-widest">Detail</button>
                 </div>
-                <div className="space-y-3 mt-6">
-                  {[
-                    { label: 'Lulus', color: 'bg-green-500', count: progress.filter(p => p.status === 'Lulus').length },
-                    { label: 'Ulang', color: 'bg-red-500', count: progress.filter(p => p.status === 'Mengulang').length },
-                    { label: 'Belum', color: 'bg-yellow-500', count: progress.filter(p => p.status === 'Belum Lulus').length },
-                  ].map(l => (
-                    <div key={l.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 ${l.color} rounded-full shadow-sm`}></div>
-                        <span className="text-xs font-black uppercase text-gray-500 tracking-wider">{l.label}</span>
+                 <div className="space-y-4">
+                  {progress.slice(0, 4).map(p => {
+                     const student = students.find(s => s.id === p.studentId);
+                     return (
+                      <div key={p.id} className="p-4 md:p-5 bg-gray-50 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-100 transition-colors">
+                        <div>
+                           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{p.category}</p>
+                           <h4 className="font-bold text-gray-800 text-sm md:text-base">{p.title}</h4>
+                           <p className="text-xs text-gray-500 mt-0.5">Siswa: {student?.name || 'Unknown'}</p>
+                        </div>
+                        <span className={`self-start md:self-center px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${
+                           p.status === 'Lulus' ? 'bg-green-100 text-green-700' :
+                           p.status === 'Mengulang' ? 'bg-red-100 text-red-700' :
+                           p.status === 'Lanjut Perkembangan Lain' ? 'bg-purple-100 text-purple-700' :
+                           'bg-yellow-100 text-yellow-700'
+                         }`}>
+                           {p.status || 'Belum Lulus'}
+                         </span>
                       </div>
-                      <span className="text-sm font-black text-gray-800">{l.count}</span>
-                    </div>
-                  ))}
-                </div>
+                     );
+                  })}
+                  {progress.length === 0 && (
+                     <div className="text-center text-gray-400 italic py-12 text-sm">Belum ada laporan belajar dibuat.</div>
+                  )}
+                 </div>
               </div>
             </div>
           </div>
@@ -586,12 +675,20 @@ export default function DashboardGuru() {
                       <td className="px-6 py-4 font-medium text-gray-800">{s.name}</td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{s.email}</td>
                       <td className="px-6 py-4">
-                        <button 
-                          onClick={() => { setSelectedStudent(s.id); setShowProgressModal(true); }}
-                          className="text-blue-600 hover:text-blue-800 font-bold text-xs"
-                        >
-                          Beri Laporan
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => { setSelectedStudent(s.id); setShowProgressModal(true); }}
+                            className="text-blue-600 hover:text-blue-800 font-bold text-xs bg-blue-50 px-3 py-1.5 rounded-lg"
+                          >
+                            Beri Laporan
+                          </button>
+                          <button 
+                            onClick={() => handlePrintRapot(s.id)}
+                            className="bg-gray-800 text-white hover:bg-gray-900 font-bold text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1"
+                          >
+                            <Printer size={12} /> Cetak Rapot
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -884,7 +981,7 @@ export default function DashboardGuru() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Mapel</label>
                     <select 
                       value={progressCategory} 
                       onChange={(e) => setProgressCategory(e.target.value)} 
@@ -892,36 +989,47 @@ export default function DashboardGuru() {
                       required
                     >
                       <option value="">-- Pilih Mapel --</option>
-                      <option value="Umum">Umum</option>
                       {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      <option value="Umum">Umum / Lainnya</option>
                     </select>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Judul Laporan</label>
-                  <input type="text" value={progressTitle} onChange={(e) => setProgressTitle(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: Hafalan Surat Pendek" required />
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tanggal Laporan</label>
+                    <input type="date" value={progressDate} onChange={(e) => setProgressDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800" required />
+                  </div>
+                  <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Perkembangan</label>
                     <input type="text" value={progressTarget} onChange={(e) => setProgressTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: Mampu membaca 1 paragraf" />
                   </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Keterangan / Status</label>
-                    <select value={progressStatus} onChange={(e) => setProgressStatus(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Keterangan Status</label>
+                    <select value={progressStatus} onChange={(e) => setProgressStatus(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
+                      <option value="Lulus">Lulus</option>
                       <option value="Belum Lulus">Belum Lulus</option>
                       <option value="Mengulang">Mengulang</option>
-                      <option value="Lulus">Lulus</option>
                       <option value="Lanjut Perkembangan Lain">Lanjut Perkembangan Lain</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Penilaian (A / B / C / D)</label>
+                    <select value={progressScore} onChange={(e) => setProgressScore(Number(e.target.value))} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" required>
+                      <option value={90}>A (Sangat Baik)</option>
+                      <option value={80}>B (Baik)</option>
+                      <option value={70}>C (Cukup)</option>
+                      <option value={60}>D (Kurang)</option>
                     </select>
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Deskripsi</label>
-                  <textarea value={progressDesc} onChange={(e) => setProgressDesc(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none" placeholder="Tuliskan detail perkembangan anak..." required />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Deskripsi Hasil Belajar</label>
+                  <textarea value={progressDesc} onChange={(e) => setProgressDesc(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none" placeholder="Tuliskan detail pencapaian hasil belajar anak..." required />
                 </div>
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all mt-4 flex items-center justify-center gap-2">
                   <Save size={20} /> {editingProgress ? 'Simpan Perubahan' : 'Kirim Laporan'}

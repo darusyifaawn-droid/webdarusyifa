@@ -7,6 +7,7 @@ import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Downlo
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
+import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import * as XLSX from 'xlsx';
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 
@@ -75,6 +76,16 @@ export default function DashboardAdmin() {
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
 
+  // Academic States
+  const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
+  const [progressData, setProgressData] = useState<any[]>([]);
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [showMutasiModal, setShowMutasiModal] = useState(false);
+  const [mutasiTargetClass, setMutasiTargetClass] = useState('');
+  const [selectedStudentsForMutasi, setSelectedStudentsForMutasi] = useState<string[]>([]);
+  const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
+
   useEffect(() => {
     if (showManageFinanceModal && selectedStudentForFinance) {
       const q = query(
@@ -102,113 +113,38 @@ export default function DashboardAdmin() {
     const html = `
       <html>
         <head>
-          <title>Struk Pembayaran - ${pay.description}</title>
+          <title>Bukti Pembayaran - ${pay.description}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-            body { 
-              font-family: 'JetBrains Mono', monospace; 
-              padding: 20px; 
-              color: #000; 
-              background: #f5f5f5;
-              display: flex;
-              justify-content: center;
-              -webkit-print-color-adjust: exact;
-            }
-            .receipt { 
-              background: #fff;
-              width: 300px; 
-              padding: 20px;
-              box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header h1 { font-size: 16px; margin: 0; text-transform: uppercase; font-weight: 700; }
-            .header p { font-size: 11px; margin: 5px 0 0; color: #666; }
-            
-            .info { font-size: 10px; margin-bottom: 15px; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; padding: 10px 0; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-            .info-label { color: #666; }
-            
-            .items { font-size: 10px; margin-bottom: 15px; }
-            .items-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
-            .item-row { margin-bottom: 10px; }
-            .item-main { display: flex; justify-content: space-between; font-weight: bold; }
-            .item-sub { color: #666; font-size: 9px; }
-            
-            .totals { font-size: 11px; border-top: 1px dashed #ccc; padding-top: 10px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-            .total-row.grand-total { font-weight: bold; font-size: 13px; margin-top: 5px; padding-top: 5px; border-top: 1px solid #000; }
-            .change-row { color: #166534; font-weight: bold; }
-            
-            .footer { margin-top: 25px; text-align: center; font-size: 9px; color: #666; border-top: 1px dashed #ccc; padding-top: 15px; line-height: 1.4; }
-            
-            @media print {
-              body { background: none; padding: 0; }
-              .receipt { box-shadow: none; width: 100%; border: none; }
-            }
+            ${getPrintStyles()}
           </style>
         </head>
         <body onload="window.print();">
-          <div class="receipt">
-            <div class="header">
-              <h1>${settings?.schoolName || 'RA DARUSYIFA'}</h1>
-              <p>Official Sales Receipt</p>
+          ${getPrintHeaderHTML('TANDA BUKTI PEMBAYARAN', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="receipt-details">
+            <div class="receipt-row">
+              <span class="receipt-label">Dibayarkan Oleh (Siswa)</span>
+              <span class="receipt-value">${student?.name || 'Unknown'}</span>
             </div>
-            
-            <div class="info">
-              <div class="info-row">
-                <span class="info-label">Siswa:</span>
-                <span>${student?.name || 'Unknown'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">No. Transaksi:</span>
-                <span>${transactionId}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Tanggal:</span>
-                <span>${dateStr}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Metode:</span>
-                <span>${methodStr}</span>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">Keterangan Pembayaran</span>
+              <span class="receipt-value">${pay.description}</span>
             </div>
-
-            <div class="items">
-              <div class="items-header">
-                <span>ITEM</span>
-                <span>SUBTOTAL</span>
-              </div>
-              <div class="item-row">
-                <div class="item-main">
-                  <span>${pay.description}</span>
-                  <span>${formattedAmount}</span>
-                </div>
-                <div class="item-sub">1 x ${formattedAmount}</div>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">Metode Pembayaran</span>
+              <span class="receipt-value">${methodStr}</span>
             </div>
-
-            <div class="totals">
-              <div class="total-row grand-total">
-                <span>Total</span>
-                <span>${formattedAmount}</span>
-              </div>
-              <div class="total-row">
-                <span>Bayar</span>
-                <span>${formattedAmount}</span>
-              </div>
-              <div class="total-row change-row">
-                <span>Kembalian</span>
-                <span>Rp 0</span>
-              </div>
+            <div class="receipt-row">
+              <span class="receipt-label">No. Referensi Transaksi</span>
+              <span class="receipt-value receipt-trx">${transactionId}</span>
             </div>
-
-            <div class="footer">
-              Terima kasih telah melakukan pembayaran.<br>
-              Simpan struk ini sebagai bukti transaksi yang sah.<br>
-              <br>
-              © ${new Date().getFullYear()} ${settings?.schoolName || 'RA Darusyifa'}
+            <div class="receipt-row" style="background: #f0fdf4; border-bottom: none;">
+              <span class="receipt-label" style="color: #166534; padding-top: 5px;">Total Nominal</span>
+              <span class="receipt-amount">${formattedAmount}</span>
             </div>
           </div>
+
+          ${getPrintSignatureHTML(dateStr, 'Bendahara / Penerima', 'Kepala Sekolah')}
         </body>
       </html>
     `;
@@ -289,12 +225,22 @@ export default function DashboardAdmin() {
       setLoading(false);
     });
 
+    const unsubClasses = onSnapshot(query(collection(db, 'classes'), orderBy('name', 'asc')), (snapshot) => {
+      setSchoolClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
+    const unsubProgress = onSnapshot(query(collection(db, 'progress'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setProgressData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
     return () => {
       unsubUsers();
       unsubAttendance();
       unsubAnnounce();
       unsubPayments();
       unsubSettings();
+      unsubClasses();
+      unsubProgress();
     };
   }, [user]);
 
@@ -813,6 +759,143 @@ export default function DashboardAdmin() {
     return last6Months.map(key => months[key]);
   };
 
+  // Academic Action Handlers
+  const handleAddClassCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClassName) return;
+    try {
+      await addDoc(collection(db, 'classes'), {
+        name: newClassName.toUpperCase(),
+        createdAt: serverTimestamp()
+      });
+      setNewClassName('');
+      setShowClassModal(false);
+      alert('Kategori Kelas berhasil ditambahkan!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'classes');
+    }
+  };
+
+  const handleMutasiMassal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedStudentsForMutasi.length === 0 || !mutasiTargetClass) {
+      alert('Pilih minimal 1 siswa dan kelas tujuan!');
+      return;
+    }
+    
+    if (!window.confirm(`Yakin ingin memutasi ${selectedStudentsForMutasi.length} siswa ke ${mutasiTargetClass === 'Lulus' ? 'Lulus/Alumni' : 'Kelas ' + mutasiTargetClass}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      for (const studentId of selectedStudentsForMutasi) {
+        if (mutasiTargetClass === 'Lulus') {
+          // Mutasi menjadi alumni/lulus
+          await updateDoc(doc(db, 'users', studentId), {
+            kelas: 'Lulus',
+            status: 'Alumni',
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Mutasi ke kelas baru
+          const classDoc = schoolClasses.find(c => c.id === mutasiTargetClass);
+          await updateDoc(doc(db, 'users', studentId), {
+            kelas: classDoc?.name || '',
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      setSelectedStudentsForMutasi([]);
+      setShowMutasiModal(false);
+      alert('Mutasi siswa berhasil!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users (mutasi)');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getScoreGradeInfo = (score: number) => {
+    if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
+    if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
+    if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
+    return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handlePrintRapot = (studentId: string) => {
+    const student = allUsers.find(u => u.id === studentId);
+    if (!student) return;
+    
+    // Get student's progress data and sort ascending by date
+    const studentProgressList = progressData
+      .filter(p => p.studentId === studentId)
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    studentProgressList.forEach((p, idx) => {
+       const scoreNum = Number(p.score) || 0;
+       const gradeInfo = getScoreGradeInfo(scoreNum);
+       itemsHtml += `
+         <tr>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee;">
+             <strong style="display:block;">${p.title}</strong>
+             <small style="color: #666;">${p.category}</small>
+           </td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+         </tr>
+       `;
+    });
+
+    if (studentProgressList.length === 0) {
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Rapot Belajar - ${student.name}</title>
+          <style>
+            ${getPrintStyles()}
+          </style>
+        </head>
+        <body onload="window.print();">
+          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR (RAPOT)', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="student-info">
+            <div>Nama Siswa</div><div>: ${student.name}</div>
+            <div>NIS/NISN</div><div>: ${student.email?.split('@')[0] || '-'}</div>
+            <div>Kelas</div><div>: ${student.kelas || 'Belum Ditentukan'}</div>
+            <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th width="50">No</th>
+                <th>Mata Pelajaran / Evaluasi</th>
+                <th width="100" class="center">Nilai Angka</th>
+                <th width="120" class="center">Predikat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          ${getPrintSignatureHTML('', 'Mengetahui,<br>Orang Tua/Wali', 'Kepala Sekolah / Guru Kelas')}
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
 
   const NavItems = () => (
@@ -828,6 +911,12 @@ export default function DashboardAdmin() {
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'users' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
         <Users size={20} className={activeTab === 'users' ? 'text-white' : 'text-gray-400'} /> User Management
+      </button>
+      <button 
+        onClick={() => { setActiveTab('academic'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'academic' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <BookOpen size={20} className={activeTab === 'academic' ? 'text-white' : 'text-gray-400'} /> Akademik & Rapot
       </button>
       <button 
         onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
@@ -922,6 +1011,12 @@ export default function DashboardAdmin() {
           </div>
           <span className="text-[10px] font-bold">Users</span>
         </button>
+        <button onClick={() => setActiveTab('academic')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'academic' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-lg ${activeTab === 'academic' ? 'bg-green-50' : ''}`}>
+            <BookOpen size={22} />
+          </div>
+          <span className="text-[10px] font-bold">Akademik</span>
+        </button>
         <button onClick={() => setActiveTab('finance')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'finance' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <div className={`p-1.5 rounded-lg ${activeTab === 'finance' ? 'bg-green-50' : ''}`}>
             <CreditCard size={22} />
@@ -944,6 +1039,22 @@ export default function DashboardAdmin() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        {showClassModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
+              <button onClick={() => setShowClassModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-xl font-black text-gray-800 mb-6">Tambah Kategori Kelas</h3>
+              <form onSubmit={handleAddClassCategory} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Nama Kelas Baru (Cth: KELAS A1, KELAS B2)</label>
+                  <input type="text" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700 uppercase" required placeholder="NAMA KELAS" />
+                </div>
+                <button type="submit" disabled={loading} className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-100 mt-2">Simpan Kelas</button>
+              </form>
+            </div>
+          </div>
+        )}
+
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Control Panel</h2>
@@ -967,102 +1078,130 @@ export default function DashboardAdmin() {
         </header>
 
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: 'Total Siswa', value: allUsers.filter(u => u.role === 'siswa').length, color: 'bg-blue-500', icon: Users },
-                { label: 'Total Guru', value: allUsers.filter(u => u.role === 'guru').length, color: 'bg-green-500', icon: Shield },
-                { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length, color: 'bg-purple-500', icon: CheckCircle },
-                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard }
-              ].map((stat, i) => (
-                <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 group hover:shadow-xl hover:shadow-gray-500/5 transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg shadow-opacity-20`}>
-                      <stat.icon size={24} />
+          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {[
+                  { label: 'Total Siswa', value: allUsers.filter(u => u.role === 'siswa').length, color: 'bg-blue-500', icon: Users },
+                  { label: 'Total Guru', value: allUsers.filter(u => u.role === 'guru').length, color: 'bg-green-500', icon: Shield },
+                  { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length, color: 'bg-purple-500', icon: CheckCircle },
+                  { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard }
+                ].map((stat, i) => (
+                  <div key={i} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
+                      <stat.icon size={24} className="md:w-7 md:h-7" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Detail</span>
+                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                    <h4 className="text-lg md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
                   </div>
-                  <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{stat.label}</p>
-                  <h4 className="text-2xl font-black text-gray-800">{stat.value}</h4>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                  <h3 className="text-xl font-black text-gray-800 tracking-tight">Peluncur Aktivitas Terbaru</h3>
-                  <button onClick={() => setActiveTab('attendance')} className="text-xs font-bold text-blue-600 hover:underline">LIHAT SEMUA</button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+              <div className="lg:col-span-2 bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">Peluncur Aktivitas Terbaru</h3>
+                  <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Lihat Semua</button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <table className="w-full text-left whitespace-nowrap">
+                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                       <tr>
-                        <th className="px-8 py-5">Siswa</th>
-                        <th className="px-8 py-5">Waktu</th>
-                        <th className="px-8 py-5">Status</th>
-                        <th className="px-8 py-5">Lokasi</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-l-xl">Siswa</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4">Waktu</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4">Status</th>
+                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-r-xl">Lokasi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {attendance.slice(0, 10).map((a) => {
                         const student = allUsers.find(u => u.id === a.studentId);
                         return (
-                          <tr key={a.id} className="hover:bg-gray-50/50 transition-colors group">
-                            <td className="px-8 py-6">
-                              <div className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{student?.name || 'Unknown'}</div>
+                          <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 py-3 md:px-6 md:py-4">
+                              <div className="font-bold text-gray-800 text-sm md:text-base">{student?.name || 'Unknown'}</div>
                               <div className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">{student?.email}</div>
                             </td>
-                            <td className="px-8 py-6">
-                              <div className="text-sm font-bold text-gray-600">{a.date}</div>
+                            <td className="px-4 py-3 md:px-6 md:py-4">
+                              <div className="text-xs md:text-sm font-bold text-gray-600">{a.date}</div>
                               <span className="text-[10px] text-gray-400 font-bold uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
                             </td>
-                            <td className="px-8 py-6">
-                              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            <td className="px-4 py-3 md:px-6 md:py-4">
+                              <span className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                                 {a.status}
                               </span>
                             </td>
-                            <td className="px-8 py-6">
-                              <a href={`https://www.google.com/maps?q=${a.location?.latitude},${a.location?.longitude}`} target="_blank" rel="noreferrer" className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all">
-                                <MapPin size={18} />
-                              </a>
+                            <td className="px-4 py-3 md:px-6 md:py-4">
+                              {a.location?.latitude ? (
+                                <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noreferrer" className="w-8 h-8 md:w-10 md:h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all">
+                                  <MapPin size={16} />
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-gray-400 italic">No Loc</span>
+                              )}
                             </td>
                           </tr>
                         );
                       })}
+                      {attendance.length === 0 && (
+                         <tr>
+                          <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+              <div className="space-y-6 md:space-y-8">
+                <div className="bg-white rounded-[32px] md:rounded-[40px] p-6 md:p-8 shadow-sm border border-gray-100">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center gap-2">
                     <ImageIcon size={20} className="text-blue-500" /> Pengaturan Logo
                   </h3>
-                  <div className="aspect-video bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-3 relative group overflow-hidden">
+                  <div className="aspect-video bg-gray-50 rounded-2xl md:rounded-[24px] border border-dashed border-gray-200 flex flex-col items-center justify-center gap-3 relative group overflow-hidden">
                     {settings.logoUrl ? (
-                      <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain p-4" referrerPolicy="no-referrer" />
+                      <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2 md:p-4" referrerPolicy="no-referrer" />
                     ) : (
-                      <Upload size={32} className="text-gray-300" />
+                      <Upload size={28} className="text-gray-300" />
                     )}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="text-xs font-bold text-white uppercase tracking-widest border border-white px-4 py-2 rounded-xl">Ganti Logo</button>
+                      <label className="cursor-pointer text-[10px] md:text-xs font-bold text-white uppercase tracking-widest border border-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl hover:bg-white/20 transition-colors">
+                        Ganti Logo
+                        <input type="file" accept="image/*" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                             const reader = new FileReader();
+                             reader.onloadend = async () => {
+                               const result = reader.result as string;
+                               try {
+                                 const compressed = await compressImage(result, 600, 600, 0.7);
+                                 setSettings({...settings, logoUrl: compressed});
+                                 await setDoc(doc(db, 'settings', 'landingPage'), {...settings, logoUrl: compressed});
+                               } catch (error) {
+                                  console.error(error);
+                               }
+                             };
+                             reader.readAsDataURL(file);
+                          }
+                        }} className="hidden" />
+                      </label>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[32px] md:rounded-[40px] p-6 md:p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                  <h3 className="text-lg font-bold mb-6 flex items-center gap-3 opacity-90 tracking-tight"><Megaphone size={20} /> Broadcast Terakhir</h3>
+                  <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2 opacity-90 tracking-tight"><Megaphone size={20} /> Pengumuman</h3>
                   {announcements.length > 0 ? (
                     <div>
-                      <h4 className="font-black text-xl mb-2 line-clamp-1">{announcements[0].title}</h4>
-                      <p className="text-indigo-100/70 text-sm line-clamp-3 leading-relaxed mb-6">{announcements[0].content}</p>
-                      <button onClick={() => setActiveTab('announcements')} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-bold uppercase tracking-[2px] backdrop-blur-sm transition-all">Lihat Semua Info</button>
+                      <h4 className="font-bold text-base md:text-lg mb-2 line-clamp-1">{announcements[0].title}</h4>
+                      <p className="text-indigo-100/70 text-xs md:text-sm line-clamp-2 md:line-clamp-3 leading-relaxed mb-4 md:mb-6">{announcements[0].content}</p>
+                      <button onClick={() => setActiveTab('announcements')} className="w-full py-2.5 md:py-3 bg-white/10 hover:bg-white/20 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-[2px] transition-all">Kelola Info</button>
                     </div>
                   ) : (
-                    <p className="text-indigo-100/50 text-sm italic">Belum ada pengumuman.</p>
+                    <p className="text-indigo-100/50 text-xs md:text-sm italic mb-4">Belum ada pengumuman.</p>
                   )}
                 </div>
               </div>
@@ -1135,6 +1274,126 @@ export default function DashboardAdmin() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'academic' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            {/* Class Categories Manager */}
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden p-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-gray-800 tracking-tight">Kategori Kelas</h3>
+                  <p className="text-xs text-gray-400 font-bold mt-1">Buat kelas untuk memutasi siswa di tahun ajaran baru.</p>
+                </div>
+                <button 
+                  onClick={() => setShowClassModal(true)}
+                  className="bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-xs shadow-lg shadow-green-100"
+                >
+                  <Plus size={16} /> Buat Kelas
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {schoolClasses.length > 0 ? schoolClasses.map(c => (
+                  <div key={c.id} className="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-3">
+                    <BookOpen size={16} className="text-gray-400" />
+                    <span className="font-bold text-gray-700 text-sm uppercase tracking-widest">{c.name}</span>
+                    <button onClick={async () => {
+                      if(window.confirm('Hapus kelas ini?')) {
+                        await deleteDoc(doc(db, 'classes', c.id));
+                      }
+                    }} className="text-red-400 hover:text-red-600 transition-colors ml-2"><Trash2 size={14}/></button>
+                  </div>
+                )) : (
+                  <p className="text-gray-400 italic text-sm">Belum ada kategori kelas. Silakan buat baru.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Mutasi & Rapot Table */}
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
+                <div>
+                  <h3 className="text-xl font-black text-gray-800 tracking-tight">Akademik & Rapot Siswa</h3>
+                  <p className="text-xs text-gray-400 font-bold mt-1">Pilih siswa untuk mutasi (kenaikan/kelulusan) atau cetak Rapot.</p>
+                </div>
+                {selectedStudentsForMutasi.length > 0 && (
+                  <div className="flex gap-3 items-center w-full sm:w-auto bg-blue-50 p-3 rounded-2xl border border-blue-100">
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-widest px-2">{selectedStudentsForMutasi.length} Dipilih</span>
+                    <select 
+                      value={mutasiTargetClass} 
+                      onChange={(e) => setMutasiTargetClass(e.target.value)} 
+                      className="text-xs p-2 rounded-xl border border-blue-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
+                    >
+                      <option value="">-- Pilih Tujuan --</option>
+                      {schoolClasses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                      <option value="Lulus">LULUS / ALUMNI</option>
+                    </select>
+                    <button onClick={handleMutasiMassal} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md">Eksekusi Mutasi</button>
+                  </div>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                    <tr>
+                      <th className="px-6 py-4 w-12">
+                        <input 
+                          type="checkbox" 
+                          onChange={(e) => {
+                            if(e.target.checked) setSelectedStudentsForMutasi(allUsers.filter(u => u.role === 'siswa').map(u => u.id));
+                            else setSelectedStudentsForMutasi([]);
+                          }} 
+                          checked={selectedStudentsForMutasi.length === allUsers.filter(u => u.role === 'siswa').length && allUsers.filter(u => u.role === 'siswa').length > 0}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
+                      <th className="px-6 py-4">Nama Siswa</th>
+                      <th className="px-6 py-4">Kelas Saat Ini</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Rapot</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {allUsers.filter(u => u.role === 'siswa').map(student => (
+                      <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedStudentsForMutasi.includes(student.id)}
+                            onChange={(e) => {
+                              if(e.target.checked) setSelectedStudentsForMutasi([...selectedStudentsForMutasi, student.id]);
+                              else setSelectedStudentsForMutasi(selectedStudentsForMutasi.filter(id => id !== student.id));
+                            }}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4 font-bold text-gray-800">{student.name}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-500 uppercase tracking-widest">{student.kelas || 'Belum Ditentukan'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${student.status === 'Alumni' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                            {student.status || 'Aktif'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => handlePrintRapot(student.id)}
+                            className="bg-gray-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-2"
+                          >
+                            <Printer size={14} /> Cetak
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {allUsers.filter(u => u.role === 'siswa').length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">Brak data siswa ditemukan.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
