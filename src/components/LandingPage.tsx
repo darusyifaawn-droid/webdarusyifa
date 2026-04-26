@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckCircle, Users, BookOpen, Home, Award, Calendar, MessageCircle, MapPin, Shield, Heart, Menu, X } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { motion } from 'motion/react';
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -193,11 +194,18 @@ export default function LandingPage() {
               { icon: <Users />, title: "Pembiasaan Ibadah", desc: "Praktik ibadah harian, doa, dan hafalan surat-surat pendek Al-Qur'an." },
               { icon: <Shield />, title: "Ruang Ber-AC & CCTV", desc: "Kelas nyaman ber-AC dengan sistem CCTV untuk keamanan dan kenyamanan belajar anak." }
             ].map((item, i) => (
-              <div key={i} className="bg-white p-8 rounded-2xl border border-green-100 hover:shadow-xl transition-all group shadow-sm">
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="bg-white p-8 rounded-2xl border border-green-100 hover:shadow-xl transition-all group shadow-sm"
+              >
                 <div className="text-green-600 mb-6 group-hover:scale-110 transition-transform">{item.icon}</div>
                 <h5 className="text-xl font-bold mb-3 text-green-800">{item.title}</h5>
                 <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

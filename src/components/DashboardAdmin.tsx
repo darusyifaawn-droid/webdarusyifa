@@ -5,6 +5,7 @@ import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signIn
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
 import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
@@ -76,6 +77,7 @@ export default function DashboardAdmin() {
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
+  const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
 
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
@@ -1057,7 +1059,7 @@ export default function DashboardAdmin() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8">
         {showClassModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
@@ -1074,15 +1076,15 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pt-2">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Control Panel</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight">Control Panel</h2>
             <p className="text-gray-500 text-sm">Monitoring operasional sekolah secara real-time.</p>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <button 
               onClick={exportToCSV}
-              className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 text-sm"
             >
               <Download size={18} /> Export CSV
             </button>
@@ -1100,21 +1102,90 @@ export default function DashboardAdmin() {
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
             <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
                 {[
                   { label: 'Total Siswa Aktif', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, color: 'bg-blue-500', icon: Users },
                   { label: 'Total Guru', value: allUsers.filter(u => u.role === 'guru').length, color: 'bg-green-500', icon: Shield },
                   { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length, color: 'bg-purple-500', icon: CheckCircle },
                   { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard }
                 ].map((stat, i) => (
-                  <div key={i} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
-                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
-                      <stat.icon size={24} className="md:w-7 md:h-7" />
+                  <div key={i} className="bg-gray-50 p-4 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all h-full">
+                    <div className={`w-10 h-10 md:w-14 md:h-14 ${stat.color} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-2 md:mb-4 group-hover:scale-110 transition-transform`}>
+                      <stat.icon size={20} className="md:w-7 md:h-7" />
                     </div>
-                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                    <h4 className="text-lg md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
+                    <p className="text-gray-400 text-[8px] md:text-xs font-black uppercase tracking-widest mb-1 leading-tight">{stat.label}</p>
+                    <h4 className="text-sm md:text-xl xl:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Siswa Berprestasi Section */}
+            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8 relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div>
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex items-center gap-3">
+                    <TrendingUp className="text-yellow-500" /> Siswa Berprestasi
+                  </h3>
+                  <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-widest">Peringkat berdasarkan nilai rata-rata raport</p>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+                  {['Semua', ...schoolClasses.map(c => c.name)].map((cls) => (
+                    <button
+                      key={cls}
+                      onClick={() => setRankingClassFilter(cls)}
+                      className={`whitespace-nowrap px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${rankingClassFilter === cls ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      {cls}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {(() => {
+                  let students = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
+                  if (rankingClassFilter !== 'Semua') {
+                    students = students.filter(s => (s.kelas || '').toUpperCase() === rankingClassFilter.toUpperCase());
+                  }
+                  
+                  const ranked = students.map(s => {
+                    const sProgress = progressData.filter(p => p.studentId === s.id);
+                    const avgScore = sProgress.length > 0 
+                      ? sProgress.reduce((acc, p) => acc + (Number(p.score) || 0), 0) / sProgress.length 
+                      : 0;
+                    return { ...s, avgScore };
+                  }).sort((a, b) => b.avgScore - a.avgScore).slice(0, 3);
+
+                  if (ranked.length === 0) {
+                    return <div className="col-span-full py-12 text-center text-gray-400 italic">Belum ada data prestasi untuk filter ini.</div>;
+                  }
+
+                  return ranked.map((s, idx) => (
+                    <div key={s.id} className={`relative p-6 rounded-[2.5rem] border ${idx === 0 ? 'bg-yellow-50 border-yellow-100' : 'bg-gray-50 border-gray-100'} flex items-center gap-4 group hover:scale-[1.02] transition-all`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${
+                        idx === 0 ? 'bg-yellow-500 text-white' : 
+                        idx === 1 ? 'bg-gray-300 text-gray-700' : 
+                        'bg-orange-300 text-orange-800'
+                      } shadow-lg shadow-opacity-20`}>
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-800 truncate">{s.name}</h4>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest truncate">{s.kelas || 'N/A'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="h-1.5 flex-1 bg-white rounded-full overflow-hidden">
+                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${s.avgScore}%` }}></div>
+                          </div>
+                          <span className="text-xs font-black text-yellow-600">{s.avgScore.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      {idx === 0 && (
+                        <div className="absolute -top-2 -right-2 text-3xl animate-bounce">🏆</div>
+                      )}
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
 
@@ -1241,19 +1312,19 @@ export default function DashboardAdmin() {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="px-6 py-4">Nama</th>
-                    <th className="px-6 py-4">Email (Username)</th>
-                    <th className="px-6 py-4">Password</th>
-                    <th className="px-6 py-4">Kelas</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4">Aksi</th>
-                  </tr>
-                </thead>
+            <div className="overflow-x-auto -mx-6 md:mx-0">
+               <table className="w-full text-left whitespace-nowrap min-w-[800px]">
+                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
+                   <tr>
+                     <th className="px-6 py-4">Nama</th>
+                     <th className="px-6 py-4">Email (Username)</th>
+                     <th className="px-6 py-4">Password</th>
+                     <th className="px-6 py-4">Kelas</th>
+                     <th className="px-6 py-4">Role</th>
+                     <th className="px-6 py-4">Status</th>
+                     <th className="px-6 py-4">Aksi</th>
+                   </tr>
+                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {allUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
@@ -1417,8 +1488,8 @@ export default function DashboardAdmin() {
                   )}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
+              <div className="overflow-x-auto -mx-6 md:mx-0">
+                <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                     <tr>
                       <th className="px-6 py-4 w-12">
@@ -1755,8 +1826,8 @@ export default function DashboardAdmin() {
             </div>
             
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
+              <div className="overflow-x-auto -mx-6 md:mx-0">
+                <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                   <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                     <tr>
                       <th className="px-6 py-4">Nama Siswa</th>
@@ -1809,7 +1880,9 @@ export default function DashboardAdmin() {
                 <div key={a.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
-                    <div className="text-gray-600 text-sm mt-4 leading-relaxed whitespace-pre-wrap">{a.content}</div>
+                    <div className="markdown-body mt-4">
+                      <ReactMarkdown>{a.content}</ReactMarkdown>
+                    </div>
                     <div className="mt-6 flex items-center gap-2 text-[10px] text-gray-400 uppercase font-bold tracking-wider">
                       <span>{a.author}</span>
                       <span>•</span>

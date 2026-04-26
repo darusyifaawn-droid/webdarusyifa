@@ -3,6 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs } from 'firebase/firestore';
 import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
@@ -521,21 +522,21 @@ export default function DashboardGuru() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-gray-100 flex justify-around items-center p-3 z-50 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem]">
         {[
           { id: 'overview', icon: CheckCircle, label: 'Beranda' },
-          { id: 'students', icon: Users, label: 'Siswa' },
+          { id: 'subjects', icon: TrendingUp, label: 'Mapel' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
-          { id: 'subjects', icon: TrendingUp, label: 'Materi' },
           { id: 'attendance', icon: Camera, label: 'Absen' },
+          { id: 'announcements', icon: Bell, label: 'Info' },
           { id: 'profile', icon: User, label: 'Profil' },
         ].map(item => (
           <button 
             key={item.id}
             onClick={() => setActiveTab(item.id)} 
-            className={`flex flex-col items-center gap-1.5 p-1 transition-all ${activeTab === item.id ? 'text-blue-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1 p-0.5 transition-all ${activeTab === item.id ? 'text-blue-600' : 'text-gray-400'}`}
           >
-            <div className={`p-2.5 rounded-2xl transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'hover:bg-gray-50'}`}>
-              <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'hover:bg-gray-50'}`}>
+              <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
             </div>
-            <span className={`text-[8px] font-black uppercase tracking-[1px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
+            <span className={`text-[7px] font-black uppercase tracking-[0.5px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
           </button>
         ))}
       </div>
@@ -952,7 +953,9 @@ export default function DashboardGuru() {
               {announcements.map(a => (
                 <div key={a.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                   <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
-                  <div className="text-gray-600 text-sm mt-4 leading-relaxed whitespace-pre-wrap">{a.content}</div>
+                  <div className="markdown-body mt-4">
+                    <ReactMarkdown>{a.content}</ReactMarkdown>
+                  </div>
                   <div className="mt-6 text-[10px] text-gray-400 uppercase font-bold tracking-wider">
                     {a.author} • {a.createdAt ? new Date(a.createdAt.seconds * 1000).toLocaleString() : ''}
                   </div>

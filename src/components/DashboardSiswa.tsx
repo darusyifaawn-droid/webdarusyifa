@@ -3,6 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc } from 'firebase/firestore';
 import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
@@ -479,18 +480,19 @@ export default function DashboardSiswa() {
           { id: 'overview', icon: Calendar, label: 'Beranda' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
           { id: 'attendance', icon: CheckCircle, label: 'Absensi' },
+          { id: 'announcements', icon: Bell, label: 'Info' },
           { id: 'administration', icon: CreditCard, label: 'Admin' },
           { id: 'profile', icon: User, label: 'Profil' },
         ].map(item => (
           <button 
             key={item.id}
             onClick={() => setActiveTab(item.id)} 
-            className={`flex flex-col items-center gap-1.5 p-1 transition-all ${activeTab === item.id ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1 p-0.5 transition-all ${activeTab === item.id ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <div className={`p-2.5 rounded-2xl transition-all ${activeTab === item.id ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'hover:bg-gray-50'}`}>
-              <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'hover:bg-gray-50'}`}>
+              <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
             </div>
-            <span className={`text-[8px] font-black uppercase tracking-[1px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
+            <span className={`text-[7px] font-black uppercase tracking-[0.5px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
           </button>
         ))}
       </div>
@@ -764,8 +766,8 @@ export default function DashboardSiswa() {
                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Transaksi Finansial</h3>
               </div>
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left whitespace-nowrap">
+              <div className="overflow-x-auto -mx-6 md:mx-0">
+                 <table className="w-full text-left whitespace-nowrap min-w-[500px]">
                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                      <tr>
                       <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
@@ -833,7 +835,9 @@ export default function DashboardSiswa() {
                     <h4 className="text-lg md:text-xl font-bold text-gray-800">{ann.title}</h4>
                     <span className="text-xs text-gray-400 whitespace-nowrap">{ann.date}</span>
                   </div>
-                  <p className="text-gray-600 leading-relaxed text-sm md:text-base">{ann.content}</p>
+                  <div className="markdown-body">
+                    <ReactMarkdown>{ann.content}</ReactMarkdown>
+                  </div>
                 </div>
               ))}
               {announcements.length === 0 && (
