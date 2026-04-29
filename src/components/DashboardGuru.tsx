@@ -473,7 +473,7 @@ export default function DashboardGuru() {
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
       {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b border-gray-100 p-4 flex justify-between items-center sticky top-0 z-40">
+      <div className="md:hidden glass-3d p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           {settings?.logoUrl ? (
             <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-white">
@@ -519,7 +519,7 @@ export default function DashboardGuru() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-gray-100 flex justify-around items-center p-3 z-50 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem]">
         {[
           { id: 'overview', icon: CheckCircle, label: 'Beranda' },
           { id: 'subjects', icon: TrendingUp, label: 'Mapel' },
@@ -566,7 +566,7 @@ export default function DashboardGuru() {
 
         {activeTab === 'overview' && (
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+            <div className="card-3d p-6 md:p-8">
                <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {[
@@ -575,7 +575,7 @@ export default function DashboardGuru() {
                   { label: 'Pengumuman', value: announcements.length, color: 'bg-orange-500', icon: Bell },
                   { label: 'Total Absensi', value: attendance.length, color: 'bg-purple-500', icon: Clock },
                 ].map((stat, idx) => (
-                  <div key={idx} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                  <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
                     <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
                       <stat.icon size={24} className="md:w-7 md:h-7" />
                     </div>
@@ -588,12 +588,12 @@ export default function DashboardGuru() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Riwayat Absensi Terakhir */}
-              <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="card-3d p-6 md:p-8 overflow-hidden">
                 <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
                   <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><Clock size={20} className="text-blue-500"/> Kehadiran Saya Terakhir</h3>
                   <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Detail</button>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                    <table className="w-full text-left whitespace-nowrap">
                     <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                        <tr>
@@ -620,10 +620,26 @@ export default function DashboardGuru() {
                      </tbody>
                    </table>
                  </div>
+
+                 {/* Mobile View Kehadiran */}
+                 <div className="md:hidden divide-y divide-gray-50 border-t border-gray-50">
+                    {attendance.slice(0, 4).map((a) => (
+                      <div key={a.id} className="p-4 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
+                        <div>
+                           <p className="font-bold text-gray-800 text-sm">{a.date}</p>
+                           <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                      </div>
+                    ))}
+                    {attendance.length === 0 && (
+                      <div className="p-6 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</div>
+                    )}
+                 </div>
               </div>
 
               {/* Laporan Belajar Terakhir */}
-              <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="card-3d p-6 md:p-8 overflow-hidden">
                 <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
                   <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><BookOpen size={20} className="text-green-500"/> Laporan Terakhir</h3>
                   <button onClick={() => setActiveTab('progress')} className="text-[10px] md:text-xs font-bold text-green-600 hover:underline uppercase tracking-widest">Detail</button>
@@ -659,11 +675,11 @@ export default function DashboardGuru() {
         )}
 
         {activeTab === 'students' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="card-3d overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-800">Daftar Siswa</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                   <tr>
@@ -697,6 +713,32 @@ export default function DashboardGuru() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile View Daftar Siswa */}
+            <div className="md:hidden divide-y divide-gray-100">
+               {students.map((s) => (
+                 <div key={s.id} className="p-4 bg-white flex flex-col gap-3 border-t border-gray-50">
+                    <div>
+                      <p className="font-bold text-gray-800">{s.name}</p>
+                      <p className="text-xs text-gray-500">{s.email}</p>
+                    </div>
+                    <div className="flex gap-2 isolate">
+                      <button 
+                        onClick={() => { setSelectedStudent(s.id); setShowProgressModal(true); }}
+                        className="flex-1 bg-blue-50 text-blue-600 hover:text-white hover:bg-blue-600 font-bold text-xs py-2 rounded-xl transition-colors text-center"
+                      >
+                        Beri Laporan
+                      </button>
+                      <button 
+                        onClick={() => handlePrintRapot(s.id)}
+                        className="flex-1 bg-gray-800 text-white hover:bg-gray-900 font-bold text-xs py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Printer size={12} /> Cetak
+                      </button>
+                    </div>
+                 </div>
+               ))}
             </div>
           </div>
         )}
@@ -837,8 +879,8 @@ export default function DashboardGuru() {
               <h4 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Clock size={20} className="text-blue-600" /> Riwayat Absensi Terkini
               </h4>
-              <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="card-3d overflow-hidden">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-gray-50 text-gray-400 text-xs font-bold uppercase tracking-widest">
                       <tr>
@@ -887,13 +929,50 @@ export default function DashboardGuru() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile View Riwayat Absensi Terkini */}
+                <div className="md:hidden divide-y divide-gray-100">
+                  {attendance.filter(a => a.studentId === user.uid).map(a => (
+                    <div key={a.id} className="p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-start border-b border-gray-50 pb-2">
+                        <div>
+                          <p className="font-bold text-gray-800 text-sm">{a.date}</p>
+                          <p className="text-xs text-gray-500">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : '-'}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'Hadir' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                          {a.status}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                           {a.photo && <button onClick={() => setSelectedPhoto(a.photo)} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:bg-blue-100">Lihat Foto</button>}
+                        </div>
+                        <button onClick={async () => {
+                           if(window.confirm('Hapus data absensi ini?')) {
+                             try {
+                               await deleteDoc(doc(db, 'attendance', a.id));
+                               alert('Absensi berhasil dihapus!');
+                             } catch (error) {
+                               handleFirestoreError(error, OperationType.DELETE, `attendance/${a.id}`);
+                             }
+                           }
+                        }} className="text-gray-400 hover:text-red-500 transition-colors bg-gray-50 p-2 rounded-lg">
+                           <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {attendance.filter(a => a.studentId === user.uid).length === 0 && (
+                    <div className="p-6 text-center text-gray-400 text-sm italic">Belum ada riwayat absensi.</div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8 max-w-2xl mx-auto md:mx-0">
+          <div className="card-3d p-8 max-w-2xl mx-auto md:mx-0">
             <h3 className="text-2xl font-bold text-gray-800 mb-10">Pengaturan Profil Guru</h3>
             <form onSubmit={handleUpdateProfile} className="space-y-8">
               <div className="flex flex-col items-center gap-6 bg-gray-50 p-10 rounded-[48px] border border-gray-100">

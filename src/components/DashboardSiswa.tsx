@@ -9,6 +9,15 @@ import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
+const MOTIVATIONAL_QUOTES = [
+  "Anak yang rajin adalah kebanggaan orang tua dan guru.",
+  "Setiap langkah kecilmu hari ini adalah kunci sukses di masa depan.",
+  "Teruslah belajar dan berbuat baik, hasil tidak akan mengkhianati usaha.",
+  "Kedisiplinan adalah jembatan antara cita-cita dan pencapaian.",
+  "Pintar itu bagus, tapi rajin dan jujur jauh lebih utama.",
+  "Semangat ya belajarnya! Masa depan cerah menantimu."
+];
+
 export default function DashboardSiswa() {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -22,6 +31,13 @@ export default function DashboardSiswa() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
+  const [quote, setQuote] = useState('');
+
+  useEffect(() => {
+    // Select a random quote on component mount
+    const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+    setQuote(randomQuote);
+  }, []);
 
   const getScoreGradeInfo = (score: number) => {
     if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
@@ -431,7 +447,7 @@ export default function DashboardSiswa() {
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
       {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b border-gray-100 p-4 flex justify-between items-center sticky top-0 z-40">
+      <div className="md:hidden glass-3d p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           {settings?.logoUrl ? (
             <div className="w-10 h-10 overflow-hidden rounded-xl border border-green-600 bg-white">
@@ -475,7 +491,7 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-gray-100 flex justify-around items-center p-3 z-50 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem]">
         {[
           { id: 'overview', icon: Calendar, label: 'Beranda' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
@@ -499,12 +515,15 @@ export default function DashboardSiswa() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Halo, {userData?.name || 'Siswa'}!</h2>
-            <p className="text-gray-500 text-sm">Selamat datang kembali di portal belajar Anda.</p>
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+          <div className="flex-1">
+            <h2 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">Halo, {userData?.name || 'Siswa'}!</h2>
+            <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-2xl">
+              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+              <p className="text-xs md:text-sm text-green-700 font-bold italic">"{quote}"</p>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <button 
               onClick={startCamera}
               className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
@@ -523,7 +542,7 @@ export default function DashboardSiswa() {
         {activeTab === 'overview' && (
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
             {/* Top Stat Bubbles for Unified UI */}
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+            <div className="card-3d p-6 md:p-8">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {[
@@ -532,7 +551,7 @@ export default function DashboardSiswa() {
                   { label: 'Pengumuman', value: announcements.length, color: 'bg-purple-500', icon: Bell },
                   { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length > 0 ? 'Hadir' : '-', color: 'bg-orange-500', icon: Clock },
                 ].map((stat, idx) => (
-                  <div key={idx} className="bg-gray-50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
+                  <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
                     <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
                       <stat.icon size={24} className="md:w-7 md:h-7" />
                     </div>
@@ -544,27 +563,39 @@ export default function DashboardSiswa() {
             </div>
 
             {/* Riwayat Absensi Terakhir */}
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+            <div className="card-3d overflow-hidden">
                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                  <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Kehadiran Terakhir</h3>
                 <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-green-600 hover:text-green-700 uppercase tracking-widest">Kehadiran Lengkap</button>
                </div>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap">
-                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                     <tr>
-                      <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
-                      <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
-                       <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                     {attendance.slice(0, 3).map((a) => (
-                       <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
-                         <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
-                         <td className="px-6 py-4 md:px-8 md:py-6">
-                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                      <tr>
+                       <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
+                       <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
+                        <th className="px-6 py-4 md:px-8 md:py-5">Foto</th>
+                        <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-50">
+                      {attendance.slice(0, 3).map((a) => (
+                        <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                         <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
+                          <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
+                          <td className="px-6 py-4 md:px-8 md:py-6">
+                            {a.photo ? (
+                              <button onClick={() => setSelectedPhoto(a.photo)} className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 shadow-sm hover:scale-110 transition-transform">
+                                <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
+                              </button>
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-300">
+                                <Camera size={16} />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 md:px-8 md:py-6">
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
                         </td>
                       </tr>
                      ))}
@@ -576,13 +607,40 @@ export default function DashboardSiswa() {
                    </tbody>
                  </table>
                </div>
+
+               {/* Mobile View Kehadiran Terakhir */}
+               <div className="md:hidden divide-y divide-gray-50 border-t border-gray-50">
+                  {attendance.slice(0, 3).map((a) => (
+                    <div key={a.id} className="p-4 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
+                      <div className="flex gap-4 items-center">
+                        {a.photo ? (
+                          <button onClick={() => setSelectedPhoto(a.photo)} className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 shadow-sm shrink-0">
+                            <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
+                          </button>
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 shrink-0">
+                            <Camera size={16} />
+                          </div>
+                        )}
+                        <div>
+                           <p className="font-bold text-gray-800 text-sm">{a.date}</p>
+                           <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                    </div>
+                  ))}
+                  {attendance.length === 0 && (
+                    <div className="p-8 text-center text-gray-400 italic">Belum ada riwayat absensi.</div>
+                  )}
+               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'progress' && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 card-3d p-6 md:p-8">
               <div>
                 <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Perkembangan Belajar</h3>
                 <p className="text-sm text-gray-400 font-medium">Monitoring nilai dan capaian pembelajaran.</p>
@@ -599,7 +657,7 @@ export default function DashboardSiswa() {
                 const scoreNum = Number(p.score) || 0;
                 const gradeInfo = getScoreGradeInfo(scoreNum);
                 return (
-                  <div key={p.id} className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div key={p.id} className="card-3d p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                       <span className="px-4 py-1 bg-blue-100 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">{p.category}</span>
                       <h4 className="text-xl font-bold text-gray-800 mt-4">{p.title}</h4>
@@ -641,7 +699,7 @@ export default function DashboardSiswa() {
         )}
 
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8 max-w-2xl mx-auto md:mx-0 animate-in slide-in-from-bottom duration-500">
+          <div className="card-3d p-8 max-w-2xl mx-auto md:mx-0 animate-in slide-in-from-bottom duration-500">
             <h3 className="text-2xl font-black text-gray-800 mb-10 tracking-tight">Pengaturan Profil Siswa</h3>
             <form onSubmit={handleUpdateProfile} className="space-y-8">
               <div className="flex flex-col items-center gap-6 bg-gray-50 p-10 rounded-[48px] border border-gray-100">
@@ -708,16 +766,17 @@ export default function DashboardSiswa() {
         )}
 
         {activeTab === 'attendance' && (
-          <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden animate-in slide-in-from-bottom duration-500">
+          <div className="card-3d overflow-hidden animate-in slide-in-from-bottom duration-500">
             <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800">Riwayat Absensi Lengkap</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left whitespace-nowrap">
                 <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                   <tr>
                     <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
                     <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5">Foto</th>
                     <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
                   </tr>
                 </thead>
@@ -726,6 +785,17 @@ export default function DashboardSiswa() {
                     <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
                       <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
+                      <td className="px-6 py-4 md:px-8 md:py-6">
+                        {a.photo ? (
+                          <button onClick={() => setSelectedPhoto(a.photo)} className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 shadow-sm hover:scale-110 transition-transform">
+                            <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
+                          </button>
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-300">
+                            <Camera size={16} />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 md:px-8 md:py-6">
                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
                       </td>
@@ -739,12 +809,39 @@ export default function DashboardSiswa() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile View Kehadiran Lengkap */}
+            <div className="md:hidden divide-y divide-gray-50 border-t border-gray-50">
+               {attendance.map((a) => (
+                 <div key={a.id} className="p-4 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
+                   <div className="flex gap-4 items-center">
+                     {a.photo ? (
+                       <button onClick={() => setSelectedPhoto(a.photo)} className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 shadow-sm shrink-0">
+                         <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
+                       </button>
+                     ) : (
+                       <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 shrink-0">
+                         <Camera size={16} />
+                       </div>
+                     )}
+                     <div>
+                        <p className="font-bold text-gray-800 text-sm">{a.date}</p>
+                        <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
+                     </div>
+                   </div>
+                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                 </div>
+               ))}
+               {attendance.length === 0 && (
+                 <div className="p-8 text-center text-gray-400 italic">Belum ada riwayat absensi.</div>
+               )}
+            </div>
           </div>
         )}
 
         {activeTab === 'administration' && (
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+            <div className="card-3d p-6 md:p-8">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Administrasi Keuangan</h3>
                <div className="grid md:grid-cols-2 gap-6 md:gap-8">
                 <div className="p-8 md:p-10 bg-gradient-to-br from-green-600 to-green-700 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
@@ -762,11 +859,11 @@ export default function DashboardSiswa() {
               </div>
             </div>
 
-             <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+             <div className="card-3d overflow-hidden">
                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Transaksi Finansial</h3>
               </div>
-              <div className="overflow-x-auto -mx-6 md:mx-0">
+              <div className="hidden md:block overflow-x-auto">
                  <table className="w-full text-left whitespace-nowrap min-w-[500px]">
                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                      <tr>
@@ -821,6 +918,56 @@ export default function DashboardSiswa() {
                    </tbody>
                 </table>
               </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden divide-y divide-gray-50">
+                {payments.map((pay) => (
+                  <div key={pay.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="pr-2">
+                        <p className="font-bold text-gray-800 text-sm leading-tight">{pay.description}</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1.5">{pay.date}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`font-black text-sm ${pay.type === 'tabungan' ? 'text-green-600' : 'text-blue-600'}`}>
+                          Rp {pay.amount.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${pay.type === 'tabungan' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {pay.type === 'tabungan' ? 'Tabungan' : 'Iuran/SPP'}
+                        </span>
+                        {pay.method && (
+                          <span className="text-[8px] px-2 py-0.5 bg-white border border-gray-200 text-gray-500 rounded font-black uppercase tracking-widest">{pay.method}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {pay.proof && (
+                          <button 
+                            onClick={() => setSelectedPhoto(pay.proof)}
+                            className="text-[9px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
+                          >
+                            Bukti
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handlePrintReceipt(pay)}
+                          className="text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
+                        >
+                          Cetak
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {payments.length === 0 && (
+                  <div className="px-6 py-12 text-center">
+                    <p className="text-gray-400 italic text-xs">Belum ada riwayat transaksi finansial.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -830,7 +977,7 @@ export default function DashboardSiswa() {
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-8">Info & Pengumuman Sekolah</h3>
             <div className="grid gap-6">
               {announcements.map((ann) => (
-                <div key={ann.id} className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100">
+                <div key={ann.id} className="card-3d p-6 md:p-8">
                   <div className="flex justify-between items-start mb-4">
                     <h4 className="text-lg md:text-xl font-bold text-gray-800">{ann.title}</h4>
                     <span className="text-xs text-gray-400 whitespace-nowrap">{ann.date}</span>

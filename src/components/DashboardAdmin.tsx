@@ -975,7 +975,7 @@ export default function DashboardAdmin() {
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
       {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b border-gray-100 p-4 flex justify-between items-center sticky top-0 z-40">
+      <div className="md:hidden glass-3d p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           {settings?.logoUrl ? (
             <div className="w-10 h-10 overflow-hidden rounded-xl border border-green-600 bg-white">
@@ -1019,7 +1019,7 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center p-2 z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] overflow-x-auto">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-2 z-50 pb-safe overflow-x-auto">
         <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'overview' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <div className={`p-1.5 rounded-lg ${activeTab === 'overview' ? 'bg-green-50' : ''}`}>
             <BarChart size={22} />
@@ -1100,7 +1100,7 @@ export default function DashboardAdmin() {
 
         {activeTab === 'overview' && (
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8">
+            <div className="card-3d p-6 md:p-8">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-6">
                 {[
@@ -1110,7 +1110,7 @@ export default function DashboardAdmin() {
                   { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard },
                   { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, color: 'bg-red-500', icon: AlertCircle }
                 ].map((stat, i) => (
-                  <div key={i} className="bg-gray-50 p-4 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all h-full">
+                  <div key={i} className="bg-gray-50/50 p-4 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all h-full">
                     <div className={`w-10 h-10 md:w-14 md:h-14 ${stat.color} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-2 md:mb-4 group-hover:scale-110 transition-transform`}>
                       <stat.icon size={20} className="md:w-7 md:h-7" />
                     </div>
@@ -1122,7 +1122,7 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Siswa Berprestasi Section */}
-            <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 p-6 md:p-8 relative overflow-hidden">
+            <div className="card-3d p-6 md:p-8 relative overflow-hidden">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
                   <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex items-center gap-3">
@@ -1191,12 +1191,12 @@ export default function DashboardAdmin() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-              <div className="lg:col-span-2 bg-white rounded-[32px] md:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="lg:col-span-2 card-3d overflow-hidden">
                 <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                   <h3 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">Peluncur Aktivitas Terbaru</h3>
                   <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Lihat Semua</button>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left whitespace-nowrap">
                     <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                       <tr>
@@ -1244,13 +1244,68 @@ export default function DashboardAdmin() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile View Peluncur Aktivitas */}
+                <div className="md:hidden divide-y divide-gray-100">
+                  {attendance.slice(0, 10).map((a) => {
+                    const student = allUsers.find(u => u.id === a.studentId);
+                    return (
+                      <div key={a.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-gray-800 text-sm">{student?.name || 'Unknown'}</p>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest">{student?.email}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {a.status}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center bg-gray-50 p-2.5 border border-gray-100 rounded-lg">
+                           <div>
+                             <p className="text-xs font-bold text-gray-700">{a.date}</p>
+                             <p className="text-[10px] text-gray-400 uppercase tracking-widest">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</p>
+                           </div>
+                           {a.location?.latitude ? (
+                             <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noreferrer" className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all">
+                               <MapPin size={14} />
+                             </a>
+                           ) : (
+                             <span className="text-[10px] text-gray-400 italic">No Loc</span>
+                           )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {attendance.length === 0 && (
+                    <div className="p-6 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-6 md:space-y-8">
-                <div className="bg-white rounded-[32px] md:rounded-[40px] p-6 md:p-8 shadow-sm border border-gray-100">
+                <div className="card-3d p-6 md:p-8">
                   <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center gap-2">
-                    <ImageIcon size={20} className="text-blue-500" /> Pengaturan Logo
+                    <Settings size={20} className="text-blue-500" /> Pengaturan Sekolah
                   </h3>
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="block text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Sekolah</label>
+                      <input 
+                        type="text" 
+                        value={settings.schoolName || ''} 
+                        onChange={(e) => setSettings({...settings, schoolName: e.target.value})} 
+                        onBlur={async (e) => {
+                          try {
+                            await setDoc(doc(db, 'settings', 'landingPage'), {...settings, schoolName: e.target.value}, { merge: true });
+                          } catch(err) {
+                            console.error(err);
+                          }
+                        }}
+                        placeholder="Contoh: SD Negeri 1"
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                      />
+                    </div>
+                  </div>
                   <div className="aspect-video bg-gray-50 rounded-2xl md:rounded-[24px] border border-dashed border-gray-200 flex flex-col items-center justify-center gap-3 relative group overflow-hidden">
                     {settings.logoUrl ? (
                       <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2 md:p-4" referrerPolicy="no-referrer" />
@@ -1269,7 +1324,7 @@ export default function DashboardAdmin() {
                                try {
                                  const compressed = await compressImage(result, 600, 600, 0.7);
                                  setSettings({...settings, logoUrl: compressed});
-                                 await setDoc(doc(db, 'settings', 'landingPage'), {...settings, logoUrl: compressed});
+                                 await setDoc(doc(db, 'settings', 'landingPage'), {...settings, logoUrl: compressed}, { merge: true });
                                } catch (error) {
                                   console.error(error);
                                }
@@ -1313,7 +1368,7 @@ export default function DashboardAdmin() {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto -mx-6 md:mx-0">
+            <div className="hidden md:block overflow-x-auto">
                <table className="w-full text-left whitespace-nowrap min-w-[800px]">
                  <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                    <tr>
@@ -1368,13 +1423,44 @@ export default function DashboardAdmin() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile View User Management */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {allUsers.map((u) => (
+                <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-gray-800">{u.name}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">{u.email}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                         u.role === 'admin' ? 'bg-red-100 text-red-600' :
+                         u.role === 'guru' ? 'bg-blue-100 text-blue-600' :
+                         'bg-green-100 text-green-600'
+                       }`}>
+                      {u.role}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center bg-gray-50 p-2.5 border border-gray-100 rounded-lg shrink-0">
+                    <div className="text-[10px] font-bold text-gray-400">
+                      KL: <span className="text-gray-800">{u.kelas || '-'}</span> | PW: <span className="text-gray-800">{u.plainPassword || '***'}</span>
+                    </div>
+                    <div className="flex gap-4">
+                      <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="text-gray-400 hover:text-yellow-600"><Key size={16} /></button>
+                      <button onClick={() => { setEditingUser(u); setShowEditUser(true); }} className="text-gray-400 hover:text-blue-600"><Edit size={16} /></button>
+                      <button onClick={() => { setUserToDelete(u); setShowDeleteConfirm(true); }} className="text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {activeTab === 'academic' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             {/* Tambah Siswa / Import Siswa Section */}
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8">
+            <div className="card-3d p-8">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
                 <div>
                   <h3 className="text-xl font-black text-gray-800 tracking-tight">Data Siswa Aktif</h3>
@@ -1418,7 +1504,7 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Class Categories Manager */}
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden p-8">
+            <div className="card-3d overflow-hidden p-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
                   <h3 className="text-xl font-black text-gray-800 tracking-tight">Kategori Kelas</h3>
@@ -1489,7 +1575,7 @@ export default function DashboardAdmin() {
                   )}
                 </div>
               </div>
-              <div className="overflow-x-auto -mx-6 md:mx-0">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                   <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                     <tr>
@@ -1553,13 +1639,57 @@ export default function DashboardAdmin() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile View Academic */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).map(student => (
+                  <div key={student.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedStudentsForMutasi.includes(student.id)}
+                          onChange={(e) => {
+                            if(e.target.checked) setSelectedStudentsForMutasi([...selectedStudentsForMutasi, student.id]);
+                            else setSelectedStudentsForMutasi(selectedStudentsForMutasi.filter(id => id !== student.id));
+                          }}
+                          className="w-4 h-4 mt-1 rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          <p className="font-bold text-gray-800">{student.name}</p>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{student.kelas || 'Belum Ditentukan'}</p>
+                        </div>
+                      </div>
+                      <span className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          (student.status || 'Aktif') === 'Aktif' ? 'bg-green-100 text-green-700' :
+                          student.status === 'Alumni' ? 'bg-purple-100 text-purple-700' : 
+                          student.status === 'Pindah' ? 'bg-orange-100 text-orange-700' : 
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                        {student.status || 'Aktif'}
+                      </span>
+                    </div>
+                    <div className="flex justify-end mt-2">
+                      <button 
+                        onClick={() => handlePrintRapot(student.id)}
+                        className="bg-gray-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-2"
+                      >
+                        <Printer size={14} /> Cetak Rapot
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length === 0 && (
+                  <div className="p-6 text-center text-gray-400 italic text-sm">Data siswa dengan status tersebut belum tersedia.</div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'attendance' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+            <div className="card-3d p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kelola Absensi</h3>
                 <p className="text-gray-400 text-sm font-medium">Filter dan monitoring kehadiran warga sekolah.</p>
@@ -1803,7 +1933,7 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Visual Summary Chart */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="card-3d p-8 overflow-hidden">
               <div className="flex justify-between items-center mb-8">
                 <div>
                   <h4 className="text-xl font-black text-gray-800 tracking-tight">Ringkasan Keuangan</h4>
@@ -1849,7 +1979,7 @@ export default function DashboardAdmin() {
             </div>
             
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto -mx-6 md:mx-0">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                   <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                     <tr>
@@ -1882,6 +2012,41 @@ export default function DashboardAdmin() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile View Keuangan */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map((u) => (
+                  <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-gray-800">{u.name}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">{u.kelas || 'Belum Ditentukan'}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-50 p-3 border border-gray-100 rounded-lg">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tabungan</p>
+                        <p className="font-bold text-green-600">Rp {(u.savings || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="flex flex-col gap-1 text-right">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tunggakan</p>
+                        <p className="font-bold text-red-600">Rp {(u.arrears || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-2">
+                       <button 
+                         onClick={() => {
+                           setSelectedStudentForFinance(u);
+                           setShowManageFinanceModal(true);
+                         }}
+                         className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] uppercase font-bold hover:bg-blue-100 transition-colors"
+                       >
+                         Kelola Keuangan
+                       </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1936,7 +2101,7 @@ export default function DashboardAdmin() {
 
 
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-8 max-w-2xl">
+          <div className="card-3d p-8 max-w-2xl">
             <h3 className="text-xl font-bold text-gray-800 mb-8">Profil Admin</h3>
             <form onSubmit={handleUpdateProfile} className="space-y-6">
               <div className="flex flex-col items-center gap-6 mb-8 bg-gray-50 p-8 rounded-[40px] border border-gray-100">

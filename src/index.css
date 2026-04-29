@@ -40,4 +40,33 @@
   .markdown-body code {
     @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
   }
+
+  /* 3D Visual System */
+  .glass-3d {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.05)];
+  }
+
+  .card-3d {
+    @apply bg-white border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-300;
+  }
+
+  .card-3d:hover {
+    @apply shadow-[0_20px_50px_-12px_rgba(0,0,0,0.12)] -translate-y-1;
+  }
+
+  .button-3d {
+    @apply relative transition-all duration-200 active:translate-y-0.5 active:shadow-none shadow-[0_4px_0_0_rgba(0,0,0,0.1)];
+  }
+
+  .floating-3d {
+    @apply shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] ring-1 ring-black/[0.02];
+  }
+
+  .neobrutal-3d {
+    @apply border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+  }
+
+  .inner-3d {
+    @apply shadow-[inset_0_2px_4px_0_rgba(0,0,0,0.06)];
+  }
 }
