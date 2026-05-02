@@ -29,6 +29,7 @@ export default function DashboardAdmin() {
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTabunganModal, setShowTabunganModal] = useState(false);
   const [showIuranModal, setShowIuranModal] = useState(false);
+  const [showDeleteIuranModal, setShowDeleteIuranModal] = useState(false);
   const [showSyncSpreadsheetModal, setShowSyncSpreadsheetModal] = useState(false);
   const [syncSpreadsheetUrl, setSyncSpreadsheetUrl] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -64,6 +65,10 @@ export default function DashboardAdmin() {
   const [financeDueDate, setFinanceDueDate] = useState('');
   const [searchStudentFinance, setSearchStudentFinance] = useState('');
   const [searchStudentIuran, setSearchStudentIuran] = useState('');
+  const [deleteIuranTarget, setDeleteIuranTarget] = useState('all');
+  const [deleteIuranDescription, setDeleteIuranDescription] = useState('');
+  const [deleteIuranSearchName, setDeleteIuranSearchName] = useState('');
+  const [searchStudentDelete, setSearchStudentDelete] = useState('');
   
   // Manage Finance Modal States
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
@@ -882,6 +887,57 @@ export default function DashboardAdmin() {
     } catch (error) {
       console.error("Error deleting arrear:", error);
       alert('Gagal menghapus tunggakan.');
+    }
+  };
+
+  const handleMassDeleteIuran = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteIuranDescription) {
+      alert('Mohon masukkan deskripsi iuran yang ingin dihapus.');
+      return;
+    }
+
+    if (!window.confirm(`Hapus iuran "${deleteIuranDescription}" untuk target yang dipilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    try {
+      let targets = [];
+      if (deleteIuranTarget === 'all') {
+        targets = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
+      } else if (deleteIuranTarget.startsWith('kelas_')) {
+        const className = deleteIuranTarget.replace('kelas_', '');
+        targets = allUsers.filter(u => u.role === 'siswa' && u.kelas === className && (u.status || 'Aktif') === 'Aktif');
+      } else {
+        targets = allUsers.filter(u => u.id === deleteIuranTarget);
+      }
+
+      if (targets.length === 0) {
+        alert('Tidak ada siswa yang ditemukan untuk target tersebut.');
+        return;
+      }
+
+      let count = 0;
+      for (const student of targets) {
+        const details = student.arrears_details || [];
+        const itemToDelete = details.find((d: any) => d.name.toLowerCase() === deleteIuranDescription.toLowerCase());
+        
+        if (itemToDelete) {
+          const newDetails = details.filter((d: any) => d.id !== itemToDelete.id);
+          const newArrears = Math.max(0, (student.arrears || 0) - itemToDelete.amount);
+          
+          await updateDoc(doc(db, 'users', student.id), {
+            arrears: newArrears,
+            arrears_details: newDetails
+          });
+          count++;
+        }
+      }
+
+      alert(`Berhasil menghapus iuran dari ${count} siswa.`);
+      setShowDeleteIuranModal(false);
+      setDeleteIuranDescription('');
+    } catch (error) {
+      console.error("Error mass deleting iuran:", error);
+      alert('Gagal menghapus iuran secara massal.');
     }
   };
 
@@ -2223,6 +2279,12 @@ export default function DashboardAdmin() {
                   <Plus size={18} /> Input Tabungan
                 </button>
                 <button 
+                  onClick={() => setShowDeleteIuranModal(true)}
+                  className="flex-1 sm:flex-none bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-100 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-all text-xs sm:text-sm"
+                >
+                  <Trash2 size={18} /> Hapus Iuran Massal
+                </button>
+                <button 
                   onClick={() => setShowIuranModal(true)}
                   className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-xs sm:text-sm"
                 >
@@ -2822,7 +2884,20 @@ export default function DashboardAdmin() {
               <form onSubmit={handleAddIuran} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Iuran (Group)</label>
-                  <input type="text" value={financeIuranName} onChange={(e) => setFinanceIuranName(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: SPP Bulan Juli" required />
+                  <input 
+                    type="text" 
+                    list="existing-iurans"
+                    value={financeIuranName} 
+                    onChange={(e) => setFinanceIuranName(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Contoh: SPP Bulan Juli" 
+                    required 
+                  />
+                  <datalist id="existing-iurans">
+                    {Array.from(new Set(allUsers.flatMap(u => (u.arrears_details || []).map((d: any) => d.name)))).map(name => (
+                      <option key={`opt_${name}`} value={name} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jatuh Tempo (Opsional)</label>
@@ -2854,6 +2929,72 @@ export default function DashboardAdmin() {
                   </select>
                 </div>
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Tetapkan Iuran</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showDeleteIuranModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden relative">
+              <button onClick={() => setShowDeleteIuranModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <div className="p-6 bg-red-600 text-white">
+                <h3 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
+                  <Trash2 size={24} /> Hapus Iuran Massal
+                </h3>
+                <p className="text-xs text-red-100 mt-1">Hapus tagihan secara massal per kelas atau siswa</p>
+              </div>
+              <form onSubmit={handleMassDeleteIuran} className="p-6 space-y-4">
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-start gap-3">
+                  <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
+                  <p className="text-[10px] text-red-800 font-medium">Masukkan Nama Iuran yang tepat (sama persis dengan yang ada di daftar tunggakan siswa).</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cari & Pilih Nama Iuran (Target Hapus)</label>
+                  <input
+                    type="text"
+                    placeholder="Filter nama iuran yang ada..."
+                    value={deleteIuranSearchName}
+                    onChange={(e) => setDeleteIuranSearchName(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 mb-2"
+                  />
+                  <select 
+                    value={deleteIuranDescription} 
+                    onChange={(e) => setDeleteIuranDescription(e.target.value)} 
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  >
+                    <option value="">-- Pilih Iuran --</option>
+                    {Array.from(new Set(allUsers.flatMap(u => (u.arrears_details || []).map((d: any) => d.name))))
+                      .filter(name => !deleteIuranSearchName || name.toLowerCase().includes(deleteIuranSearchName.toLowerCase()))
+                      .map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
+                  <input
+                    type="text"
+                    placeholder="Cari Nama Siswa (untuk filter daftar)..."
+                    value={searchStudentDelete}
+                    onChange={(e) => setSearchStudentDelete(e.target.value)}
+                    className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                  <select value={deleteIuranTarget} onChange={(e) => setDeleteIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" required>
+                    <option value="all">Semua Siswa Aktif</option>
+                    {schoolClasses.map(c => (
+                      <option key={`del_iuran_${c.id}`} value={`kelas_${c.name}`}>Siswa Kelas {c.name}</option>
+                    ))}
+                    <optgroup label="Siswa Spesifik">
+                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentDelete || u.name.toLowerCase().includes(searchStudentDelete.toLowerCase()))).map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <button type="submit" className="w-full px-6 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-xl shadow-red-200 transition-all mt-4">Hapus Massal Sekarang</button>
               </form>
             </div>
           </div>
