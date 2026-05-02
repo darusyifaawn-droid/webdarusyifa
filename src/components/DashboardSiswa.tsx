@@ -33,6 +33,10 @@ export default function DashboardSiswa() {
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
   const [quote, setQuote] = useState('');
   
+  // Finance Filter State
+  const [filterType, setFilterType] = useState('all');
+  const [filterDate, setFilterDate] = useState('');
+  
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
@@ -1003,8 +1007,42 @@ export default function DashboardSiswa() {
             )}
 
              <div className="card-3d overflow-hidden mt-6">
-               <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Transaksi Finansial</h3>
+               <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/50">
+                <h3 className="text-lg md:text-xl font-bold text-gray-800 shrink-0">Riwayat Transaksi Finansial</h3>
+                
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Filter Jenis</label>
+                    <select 
+                      value={filterType} 
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">Semua Jenis</option>
+                      <option value="iuran">Tagihan/SPP</option>
+                      <option value="tabungan">Tabungan</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Filter Tanggal</label>
+                    <input 
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {(filterType !== 'all' || filterDate) && (
+                    <button 
+                      onClick={() => { setFilterType('all'); setFilterDate(''); }}
+                      className="mt-4 md:mt-2 text-[9px] font-black text-red-500 hover:text-red-600 uppercase tracking-widest"
+                    >
+                      Reset Filter
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="hidden md:block overflow-x-auto">
                  <table className="w-full text-left whitespace-nowrap min-w-[500px]">
@@ -1016,63 +1054,80 @@ export default function DashboardSiswa() {
                        <th className="px-6 py-4 md:px-8 md:py-5 text-right">Nominal</th>
                      </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {payments.map((pay) => (
-                      <tr key={pay.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{pay.date}</td>
-                        <td className="px-6 py-4 md:px-8 md:py-6">
-                           <p className="font-bold text-gray-800">{pay.description}</p>
-                           <div className="flex items-center gap-2 mt-1">
-                             <p className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {pay.id.substring(0,8)}</p>
-                            {pay.method && (
-                              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold uppercase tracking-widest">{pay.method}</span>
-                            )}
-                             {pay.proofStr && (
-                              <button 
-                                 onClick={() => setSelectedPhoto(pay.proofStr)}
-                                 className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest"
-                               >
-                                 Lihat Bukti
-                               </button>
-                             )}
-                             {pay.status === 'lunas' || pay.status === 'approved' ? (
-                               pay.type !== 'tabungan' && (
-                                 <button 
-                                   onClick={() => handlePrintReceipt(pay)}
-                                   className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+                    <tbody className="divide-y divide-gray-50">
+                      {payments
+                        .filter(pay => {
+                          const matchType = filterType === 'all' || (filterType === 'iuran' ? pay.type !== 'tabungan' : pay.type === 'tabungan');
+                          const matchDate = !filterDate || pay.date === filterDate;
+                          return matchType && matchDate;
+                        })
+                        .map((pay) => (
+                        <tr key={pay.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{pay.date}</td>
+                          <td className="px-6 py-4 md:px-8 md:py-6">
+                             <p className="font-bold text-gray-800">{pay.description}</p>
+                             <div className="flex items-center gap-2 mt-1">
+                               <p className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {pay.id.substring(0,8)}</p>
+                              {pay.method && (
+                                <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold uppercase tracking-widest">{pay.method}</span>
+                              )}
+                               {pay.proofStr && (
+                                <button 
+                                   onClick={() => setSelectedPhoto(pay.proofStr)}
+                                   className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest"
                                  >
-                                   Cetak Bukti
+                                   Lihat Bukti
                                  </button>
-                               )
-                             ) : (
-                               <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
-                                 <Clock size={10} /> Pending
-                               </span>
-                             )}
-                           </div>
-                         </td>
-                        <td className="px-6 py-4 md:px-8 md:py-6">
-                           <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pay.type === 'tabungan' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                             {pay.type === 'tabungan' ? 'Tabungan' : 'Iuran/SPP'}
-                          </span>
-                         </td>
-                         <td className={`px-6 py-4 md:px-8 md:py-6 text-right font-bold text-base md:text-lg ${pay.type === 'tabungan' ? 'text-green-600' : 'text-blue-600'}`}>
-                          Rp {pay.amount.toLocaleString()}
-                         </td>
-                       </tr>
-                    ))}
-                    {payments.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat transaksi finansial.</td>
-                      </tr>
-                     )}
-                   </tbody>
+                               )}
+                               
+                               {pay.type !== 'tabungan' && (
+                                 pay.status === 'lunas' || pay.status === 'approved' ? (
+                                   <button 
+                                     onClick={() => handlePrintReceipt(pay)}
+                                     className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+                                   >
+                                     Cetak Bukti
+                                   </button>
+                                 ) : (
+                                   <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
+                                     <Clock size={10} /> Pending
+                                   </span>
+                                 )
+                               )}
+                             </div>
+                           </td>
+                          <td className="px-6 py-4 md:px-8 md:py-6">
+                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${pay.type === 'tabungan' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                               {pay.type === 'tabungan' ? 'Tabungan' : 'Iuran/SPP'}
+                            </span>
+                           </td>
+                           <td className={`px-6 py-4 md:px-8 md:py-6 text-right font-bold text-base md:text-lg ${pay.type === 'tabungan' ? 'text-green-600' : 'text-blue-600'}`}>
+                            Rp {pay.amount.toLocaleString()}
+                           </td>
+                         </tr>
+                      ))}
+                      {payments.filter(pay => {
+                          const matchType = filterType === 'all' || (filterType === 'iuran' ? pay.type !== 'tabungan' : pay.type === 'tabungan');
+                          const matchDate = !filterDate || pay.date === filterDate;
+                          return matchType && matchDate;
+                        }).length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat transaksi finansial yang sesuai filter.</td>
+                        </tr>
+                       )}
+                    </tbody>
                 </table>
               </div>
 
               {/* Mobile View */}
               <div className="md:hidden divide-y divide-gray-50">
-                {payments.map((pay) => (
+                {payments
+                  .filter(pay => {
+                    const matchType = filterType === 'all' || (filterType === 'iuran' ? pay.type !== 'tabungan' : pay.type === 'tabungan');
+                    const matchDate = !filterDate || pay.date === filterDate;
+                    return matchType && matchDate;
+                  })
+                  .map((pay) => (
                   <div key={pay.id} className="p-4 hover:bg-gray-50/50 transition-colors">
                     <div className="flex justify-between items-start mb-3">
                       <div className="pr-2">
@@ -1103,27 +1158,31 @@ export default function DashboardSiswa() {
                             Bukti
                           </button>
                         )}
-                        {pay.status === 'lunas' || pay.status === 'approved' ? (
-                          pay.type !== 'tabungan' && (
+                        {pay.type !== 'tabungan' && (
+                          pay.status === 'lunas' || pay.status === 'approved' ? (
                             <button 
                               onClick={() => handlePrintReceipt(pay)}
                               className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
                             >
                               <Printer size={12} /> Cetak
                             </button>
+                          ) : (
+                            <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-md uppercase tracking-widest flex items-center gap-1">
+                              <Clock size={12} /> Pending Validasi
+                            </span>
                           )
-                        ) : (
-                          <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-md uppercase tracking-widest flex items-center gap-1">
-                            <Clock size={12} /> Pending Validasi
-                          </span>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
-                {payments.length === 0 && (
+                {payments.filter(pay => {
+                  const matchType = filterType === 'all' || (filterType === 'iuran' ? pay.type !== 'tabungan' : pay.type === 'tabungan');
+                  const matchDate = !filterDate || pay.date === filterDate;
+                  return matchType && matchDate;
+                }).length === 0 && (
                   <div className="px-6 py-12 text-center">
-                    <p className="text-gray-400 italic text-xs">Belum ada riwayat transaksi finansial.</p>
+                    <p className="text-gray-400 italic text-xs">Belum ada riwayat transaksi finansial yang sesuai filter.</p>
                   </div>
                 )}
               </div>

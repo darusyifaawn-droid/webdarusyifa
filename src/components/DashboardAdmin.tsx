@@ -69,6 +69,7 @@ export default function DashboardAdmin() {
   const [deleteIuranDescription, setDeleteIuranDescription] = useState('');
   const [deleteIuranSearchName, setDeleteIuranSearchName] = useState('');
   const [searchStudentDelete, setSearchStudentDelete] = useState('');
+  const [searchFinanceList, setSearchFinanceList] = useState('');
   
   // Manage Finance Modal States
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
@@ -2432,6 +2433,16 @@ export default function DashboardAdmin() {
               <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h3 className="text-lg font-bold text-gray-800">Daftar Keuangan Siswa</h3>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <input 
+                      type="text"
+                      placeholder="Cari Nama Siswa..."
+                      value={searchFinanceList}
+                      onChange={(e) => setSearchFinanceList(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-medium"
+                    />
+                    <Users className="absolute left-3 top-2 text-gray-400" size={16} />
+                  </div>
                   <select 
                     value={filterKelas}
                     onChange={(e) => setFilterKelas(e.target.value)}
@@ -2456,7 +2467,12 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase())).map((u) => (
+                    {allUsers.filter(u => 
+                      u.role === 'siswa' && 
+                      (u.status || 'Aktif') === 'Aktif' && 
+                      (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) &&
+                      (!searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase()))
+                    ).map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
@@ -2481,7 +2497,12 @@ export default function DashboardAdmin() {
 
               {/* Mobile View Keuangan */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase())).map((u) => (
+                {allUsers.filter(u => 
+                  u.role === 'siswa' && 
+                  (u.status || 'Aktif') === 'Aktif' && 
+                  (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) &&
+                  (!searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase()))
+                ).map((u) => (
                   <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div>
