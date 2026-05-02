@@ -863,7 +863,34 @@ export default function DashboardSiswa() {
               </div>
             </div>
 
-             <div className="card-3d overflow-hidden">
+            {userData?.arrears_details && userData.arrears_details.length > 0 && (
+              <div className="card-3d p-6 md:p-8 mt-6">
+                <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-6 md:mb-8 flex items-center gap-2"><CreditCard size={20} className="text-red-500" /> Rincian Tagihan Belum Lunas</h3>
+                <div className="space-y-4">
+                  {userData.arrears_details.map((detail: any) => (
+                    <div key={detail.id} className="bg-red-50/50 p-4 md:p-6 rounded-2xl border border-red-100 flex flex-col md:flex-row justify-between md:items-center gap-4 group hover:bg-red-50 transition-colors">
+                      <div>
+                        <h4 className="font-bold text-gray-800 md:text-lg mb-1">{detail.name}</h4>
+                        <div className="flex flex-wrap gap-4">
+                           <p className="text-xs text-gray-500 flex items-center gap-1">Ditetapkan: {detail.date}</p>
+                           {detail.dueDate && (
+                             <p className={`text-[10px] font-bold uppercase flex items-center gap-1 ${new Date(detail.dueDate) < new Date() ? 'text-red-600' : 'text-orange-500'}`}>
+                               Jatuh Tempo: {detail.dueDate}
+                             </p>
+                           )}
+                        </div>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Nominal</p>
+                        <p className="text-lg md:text-xl font-black text-red-600">Rp {detail.amount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+             <div className="card-3d overflow-hidden mt-6">
                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Transaksi Finansial</h3>
               </div>

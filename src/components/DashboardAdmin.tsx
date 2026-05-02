@@ -61,6 +61,7 @@ export default function DashboardAdmin() {
   const [financeDate, setFinanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [financeIuranName, setFinanceIuranName] = useState('');
   const [financeIuranTarget, setFinanceIuranTarget] = useState('all');
+  const [financeDueDate, setFinanceDueDate] = useState('');
   const [searchStudentFinance, setSearchStudentFinance] = useState('');
   const [searchStudentIuran, setSearchStudentIuran] = useState('');
   
@@ -579,6 +580,29 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleWhatsAppFollowUp = (student: any, detail: any) => {
+    if (!student.whatsapp) {
+      alert("Nomor WhatsApp siswa/wali belum terdaftar!");
+      return;
+    }
+    
+    let number = student.whatsapp.replace(/\D/g, '');
+    if (number.startsWith('0')) {
+      number = '62' + number.substring(1);
+    }
+    
+    let message = `Halo Bapak/Ibu Wali Murid & Ananda *${student.name}*,\n\n`;
+    message += `Kami dari Tata Usaha mengingatkan kembali terkait administrasi sekolah yang belum diselesaikan:\n\n`;
+    message += `📌 *Tagihan:* ${detail.name}\n`;
+    message += `💰 *Nominal:* Rp ${detail.amount.toLocaleString()}\n`;
+    if (detail.dueDate) {
+      message += `⏳ *Jatuh Tempo:* ${detail.dueDate}\n`;
+    }
+    message += `\nMohon bantuannya untuk dapat segera diselesaikan. Terima kasih atas kerja samanya. 🙏`;
+    
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   const handleSyncSpreadsheet = async () => {
     if(!syncSpreadsheetUrl) return alert('Masukkan URL Spreadsheet yang valid');
     
@@ -718,7 +742,8 @@ export default function DashboardAdmin() {
         id: Date.now().toString() + Math.random().toString(36).substring(7),
         name: financeIuranName,
         amount: amount,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        dueDate: financeDueDate || null
       };
 
       for (const student of targetStudents) {
@@ -744,6 +769,7 @@ export default function DashboardAdmin() {
       setFinanceIuranName('');
       setFinanceAmount('');
       setFinanceIuranTarget('all');
+      setFinanceDueDate('');
       alert('Iuran berhasil ditetapkan!');
     } catch (error) {
       alert('Gagal menetapkan iuran.');
@@ -2624,6 +2650,10 @@ export default function DashboardAdmin() {
                   <input type="text" value={financeIuranName} onChange={(e) => setFinanceIuranName(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: SPP Bulan Juli" required />
                 </div>
                 <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jatuh Tempo (Opsional)</label>
+                  <input type="date" value={financeDueDate} onChange={(e) => setFinanceDueDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nominal (Rp)</label>
                   <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 50000" required min="0" />
                 </div>
@@ -2714,13 +2744,24 @@ export default function DashboardAdmin() {
               {selectedStudentForFinance.arrears_details && selectedStudentForFinance.arrears_details.length > 0 ? (
                 <div className="space-y-3 mb-8">
                   {selectedStudentForFinance.arrears_details.map((detail: any) => (
-                    <div key={detail.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div key={detail.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
                       <div>
                         <p className="font-bold text-gray-800">{detail.name}</p>
-                        <p className="text-xs text-gray-500">{detail.date}</p>
+                        <p className="text-xs text-gray-500">Ditetapkan: {detail.date}</p>
+                        {detail.dueDate && (
+                          <p className={`text-[10px] font-bold uppercase mt-1 ${new Date(detail.dueDate) < new Date() ? 'text-red-500' : 'text-orange-500'}`}>
+                            Jatuh Tempo: {detail.dueDate}
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-3">
                         <span className="font-bold text-red-600">Rp {detail.amount.toLocaleString()}</span>
+                        <button 
+                          onClick={() => handleWhatsAppFollowUp(selectedStudentForFinance, detail)}
+                          className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-200 transition-colors flex items-center gap-1"
+                        >
+                          Follow Up WA
+                        </button>
                         <button 
                           onClick={() => {
                             setActiveStudentForPayment(selectedStudentForFinance);
@@ -2730,7 +2771,7 @@ export default function DashboardAdmin() {
                             setPaymentMethod('Tunai');
                             setShowPayConfirmModal(true);
                           }}
-                          className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-200 transition-colors"
+                          className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors"
                         >
                           Bayar
                         </button>
