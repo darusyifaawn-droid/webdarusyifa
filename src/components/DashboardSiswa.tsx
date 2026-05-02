@@ -32,6 +32,14 @@ export default function DashboardSiswa() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
   const [quote, setQuote] = useState('');
+  
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState('Transfer');
+  const [paymentProof, setPaymentProof] = useState<string>('');
+  const [paymentMeetDate, setPaymentMeetDate] = useState('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   useEffect(() => {
     // Select a random quote on component mount
@@ -44,6 +52,101 @@ export default function DashboardSiswa() {
     if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
     if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handleProofChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Ukuran file maksimal 2MB');
+        return;
+      }
+      try {
+        const compressedBase64 = await compressImage(file, 800);
+        setPaymentProof(compressedBase64);
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        alert("Gagal memproses gambar bukti pembayaran.");
+      }
+    }
+  };
+
+  const handleSubmitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeDetailToPay || !user || !userData) return;
+    
+    setPaymentSubmitting(true);
+    try {
+      if (paymentMethod === 'Tabungan') {
+        if ((userData.savings || 0) < activeDetailToPay.amount) {
+          alert('Saldo tabungan tidak mencukupi untuk pembayaran ini.');
+          setPaymentSubmitting(false);
+          return;
+        }
+        
+        const newSavings = (userData.savings || 0) - activeDetailToPay.amount;
+        const newArrears = Math.max(0, (userData.arrears || 0) - activeDetailToPay.amount);
+        const newDetails = (userData.arrears_details || []).filter((d: any) => d.id !== activeDetailToPay.id);
+        
+        await updateDoc(doc(db, 'users', user.uid), {
+          savings: newSavings,
+          arrears: newArrears,
+          arrears_details: newDetails
+        });
+        
+        await addDoc(collection(db, 'payments'), {
+          studentId: user.uid,
+          amount: activeDetailToPay.amount,
+          description: `Pembayaran Iuran: ${activeDetailToPay.name}`,
+          type: 'pembayaran',
+          method: 'Tabungan',
+          status: 'lunas',
+          date: new Date().toISOString().split('T')[0],
+          arrearDetailId: activeDetailToPay.id,
+          createdAt: serverTimestamp()
+        });
+        
+        alert('Pembayaran berhasil dipotong dari tabungan!');
+        
+      } else {
+        if (paymentMethod === 'Transfer' && !paymentProof) {
+          alert('Mohon unggah bukti pembayaran transfer.');
+          setPaymentSubmitting(false);
+          return;
+        }
+        if (paymentMethod === 'Tunai' && !paymentMeetDate) {
+          alert('Mohon tentukan jadwal pertemuan dengan bendahara.');
+          setPaymentSubmitting(false);
+          return;
+        }
+        
+        await addDoc(collection(db, 'payments'), {
+          studentId: user.uid,
+          amount: activeDetailToPay.amount,
+          description: `Pembayaran Iuran: ${activeDetailToPay.name}`,
+          type: 'pembayaran',
+          method: paymentMethod,
+          status: 'pending',
+          proofStr: paymentMethod === 'Transfer' ? paymentProof : null,
+          meetDate: paymentMethod === 'Tunai' ? paymentMeetDate : null,
+          date: new Date().toISOString().split('T')[0],
+          arrearDetailId: activeDetailToPay.id,
+          createdAt: serverTimestamp()
+        });
+        
+        alert('Permintaan pembayaran berhasil dikirim. Menunggu validasi admin.');
+      }
+      
+      setShowPaymentModal(false);
+      setActiveDetailToPay(null);
+      setPaymentProof('');
+      setPaymentMeetDate('');
+      setPaymentMethod('Transfer');
+    } catch (error) {
+      console.error("Error submitting payment:", error);
+      alert('Gagal mengirim pembayaran.');
+    }
+    setPaymentSubmitting(false);
   };
 
   const handlePrintRapot = () => {
@@ -880,9 +983,23 @@ export default function DashboardSiswa() {
                            )}
                         </div>
                       </div>
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Nominal</p>
-                        <p className="text-lg md:text-xl font-black text-red-600">Rp {detail.amount.toLocaleString()}</p>
+                      <div className="text-left md:text-right flex flex-col items-start md:items-end gap-3">
+                        <div>
+                          <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase tracking-widest mb-1">Nominal</p>
+                          <p className="text-lg md:text-xl font-black text-red-600">Rp {detail.amount.toLocaleString()}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setActiveDetailToPay(detail);
+                            setShowPaymentModal(true);
+                            setPaymentMethod('Transfer');
+                            setPaymentProof('');
+                            setPaymentMeetDate('');
+                          }}
+                          className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors"
+                        >
+                          Bayar Sekarang
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -915,20 +1032,26 @@ export default function DashboardSiswa() {
                             {pay.method && (
                               <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold uppercase tracking-widest">{pay.method}</span>
                             )}
-                             {pay.proof && (
+                             {pay.proofStr && (
                               <button 
-                                 onClick={() => setSelectedPhoto(pay.proof)}
+                                 onClick={() => setSelectedPhoto(pay.proofStr)}
                                  className="text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest"
                                >
                                  Lihat Bukti
                                </button>
                              )}
-                            <button 
-                               onClick={() => handlePrintReceipt(pay)}
-                               className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
-                            >
-                              Cetak Bukti
-                            </button>
+                             {pay.status === 'pending' ? (
+                               <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
+                                 <Clock size={10} /> Pending
+                               </span>
+                             ) : (
+                               <button 
+                                 onClick={() => handlePrintReceipt(pay)}
+                                 className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+                               >
+                                 Cetak Bukti
+                               </button>
+                             )}
                            </div>
                          </td>
                         <td className="px-6 py-4 md:px-8 md:py-6">
@@ -975,20 +1098,26 @@ export default function DashboardSiswa() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {pay.proof && (
+                        {pay.proofStr && (
                           <button 
-                            onClick={() => setSelectedPhoto(pay.proof)}
+                            onClick={() => setSelectedPhoto(pay.proofStr)}
                             className="text-[9px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
                           >
                             Bukti
                           </button>
                         )}
-                        <button 
-                          onClick={() => handlePrintReceipt(pay)}
-                          className="text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
-                        >
-                          Cetak
-                        </button>
+                        {pay.status === 'lunas' || pay.status === 'approved' ? (
+                          <button 
+                            onClick={() => handlePrintReceipt(pay)}
+                            className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
+                          >
+                            <Printer size={12} /> Cetak
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-md uppercase tracking-widest flex items-center gap-1">
+                            <Clock size={12} /> Pending Validasi
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1025,6 +1154,101 @@ export default function DashboardSiswa() {
                   Belum ada pengumuman baru.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Payment Modal */}
+        {showPaymentModal && activeDetailToPay && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-[32px] p-6 md:p-8 shadow-2xl relative">
+              <button 
+                onClick={() => { setShowPaymentModal(false); setActiveDetailToPay(null); }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"
+                disabled={paymentSubmitting}
+              >
+                <X size={20} />
+              </button>
+              
+              <h3 className="font-bold text-xl md:text-2xl text-gray-800 mb-2">Pembayaran Iuran</h3>
+              <p className="text-sm text-gray-500 mb-6">{activeDetailToPay.name} - Rp {activeDetailToPay.amount.toLocaleString()}</p>
+              
+              <form onSubmit={handleSubmitPayment} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Metode Pembayaran</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['Transfer', 'Tunai', 'Tabungan'].map(method => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentMethod(method)}
+                        className={`p-3 rounded-xl border-2 text-xs font-bold uppercase tracking-widest transition-all ${paymentMethod === method ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {paymentMethod === 'Transfer' && (
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                    <p className="text-xs text-blue-700 leading-relaxed font-medium">Silakan transfer ke rekening berikut:</p>
+                    <div className="bg-white p-3 rounded-lg border border-blue-200">
+                      <p className="font-bold text-gray-800 text-sm">BANK BRI 🏧</p>
+                      <p className="text-gray-500 text-xs mt-1">ATAS NAMA: GIAN DWI WAHYUNI</p>
+                      <p className="font-black text-blue-700 tracking-wider mt-1">415001003649509</p>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 mt-3">Upload Bukti Transfer</label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleProofChange}
+                        className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === 'Tunai' && (
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3">
+                    <p className="text-xs text-orange-700 leading-relaxed font-medium">Pilih jadwal pertemuan dengan bendahara sekolah untuk pembayaran secara langsung.</p>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tanggal Pertemuan</label>
+                      <input 
+                        type="date" 
+                        value={paymentMeetDate}
+                        onChange={(e) => setPaymentMeetDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full p-3 bg-white border border-gray-200 text-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {paymentMethod === 'Tabungan' && (
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col gap-2">
+                    <p className="text-xs text-green-700 leading-relaxed font-medium">Potong langsung dari saldo tabungan aktif Anda.</p>
+                    <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-green-200">
+                      <span className="text-xs text-gray-500">Sisa Saldo:</span>
+                      <span className="font-bold text-green-600">Rp {(userData?.savings || 0).toLocaleString()}</span>
+                    </div>
+                    {(userData?.savings || 0) < activeDetailToPay.amount && (
+                      <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mt-1">* Saldo tidak mencukupi</p>
+                    )}
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={paymentSubmitting || (paymentMethod === 'Tabungan' && (userData?.savings || 0) < activeDetailToPay.amount)}
+                  className="w-full py-4 mt-2 rounded-xl text-white font-bold uppercase tracking-widest shadow-xl transition-colors bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {paymentSubmitting ? 'Memproses...' : (paymentMethod === 'Tabungan' ? 'Potong Tabungan' : 'Kirim Pembayaran')}
+                </button>
+              </form>
             </div>
           </div>
         )}

@@ -777,6 +777,37 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleApprovePayment = async (payId: string, studentId: string, amount: number, arrearDetailId: string) => {
+    if (!window.confirm('Verifikasi pembayaran ini? Tindakan ini akan mengupdate status pembayaran menjadi lunas dan mengurangi tunggakan siswa.')) return;
+    try {
+      const student = allUsers.find(u => u.id === studentId);
+      if (student) {
+        // Calculate new arrears
+        const currentArrears = student.arrears || 0;
+        const newArrears = Math.max(0, currentArrears - amount);
+        
+        // Remove the arrear detail
+        const currentDetails = student.arrears_details || [];
+        const newDetails = currentDetails.filter((d: any) => d.id !== arrearDetailId);
+
+        await updateDoc(doc(db, 'users', studentId), {
+          arrears: newArrears,
+          arrears_details: newDetails
+        });
+      }
+
+      // Update payment status
+      await updateDoc(doc(db, 'payments', payId), {
+        status: 'lunas' // Or approved
+      });
+
+      alert('Pembayaran berhasil divalidasi!');
+    } catch (error) {
+      console.error("Error approving payment:", error);
+      alert('Terjadi kesalahan saat memvalidasi pembayaran.');
+    }
+  };
+
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [userToReset, setUserToReset] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -2191,7 +2222,65 @@ export default function DashboardAdmin() {
               </div>
             </div>
             
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Validasi Pembayaran Section */}
+            {payments.filter(p => p.status === 'pending').length > 0 && (
+              <div className="bg-orange-50/50 rounded-3xl shadow-sm border border-orange-100 overflow-hidden mt-6">
+                <div className="p-6 border-b border-orange-100 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-orange-800 flex items-center gap-2">
+                    <Clock size={20} /> Menunggu Validasi Pembayaran
+                  </h3>
+                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">
+                    {payments.filter(p => p.status === 'pending').length} Menunggu
+                  </span>
+                </div>
+                <div className="divide-y divide-orange-100 max-h-96 overflow-y-auto">
+                  {payments.filter(p => p.status === 'pending').map((pay) => {
+                    const student = allUsers.find(u => u.id === pay.studentId);
+                    return (
+                      <div key={pay.id} className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-orange-50 transition-colors">
+                        <div>
+                          <p className="font-bold text-gray-800">{student?.name || 'Siswa tidak ditemukan'}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                             <span className="text-[10px] bg-white border border-gray-200 px-2 py-0.5 rounded font-black text-gray-500 uppercase tracking-widest">{pay.method}</span>
+                             <span className="text-[10px] text-gray-400 uppercase tracking-widest">{pay.description}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                          <div className="text-left md:text-right flex-1">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Nominal</p>
+                            <p className="font-black text-blue-600">Rp {pay.amount.toLocaleString()}</p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 shrink-0">
+                            {pay.proofStr && (
+                              <button 
+                                onClick={() => setSelectedPhoto(pay.proofStr)}
+                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1"
+                              >
+                                Lihat Bukti
+                              </button>
+                            )}
+                            {pay.method === 'Tunai' && (
+                              <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]">
+                                Temu: {pay.meetDate}
+                              </div>
+                            )}
+                            <button 
+                              onClick={() => handleApprovePayment(pay.id, pay.studentId, pay.amount, pay.arrearDetailId)}
+                              className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-1"
+                            >
+                              <CheckCircle size={14} /> Validasi
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-6">
               <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h3 className="text-lg font-bold text-gray-800">Daftar Keuangan Siswa</h3>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
