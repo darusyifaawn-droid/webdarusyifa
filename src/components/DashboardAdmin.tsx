@@ -53,6 +53,7 @@ export default function DashboardAdmin() {
   const [newUserWhatsapp, setNewUserWhatsapp] = useState('');
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
+  const [announceTarget, setAnnounceTarget] = useState('all');
   
   // Finance Form States
   const [financeStudentId, setFinanceStudentId] = useState('');
@@ -60,6 +61,8 @@ export default function DashboardAdmin() {
   const [financeDate, setFinanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [financeIuranName, setFinanceIuranName] = useState('');
   const [financeIuranTarget, setFinanceIuranTarget] = useState('all');
+  const [searchStudentFinance, setSearchStudentFinance] = useState('');
+  const [searchStudentIuran, setSearchStudentIuran] = useState('');
   
   // Manage Finance Modal States
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
@@ -80,6 +83,8 @@ export default function DashboardAdmin() {
   const [filterSiswaStatus, setFilterSiswaStatus] = useState<'Aktif' | 'Alumni' | 'Tidak Aktif' | 'Pindah'>('Aktif');
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
+  const [filterKelas, setFilterKelas] = useState('');
+  const [filterName, setFilterName] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
 
@@ -419,11 +424,13 @@ export default function DashboardAdmin() {
       await addDoc(collection(db, 'announcements'), {
         title: announceTitle,
         content: announceContent,
+        target: announceTarget,
         createdAt: serverTimestamp(),
         author: user.displayName || 'Admin'
       });
       setAnnounceTitle('');
       setAnnounceContent('');
+      setAnnounceTarget('all');
       setShowAnnounceModal(false);
       alert('Pengumuman berhasil dikirim!');
     } catch (error) {
@@ -575,16 +582,14 @@ export default function DashboardAdmin() {
   const handleSyncSpreadsheet = async () => {
     if(!syncSpreadsheetUrl) return alert('Masukkan URL Spreadsheet yang valid');
     
-    // Basic validation for Google Sheets published CSV URL
-    if (syncSpreadsheetUrl.includes('docs.google.com/spreadsheets')) {
-      if (!syncSpreadsheetUrl.includes('pub?') || !syncSpreadsheetUrl.includes('output=csv')) {
+    let finalUrl = syncSpreadsheetUrl;
+    // Auto-convert shareable Google Sheets links to CSV export links
+    if (finalUrl.includes('docs.google.com/spreadsheets') && finalUrl.includes('/edit')) {
+      finalUrl = finalUrl.replace(/\/edit.*$/, '/export?format=csv');
+    } else if (finalUrl.includes('docs.google.com/spreadsheets')) {
+      if (!finalUrl.includes('pub?') && !finalUrl.includes('export?')) {
         const confirm = window.confirm(
-          'Peringatan: Link yang anda masukkan sepertinya bukan link "Publish to Web" (CSV).\n\n' +
-          'Cara mendapatkan link yang benar:\n' +
-          '1. Buka Google Sheets\n' +
-          '2. File > Share > Publish to web\n' +
-          '3. Pilih "Comma-separated values (.csv)"\n' +
-          '4. Klik Publish dan copy link yang muncul.\n\n' +
+          'Peringatan: Link yang anda masukkan sepertinya bukan link "Publish to Web" (CSV) atau link sharing yang valid.\n\n' +
           'Tetap coba lanjutkan dengan link ini?'
         );
         if (!confirm) return;
@@ -593,7 +598,7 @@ export default function DashboardAdmin() {
     
     setIsSyncing(true);
     try {
-      Papa.parse(syncSpreadsheetUrl, {
+      Papa.parse(finalUrl, {
         download: true,
         header: true,
         complete: async (results) => {
@@ -621,16 +626,19 @@ export default function DashboardAdmin() {
               if(student) {
                 let updates: any = {};
                 if (savingKey && row[savingKey]) {
-                  const savingAmountStr = String(row[savingKey]).replace(/[^0-9.-]+/g,"");
-                  const savingAmount = parseFloat(savingAmountStr);
+                  const valStr = String(row[savingKey] || '');
+                  // For Indonesian Format, remove Rp, dot separator, spaces
+                  const cleanStr = valStr.replace(/[^0-9-]/g, "");
+                  const savingAmount = parseInt(cleanStr, 10);
                   if(!isNaN(savingAmount)) {
                     updates.savings = savingAmount;
                   }
                 }
                 
                 if (sppKey && row[sppKey]) {
-                  const sppAmountStr = String(row[sppKey]).replace(/[^0-9.-]+/g,"");
-                  const sppAmount = parseFloat(sppAmountStr);
+                  const valStr = String(row[sppKey] || '');
+                  const cleanStr = valStr.replace(/[^0-9-]/g, "");
+                  const sppAmount = parseInt(cleanStr, 10);
                   if(!isNaN(sppAmount)) {
                     updates.arrears = sppAmount; // Override tagihan/tunggakan total
                   }
@@ -1479,10 +1487,27 @@ export default function DashboardAdmin() {
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-800">User Management</h3>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <input 
+                  type="text" 
+                  placeholder="Cari Nama..." 
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                />
+                <select 
+                  value={filterKelas}
+                  onChange={(e) => setFilterKelas(e.target.value)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                >
+                  <option value="">Semua Kelas</option>
+                  {schoolClasses.map((c: any) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
                 <button 
                   onClick={() => { setNewUserRole('siswa'); setShowAddUser(true); }}
-                  className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
+                  className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
                 >
                   <Plus size={20} /> Tambah User
                 </button>
@@ -1502,7 +1527,11 @@ export default function DashboardAdmin() {
                    </tr>
                  </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {allUsers.map((u) => (
+                  {allUsers.filter(u => {
+                    const matchKelas = filterKelas ? (u.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                    const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
+                    return matchKelas && matchName;
+                  }).map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{u.email}</td>
@@ -1546,7 +1575,11 @@ export default function DashboardAdmin() {
 
             {/* Mobile View User Management */}
             <div className="md:hidden divide-y divide-gray-100">
-              {allUsers.map((u) => (
+              {allUsers.filter(u => {
+                const matchKelas = filterKelas ? (u.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
+                return matchKelas && matchName;
+              }).map((u) => (
                 <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div>
@@ -1662,6 +1695,23 @@ export default function DashboardAdmin() {
                   <p className="text-xs text-gray-400 font-bold mt-1">Pilih siswa untuk mutasi (kenaikan/kelulusan) atau cetak Rapot.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                  <input 
+                    type="text" 
+                    placeholder="Cari Siswa..." 
+                    value={filterName}
+                    onChange={(e) => setFilterName(e.target.value)}
+                    className="w-full sm:w-auto p-3 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                  />
+                  <select 
+                    value={filterKelas}
+                    onChange={(e) => setFilterKelas(e.target.value)}
+                    className="text-xs p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600 bg-white"
+                  >
+                    <option value="">Semua Kelas</option>
+                    {schoolClasses.map((c: any) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
                   <select
                     value={filterSiswaStatus}
                     onChange={(e) => setFilterSiswaStatus(e.target.value as any)}
@@ -1703,11 +1753,11 @@ export default function DashboardAdmin() {
                         <input 
                           type="checkbox" 
                           onChange={(e) => {
-                            const filtered = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus);
+                            const filtered = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase())));
                             if(e.target.checked) setSelectedStudentsForMutasi(filtered.map(u => u.id));
                             else setSelectedStudentsForMutasi([]);
                           }} 
-                          checked={selectedStudentsForMutasi.length > 0 && selectedStudentsForMutasi.length === allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length}
+                          checked={selectedStudentsForMutasi.length > 0 && selectedStudentsForMutasi.length === allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).length}
                           className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
                         />
                       </th>
@@ -1718,7 +1768,7 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).map(student => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
                       <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <input 
@@ -1753,7 +1803,7 @@ export default function DashboardAdmin() {
                         </td>
                       </tr>
                     ))}
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length === 0 && (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).length === 0 && (
                       <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">Data siswa dengan status tersebut belum tersedia.</td></tr>
                     )}
                   </tbody>
@@ -1762,7 +1812,7 @@ export default function DashboardAdmin() {
 
               {/* Mobile View Academic */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).map(student => (
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
                   <div key={student.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -1815,6 +1865,16 @@ export default function DashboardAdmin() {
                 <p className="text-gray-400 text-sm font-medium">Filter dan monitoring kehadiran warga sekolah.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <select 
+                  value={filterKelas}
+                  onChange={(e) => setFilterKelas(e.target.value)}
+                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-600"
+                >
+                  <option value="">Semua Kelas</option>
+                  {schoolClasses.map((c: any) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
                 <div className="flex bg-gray-100 p-1 rounded-2xl">
                   {['semua', 'siswa', 'guru'].map(role => (
                     <button
@@ -1943,6 +2003,7 @@ export default function DashboardAdmin() {
                       .filter(a => {
                         const student = allUsers.find(u => u.id === a.studentId);
                         if (filterRole !== 'semua' && student?.role !== filterRole) return false;
+                        if (filterKelas && student?.role === 'siswa' && (student?.kelas || '').toLowerCase() !== filterKelas.toLowerCase()) return false;
                         if (filterDateStart && a.date < filterDateStart) return false;
                         if (filterDateEnd && a.date > filterDateEnd) return false;
                         return true;
@@ -2105,6 +2166,21 @@ export default function DashboardAdmin() {
             </div>
             
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h3 className="text-lg font-bold text-gray-800">Daftar Keuangan Siswa</h3>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <select 
+                    value={filterKelas}
+                    onChange={(e) => setFilterKelas(e.target.value)}
+                    className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                  >
+                    <option value="">Semua Kelas</option>
+                    {schoolClasses.map((c: any) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap min-w-[700px]">
                   <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -2117,7 +2193,7 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map((u) => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase())).map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
@@ -2142,7 +2218,7 @@ export default function DashboardAdmin() {
 
               {/* Mobile View Keuangan */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map((u) => (
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase())).map((u) => (
                   <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -2193,7 +2269,14 @@ export default function DashboardAdmin() {
               {announcements.map(a => (
                 <div key={a.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start">
                   <div className="flex-1">
-                    <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
+                      {a.target && a.target !== 'all' && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-black uppercase tracking-widest rounded-full">
+                          Target: {a.target.replace('kelas_', 'Kelas ')}
+                        </span>
+                      )}
+                    </div>
                     <div className="markdown-body mt-4">
                       <ReactMarkdown>{a.content}</ReactMarkdown>
                     </div>
@@ -2502,9 +2585,16 @@ export default function DashboardAdmin() {
               <form onSubmit={handleAddTabungan} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa</label>
+                  <input
+                    type="text"
+                    placeholder="Cari Nama Siswa..."
+                    value={searchStudentFinance}
+                    onChange={(e) => setSearchStudentFinance(e.target.value)}
+                    className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500"
+                  />
                   <select value={financeStudentId} onChange={(e) => setFinanceStudentId(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
                     <option value="">-- Pilih Siswa --</option>
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentFinance || u.name.toLowerCase().includes(searchStudentFinance.toLowerCase()))).map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
                     ))}
                   </select>
@@ -2541,15 +2631,24 @@ export default function DashboardAdmin() {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
                   <select value={financeIuranTarget} onChange={(e) => setFinanceIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
                     <option value="all">Semua Siswa Aktif</option>
-                    <option value="kelas_A">Semua Siswa Aktif Kelas A</option>
-                    <option value="kelas_B">Semua Siswa Aktif Kelas B</option>
-                    <option value="kelas_C">Semua Siswa Aktif Kelas C</option>
+                    {schoolClasses.map(c => (
+                      <option key={`kelas_${c.id}`} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
+                    ))}
                     <optgroup label="Pilih Siswa Spesifik">
-                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => (
+                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentIuran || u.name.toLowerCase().includes(searchStudentIuran.toLowerCase()))).map(u => (
                         <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
                       ))}
                     </optgroup>
                   </select>
+                  {financeIuranTarget !== 'all' && !financeIuranTarget.startsWith('kelas_') && (
+                    <input
+                      type="text"
+                      placeholder="Cari Nama Siswa di daftar atas..."
+                      value={searchStudentIuran}
+                      onChange={(e) => setSearchStudentIuran(e.target.value)}
+                      className="w-full p-2 mt-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
                 </div>
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Tetapkan Iuran</button>
               </form>
@@ -2688,6 +2787,16 @@ export default function DashboardAdmin() {
               <button onClick={() => setShowAnnounceModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
               <h3 className="text-2xl font-bold text-gray-800 mb-6">Buat Pengumuman</h3>
               <form onSubmit={handleAddAnnouncement} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target</label>
+                  <select value={announceTarget} onChange={(e) => setAnnounceTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="all">Semua Pengguna</option>
+                    <option value="guru">Khusus Guru</option>
+                    {schoolClasses.map(c => (
+                      <option key={c.id} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Judul</label>
                   <input type="text" value={announceTitle} onChange={(e) => setAnnounceTitle(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />

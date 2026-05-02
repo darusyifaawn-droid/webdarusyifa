@@ -552,7 +552,7 @@ export default function DashboardSiswa() {
                 {[
                   { label: 'Total Kehadiran', value: attendance.length, color: 'bg-blue-500', icon: CheckCircle },
                   { label: 'Laporan Belajar', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                  { label: 'Pengumuman', value: announcements.length, color: 'bg-purple-500', icon: Bell },
+                  { label: 'Pengumuman', value: announcements.filter(a => !a.target || a.target === 'all' || a.target === `kelas_${userData?.kelas || ''}`).length, color: 'bg-purple-500', icon: Bell },
                   { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length > 0 ? 'Hadir' : '-', color: 'bg-orange-500', icon: Clock },
                 ].map((stat, idx) => (
                   <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
@@ -980,18 +980,20 @@ export default function DashboardSiswa() {
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-8">Info & Pengumuman Sekolah</h3>
             <div className="grid gap-6">
-              {announcements.map((ann) => (
+              {announcements
+                .filter(ann => !ann.target || ann.target === 'all' || ann.target === `kelas_${userData?.kelas || ''}`)
+                .map((ann) => (
                 <div key={ann.id} className="card-3d p-6 md:p-8">
                   <div className="flex justify-between items-start mb-4">
                     <h4 className="text-lg md:text-xl font-bold text-gray-800">{ann.title}</h4>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{ann.date}</span>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString() : ''}</span>
                   </div>
                   <div className="markdown-body">
                     <ReactMarkdown>{ann.content}</ReactMarkdown>
                   </div>
                 </div>
               ))}
-              {announcements.length === 0 && (
+              {announcements.filter(ann => !ann.target || ann.target === 'all' || ann.target === `kelas_${userData?.kelas || ''}`).length === 0 && (
                 <div className="bg-white p-12 rounded-[32px] border border-dashed border-gray-200 text-center text-gray-400 font-medium">
                   Belum ada pengumuman baru.
                 </div>

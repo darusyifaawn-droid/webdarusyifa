@@ -45,8 +45,14 @@ export default function DashboardGuru() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
+  const [searchStudentProgress, setSearchStudentProgress] = useState('');
+  
   // Photo Viewer State
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  
+  const [filterName, setFilterName] = useState('');
+  const [filterKelas, setFilterKelas] = useState('');
+  const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
 
   const navigate = useNavigate();
 
@@ -122,6 +128,14 @@ export default function DashboardGuru() {
       }
     });
 
+    const unsubClasses = onSnapshot(query(collection(db, 'classes')), (snapshot) => {
+      setSchoolClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error fetching classes:", error);
+      }
+    });
+
     const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
       if (snap.exists()) {
         setSettings(snap.data());
@@ -134,6 +148,7 @@ export default function DashboardGuru() {
       unsubAnnounce();
       unsubAttendance();
       unsubSubjects();
+      unsubClasses();
       unsubSettings();
     };
   }, [user]);
@@ -576,7 +591,7 @@ export default function DashboardGuru() {
                 {[
                   { label: 'Total Siswa', value: students.length, color: 'bg-blue-500', icon: Users },
                   { label: 'Laporan Dibuat', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                  { label: 'Pengumuman', value: announcements.length, color: 'bg-orange-500', icon: Bell },
+                  { label: 'Pengumuman', value: announcements.filter(a => !a.target || a.target === 'all' || a.target === 'guru').length, color: 'bg-orange-500', icon: Bell },
                   { label: 'Total Absensi', value: attendance.length, color: 'bg-purple-500', icon: Clock },
                 ].map((stat, idx) => (
                   <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
@@ -680,23 +695,46 @@ export default function DashboardGuru() {
 
         {activeTab === 'students' && (
           <div className="card-3d overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-800">Daftar Siswa</h3>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <input 
+                  type="text" 
+                  placeholder="Cari Nama Siswa..." 
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-600"
+                />
+                <select 
+                  value={filterKelas}
+                  onChange={(e) => setFilterKelas(e.target.value)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-600"
+                >
+                  <option value="">Semua Kelas</option>
+                  {schoolClasses.map((c: any) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Nama</th>
-                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Kelas</th>
                     <th className="px-6 py-4">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {students.map((s) => (
+                  {students.filter(s => {
+                    const matchName = filterName ? (s.name || '').toLowerCase().includes(filterName.toLowerCase()) : true;
+                    const matchKelas = filterKelas ? (s.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                    return matchName && matchKelas;
+                  }).map((s) => (
                     <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-800">{s.name}</td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">{s.email}</td>
+                      <td className="px-6 py-4 text-gray-500 text-sm">{s.kelas || '-'}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <button 
@@ -721,7 +759,11 @@ export default function DashboardGuru() {
 
             {/* Mobile View Daftar Siswa */}
             <div className="md:hidden divide-y divide-gray-100">
-               {students.map((s) => (
+               {students.filter(s => {
+                  const matchName = filterName ? (s.name || '').toLowerCase().includes(filterName.toLowerCase()) : true;
+                  const matchKelas = filterKelas ? (s.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                  return matchName && matchKelas;
+                }).map((s) => (
                  <div key={s.id} className="p-4 bg-white flex flex-col gap-3 border-t border-gray-50">
                     <div>
                       <p className="font-bold text-gray-800">{s.name}</p>
@@ -1033,7 +1075,9 @@ export default function DashboardGuru() {
           <div className="space-y-6">
             <h3 className="text-xl font-bold text-gray-800">Pengumuman Sekolah</h3>
             <div className="grid gap-4">
-              {announcements.map(a => (
+              {announcements
+                .filter(a => !a.target || a.target === 'all' || a.target === 'guru')
+                .map(a => (
                 <div key={a.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                   <h4 className="font-bold text-gray-800 text-xl">{a.title}</h4>
                   <div className="markdown-body mt-4">
@@ -1058,6 +1102,13 @@ export default function DashboardGuru() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa</label>
+                    <input
+                      type="text"
+                      placeholder="Cari Nama Siswa..."
+                      value={searchStudentProgress}
+                      onChange={(e) => setSearchStudentProgress(e.target.value)}
+                      className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                     <select 
                       value={selectedStudent} 
                       onChange={(e) => setSelectedStudent(e.target.value)} 
@@ -1065,7 +1116,7 @@ export default function DashboardGuru() {
                       required
                     >
                       <option value="">-- Pilih Siswa --</option>
-                      {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {students.filter(s => !searchStudentProgress || (s.name || '').toLowerCase().includes(searchStudentProgress.toLowerCase())).map(s => <option key={s.id} value={s.id}>{s.name} {s.kelas ? `(${s.kelas})` : ''}</option>)}
                     </select>
                   </div>
                   <div>
