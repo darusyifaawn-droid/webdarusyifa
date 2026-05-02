@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -777,34 +777,111 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleApprovePayment = async (payId: string, studentId: string, amount: number, arrearDetailId: string) => {
-    if (!window.confirm('Verifikasi pembayaran ini? Tindakan ini akan mengupdate status pembayaran menjadi lunas dan mengurangi tunggakan siswa.')) return;
+  const handleApprovePayment = async (pay: any) => {
+    if (!window.confirm(`Verifikasi pembayaran ${pay.method} ini? Tindakan ini akan mengupdate status menjadi lunas dan mengurangi tunggakan siswa.`)) return;
     try {
+      const studentId = pay.studentId;
+      const amount = pay.amount;
+      const arrearDetailId = pay.arrearDetailId;
+      const payId = pay.id;
+      
       const student = allUsers.find(u => u.id === studentId);
       if (student) {
-        // Calculate new arrears
-        const currentArrears = student.arrears || 0;
-        const newArrears = Math.max(0, currentArrears - amount);
+        const updates: any = {};
         
-        // Remove the arrear detail
-        const currentDetails = student.arrears_details || [];
-        const newDetails = currentDetails.filter((d: any) => d.id !== arrearDetailId);
+        // Only modify arrears if it was a payment for a specific arrear
+        if (arrearDetailId) {
+          const currentArrears = student.arrears || 0;
+          const newArrears = Math.max(0, currentArrears - amount);
+          const currentDetails = student.arrears_details || [];
+          const newDetails = currentDetails.filter((d: any) => d.id !== arrearDetailId);
+          
+          updates.arrears = newArrears;
+          updates.arrears_details = newDetails;
+        }
 
-        await updateDoc(doc(db, 'users', studentId), {
-          arrears: newArrears,
-          arrears_details: newDetails
-        });
+        // If it's a Savings request, deduct the savings
+        if (pay.method === 'Tabungan') {
+          const currentSavings = student.savings || 0;
+          if (currentSavings < amount) {
+            alert('Saldo tabungan siswa tidak mencukupi saat divalidasi. Validasi dibatalkan.');
+            return;
+          }
+          updates.savings = currentSavings - amount;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(doc(db, 'users', studentId), updates);
+        }
       }
 
-      // Update payment status
       await updateDoc(doc(db, 'payments', payId), {
-        status: 'lunas' // Or approved
+        status: 'lunas',
+        updatedAt: serverTimestamp()
       });
 
       alert('Pembayaran berhasil divalidasi!');
     } catch (error) {
       console.error("Error approving payment:", error);
       alert('Terjadi kesalahan saat memvalidasi pembayaran.');
+    }
+  };
+
+  const handleRejectPayment = async (payId: string) => {
+    if (!window.confirm('Tolak permintaan pembayaran ini? Siswa harus mengirim ulang jika ada kesalahan.')) return;
+    try {
+      await updateDoc(doc(db, 'payments', payId), {
+        status: 'ditolak',
+        updatedAt: serverTimestamp()
+      });
+      alert('Pembayaran ditolak.');
+    } catch (error) {
+      console.error("Error rejecting payment:", error);
+      alert('Gagal menolak pembayaran.');
+    }
+  };
+
+  const handleDeletePayment = async (payId: string) => {
+    if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Catatan pada saldo/tunggakan tidak akan berubah otomatis.')) return;
+    try {
+      await deleteDoc(doc(db, 'payments', payId));
+      alert('Riwayat transaksi berhasil dihapus.');
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      alert('Gagal menghapus riwayat transaksi.');
+    }
+  };
+
+  const handleDeleteArrear = async (studentId: string, arrearId: string) => {
+    if (!window.confirm('Hapus rincian tunggakan ini? Tindakan ini akan mengurangi total tunggakan siswa secara otomatis.')) return;
+    try {
+      const student = allUsers.find(u => u.id === studentId);
+      if (student) {
+        const detailToDelete = student.arrears_details?.find((d: any) => d.id === arrearId);
+        if (!detailToDelete) return;
+
+        const newArrears = Math.max(0, (student.arrears || 0) - (detailToDelete.amount || 0));
+        const newDetails = student.arrears_details.filter((d: any) => d.id !== arrearId);
+
+        await updateDoc(doc(db, 'users', studentId), {
+          arrears: newArrears,
+          arrears_details: newDetails
+        });
+        
+        // Update selected student in modal if it's the same one
+        if (selectedStudentForFinance?.id === studentId) {
+          setSelectedStudentForFinance({
+            ...selectedStudentForFinance,
+            arrears: newArrears,
+            arrears_details: newDetails
+          });
+        }
+        
+        alert('Rincian tunggakan berhasil dihapus.');
+      }
+    } catch (error) {
+      console.error("Error deleting arrear:", error);
+      alert('Gagal menghapus tunggakan.');
     }
   };
 
@@ -2240,10 +2317,26 @@ export default function DashboardAdmin() {
                       <div key={pay.id} className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-orange-50 transition-colors">
                         <div>
                           <p className="font-bold text-gray-800">{student?.name || 'Siswa tidak ditemukan'}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                             <span className="text-[10px] bg-white border border-gray-200 px-2 py-0.5 rounded font-black text-gray-500 uppercase tracking-widest">{pay.method}</span>
-                             <span className="text-[10px] text-gray-400 uppercase tracking-widest">{pay.description}</span>
-                          </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              {pay.method === 'Transfer' && pay.proofStr && (
+                                <button 
+                                  onClick={() => setSelectedPhoto(pay.proofStr)}
+                                  className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1"
+                                >
+                                  <ImageIcon size={12} /> Bukti Transfer
+                                </button>
+                              )}
+                              {pay.method === 'Tunai' && pay.meetDate && (
+                                <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                  <Calendar size={12} /> Janji: {pay.meetDate}
+                                </div>
+                              )}
+                              {pay.method === 'Tabungan' && (
+                                <div className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                  <CreditCard size={12} /> Potong Tabungan
+                                </div>
+                              )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-4 w-full md:w-auto">
                           <div className="text-left md:text-right flex-1">
@@ -2251,34 +2344,27 @@ export default function DashboardAdmin() {
                             <p className="font-black text-blue-600">Rp {pay.amount.toLocaleString()}</p>
                           </div>
                           
-                          <div className="flex items-center gap-2 shrink-0">
-                            {pay.proofStr && (
+                            <div className="flex items-center gap-2 shrink-0">
                               <button 
-                                onClick={() => setSelectedPhoto(pay.proofStr)}
-                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1"
+                                onClick={() => handleApprovePayment(pay)}
+                                className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-1"
                               >
-                                Lihat Bukti
+                                <CheckCircle size={14} /> Validasi
                               </button>
-                            )}
-                            {pay.method === 'Tunai' && (
-                              <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]">
-                                Temu: {pay.meetDate}
-                              </div>
-                            )}
-                            <button 
-                              onClick={() => handleApprovePayment(pay.id, pay.studentId, pay.amount, pay.arrearDetailId)}
-                              className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-1"
-                            >
-                              <CheckCircle size={14} /> Validasi
-                            </button>
+                              <button 
+                                onClick={() => handleRejectPayment(pay.id)}
+                                className="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1"
+                              >
+                                <X size={14} /> Tolak
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-6">
               <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -2748,26 +2834,24 @@ export default function DashboardAdmin() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
+                  <input
+                    type="text"
+                    placeholder="Cari Nama Siswa (untuk pilihan spesifik)..."
+                    value={searchStudentIuran}
+                    onChange={(e) => setSearchStudentIuran(e.target.value)}
+                    className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                   <select value={financeIuranTarget} onChange={(e) => setFinanceIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
                     <option value="all">Semua Siswa Aktif</option>
                     {schoolClasses.map(c => (
                       <option key={`kelas_${c.id}`} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
                     ))}
-                    <optgroup label="Pilih Siswa Spesifik">
+                    <optgroup label="Pilih Siswa Spesifik (Gunakan pencarian di atas)">
                       {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentIuran || u.name.toLowerCase().includes(searchStudentIuran.toLowerCase()))).map(u => (
                         <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
                       ))}
                     </optgroup>
                   </select>
-                  {financeIuranTarget !== 'all' && !financeIuranTarget.startsWith('kelas_') && (
-                    <input
-                      type="text"
-                      placeholder="Cari Nama Siswa di daftar atas..."
-                      value={searchStudentIuran}
-                      onChange={(e) => setSearchStudentIuran(e.target.value)}
-                      className="w-full p-2 mt-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  )}
                 </div>
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Tetapkan Iuran</button>
               </form>
@@ -2852,6 +2936,13 @@ export default function DashboardAdmin() {
                           Follow Up WA
                         </button>
                         <button 
+                          onClick={() => handleDeleteArrear(selectedStudentForFinance.id, detail.id)}
+                          className="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors flex items-center gap-1"
+                          title="Hapus Tagihan"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        <button 
                           onClick={() => {
                             setActiveStudentForPayment(selectedStudentForFinance);
                             setActiveDetailToPay(detail);
@@ -2899,6 +2990,13 @@ export default function DashboardAdmin() {
                           title="Cetak Bukti"
                         >
                           <Printer size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeletePayment(pay.id)}
+                          className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Hapus Riwayat"
+                        >
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>

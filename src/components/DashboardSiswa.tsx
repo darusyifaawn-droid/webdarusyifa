@@ -54,20 +54,25 @@ export default function DashboardSiswa() {
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
   };
 
-  const handleProofChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Ukuran file maksimal 2MB');
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file maksimal 5MB');
         return;
       }
-      try {
-        const compressedBase64 = await compressImage(file, 800);
-        setPaymentProof(compressedBase64);
-      } catch (error) {
-        console.error("Error compressing image:", error);
-        alert("Gagal memproses gambar bukti pembayaran.");
-      }
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const result = reader.result as string;
+        try {
+          const compressed = await compressImage(result, 800, 800, 0.7);
+          setPaymentProof(compressed);
+        } catch (error) {
+          console.error("Compression failed:", error);
+          setPaymentProof(result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -84,30 +89,20 @@ export default function DashboardSiswa() {
           return;
         }
         
-        const newSavings = (userData.savings || 0) - activeDetailToPay.amount;
-        const newArrears = Math.max(0, (userData.arrears || 0) - activeDetailToPay.amount);
-        const newDetails = (userData.arrears_details || []).filter((d: any) => d.id !== activeDetailToPay.id);
-        
-        await updateDoc(doc(db, 'users', user.uid), {
-          savings: newSavings,
-          arrears: newArrears,
-          arrears_details: newDetails
-        });
-        
+        // Tabungan is now a request too
         await addDoc(collection(db, 'payments'), {
           studentId: user.uid,
           amount: activeDetailToPay.amount,
           description: `Pembayaran Iuran: ${activeDetailToPay.name}`,
           type: 'pembayaran',
           method: 'Tabungan',
-          status: 'lunas',
+          status: 'pending',
           date: new Date().toISOString().split('T')[0],
           arrearDetailId: activeDetailToPay.id,
           createdAt: serverTimestamp()
         });
         
-        alert('Pembayaran berhasil dipotong dari tabungan!');
-        
+        alert('Permintaan potong tabungan terkirim. Menunggu validasi bendahara.');
       } else {
         if (paymentMethod === 'Transfer' && !paymentProof) {
           alert('Mohon unggah bukti pembayaran transfer.');
@@ -134,7 +129,7 @@ export default function DashboardSiswa() {
           createdAt: serverTimestamp()
         });
         
-        alert('Permintaan pembayaran berhasil dikirim. Menunggu validasi admin.');
+        alert(paymentMethod === 'Tunai' ? 'Permintaan pertemuan (Tunai) terkirim. Menunggu jadwal dari admin.' : 'Permintaan pembayaran berhasil dikirim. Menunggu validasi admin.');
       }
       
       setShowPaymentModal(false);
@@ -1040,17 +1035,19 @@ export default function DashboardSiswa() {
                                  Lihat Bukti
                                </button>
                              )}
-                             {pay.status === 'pending' ? (
+                             {pay.status === 'lunas' || pay.status === 'approved' ? (
+                               pay.type !== 'tabungan' && (
+                                 <button 
+                                   onClick={() => handlePrintReceipt(pay)}
+                                   className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+                                 >
+                                   Cetak Bukti
+                                 </button>
+                               )
+                             ) : (
                                <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
                                  <Clock size={10} /> Pending
                                </span>
-                             ) : (
-                               <button 
-                                 onClick={() => handlePrintReceipt(pay)}
-                                 className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
-                               >
-                                 Cetak Bukti
-                               </button>
                              )}
                            </div>
                          </td>
@@ -1107,12 +1104,14 @@ export default function DashboardSiswa() {
                           </button>
                         )}
                         {pay.status === 'lunas' || pay.status === 'approved' ? (
-                          <button 
-                            onClick={() => handlePrintReceipt(pay)}
-                            className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
-                          >
-                            <Printer size={12} /> Cetak
-                          </button>
+                          pay.type !== 'tabungan' && (
+                            <button 
+                              onClick={() => handlePrintReceipt(pay)}
+                              className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
+                            >
+                              <Printer size={12} /> Cetak
+                            </button>
+                          )
                         ) : (
                           <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-md uppercase tracking-widest flex items-center gap-1">
                             <Clock size={12} /> Pending Validasi
