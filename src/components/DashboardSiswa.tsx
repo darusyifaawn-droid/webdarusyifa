@@ -373,6 +373,10 @@ export default function DashboardSiswa() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        alert('Gagal membaca file foto.');
+      };
       reader.onloadend = async () => {
         const result = reader.result as string;
         try {

@@ -3,13 +3,14 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 
 export default function DashboardAdmin() {
@@ -28,6 +29,9 @@ export default function DashboardAdmin() {
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTabunganModal, setShowTabunganModal] = useState(false);
   const [showIuranModal, setShowIuranModal] = useState(false);
+  const [showSyncSpreadsheetModal, setShowSyncSpreadsheetModal] = useState(false);
+  const [syncSpreadsheetUrl, setSyncSpreadsheetUrl] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showPayConfirmModal, setShowPayConfirmModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
   const [paymentNote, setPaymentNote] = useState('');
@@ -330,6 +334,10 @@ export default function DashboardAdmin() {
     if (!file) return;
 
     const reader = new FileReader();
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
+      alert('Gagal membaca file Excel.');
+    };
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
@@ -561,6 +569,118 @@ export default function DashboardAdmin() {
     } catch (error) {
       alert('Gagal menambahkan tabungan.');
       console.error(error);
+    }
+  };
+
+  const handleSyncSpreadsheet = async () => {
+    if(!syncSpreadsheetUrl) return alert('Masukkan URL Spreadsheet yang valid');
+    
+    // Basic validation for Google Sheets published CSV URL
+    if (syncSpreadsheetUrl.includes('docs.google.com/spreadsheets')) {
+      if (!syncSpreadsheetUrl.includes('pub?') || !syncSpreadsheetUrl.includes('output=csv')) {
+        const confirm = window.confirm(
+          'Peringatan: Link yang anda masukkan sepertinya bukan link "Publish to Web" (CSV).\n\n' +
+          'Cara mendapatkan link yang benar:\n' +
+          '1. Buka Google Sheets\n' +
+          '2. File > Share > Publish to web\n' +
+          '3. Pilih "Comma-separated values (.csv)"\n' +
+          '4. Klik Publish dan copy link yang muncul.\n\n' +
+          'Tetap coba lanjutkan dengan link ini?'
+        );
+        if (!confirm) return;
+      }
+    }
+    
+    setIsSyncing(true);
+    try {
+      Papa.parse(syncSpreadsheetUrl, {
+        download: true,
+        header: true,
+        complete: async (results) => {
+          try {
+            const data = results.data as any[];
+            let updatedCount = 0;
+            let notFoundCount = 0;
+            for(const row of data) {
+              // Find student by email or name.
+              let emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));
+              let nameKey = Object.keys(row).find(k => k.toLowerCase() === 'nama' || k.toLowerCase().includes('name') || k.toLowerCase().includes('siswa'));
+              let savingKey = Object.keys(row).find(k => k.toLowerCase().includes('tabungan') || k.toLowerCase().includes('saving'));
+              let sppKey = Object.keys(row).find(k => k.toLowerCase().includes('spp') || k.toLowerCase().includes('iuran') || k.toLowerCase().includes('tagihan'));
+              
+              if(!savingKey && !sppKey) continue;
+              
+              let student = null;
+              if(emailKey && row[emailKey]) {
+                student = allUsers.find(u => u.email?.toLowerCase().trim() === row[emailKey].toLowerCase().trim());
+              }
+              if(!student && nameKey && row[nameKey]) {
+                student = allUsers.find(u => u.name?.toLowerCase().trim() === row[nameKey].toLowerCase().trim());
+              }
+              
+              if(student) {
+                let updates: any = {};
+                if (savingKey && row[savingKey]) {
+                  const savingAmountStr = String(row[savingKey]).replace(/[^0-9.-]+/g,"");
+                  const savingAmount = parseFloat(savingAmountStr);
+                  if(!isNaN(savingAmount)) {
+                    updates.savings = savingAmount;
+                  }
+                }
+                
+                if (sppKey && row[sppKey]) {
+                  const sppAmountStr = String(row[sppKey]).replace(/[^0-9.-]+/g,"");
+                  const sppAmount = parseFloat(sppAmountStr);
+                  if(!isNaN(sppAmount)) {
+                    updates.arrears = sppAmount; // Override tagihan/tunggakan total
+                  }
+                }
+                
+                if (Object.keys(updates).length > 0) {
+                  await updateDoc(doc(db, 'users', student.id), updates);
+                  updatedCount++;
+                }
+              } else {
+                notFoundCount++;
+              }
+            }
+            alert(`Sinkronisasi selesai.\nBerhasil update tabungan: ${updatedCount} siswa.\nTidak ditemukan: ${notFoundCount} baris data.`);
+          } catch (err) {
+            console.error(err);
+            alert('Terjadi kesalahan saat mengupdate data ke database.');
+          } finally {
+            setIsSyncing(false);
+            setShowSyncSpreadsheetModal(false);
+            setSyncSpreadsheetUrl('');
+          }
+        },
+        error: (error: any) => {
+          console.error('PapaParse error:', error);
+          let msg = 'Gagal sinkronisasi Spreadsheet.';
+          
+          // Check if it's a ProgressEvent (common for CORS/Network errors in PapaParse download)
+          if (error instanceof ProgressEvent || (error && error.type === 'error' && !error.message)) {
+            msg += '\n\nError Koneksi atau CORS. Pastikan:\n1. Spreadsheet sudah di-"Publish to Web" sebagai CSV.\n2. URL yang dimasukkan adalah link CSV (akhiran ?output=csv).\n3. Koneksi internet stabil.';
+          } else if (error && typeof error === 'object') {
+            if (error.message) {
+              msg += `\n\nDetail: ${error.message}`;
+            } else if (error.errors && Array.isArray(error.errors) && error.errors[0]?.message) {
+              msg += `\n\nDetail: ${error.errors[0].message}`;
+            } else {
+              msg += '\n\nTerjadi kesalahan format file atau akses ditolak. Pastikan file adalah CSV publik.';
+            }
+          } else {
+            msg += `\n\n${String(error)}`;
+          }
+          
+          alert(msg);
+          setIsSyncing(false);
+        }
+      });
+    } catch(err) {
+      console.error(err);
+      alert('Terjadi kesalahan.');
+      setIsSyncing(false);
     }
   };
 
@@ -1554,8 +1674,8 @@ export default function DashboardAdmin() {
                   </select>
 
                   {selectedStudentsForMutasi.length > 0 && (
-                    <div className="flex gap-3 items-center w-full sm:w-auto bg-blue-50 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-blue-100">
-                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest px-2">{selectedStudentsForMutasi.length} Dipilih</span>
+                    <div className="flex flex-wrap sm:flex-nowrap gap-3 items-center w-full sm:w-auto bg-blue-50 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-blue-100 overflow-x-auto no-scrollbar">
+                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest px-2 whitespace-nowrap">{selectedStudentsForMutasi.length} Dipilih</span>
                       <select 
                         value={mutasiTargetClass} 
                         onChange={(e) => setMutasiTargetClass(e.target.value)} 
@@ -1570,7 +1690,7 @@ export default function DashboardAdmin() {
                         <option value="Tidak Aktif">TIDAK AKTIF</option>
                         <option value="Hapus">HAPUS PERMANEN</option>
                       </select>
-                      <button onClick={handleMutasiMassal} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md whitespace-nowrap">Eksekusi Mutasi</button>
+                      <button onClick={handleMutasiMassal} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md flex-shrink-0 whitespace-nowrap">Eksekusi Mutasi</button>
                     </div>
                   )}
                 </div>
@@ -1894,16 +2014,22 @@ export default function DashboardAdmin() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-800">Administrasi & Keuangan</h3>
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={() => setShowSyncSpreadsheetModal(true)}
+                  className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all text-xs sm:text-sm"
+                >
+                  <RefreshCw size={18} /> Sync Spreadsheet
+                </button>
                 <button 
                   onClick={() => setShowTabunganModal(true)}
-                  className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
+                  className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-xs sm:text-sm"
                 >
                   <Plus size={18} /> Input Tabungan
                 </button>
                 <button 
                   onClick={() => setShowIuranModal(true)}
-                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-xs sm:text-sm"
                 >
                   <Plus size={18} /> Penetapan Iuran
                 </button>
@@ -2680,6 +2806,60 @@ export default function DashboardAdmin() {
                   <CheckCircle size={22} /> Konfirmasi Lunas
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+        {showSyncSpreadsheetModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl p-8" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                <h3 className="text-2xl font-bold text-gray-800 tracking-tight">Sync Spreadsheet</h3>
+                <button onClick={() => setShowSyncSpreadsheetModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-2 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Masukkan link CSV Google Spreadsheet untuk sinkronisasi otomatis Tabungan dan Tagihan SPP / Iuran.
+                </p>
+                <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-xs font-medium border border-yellow-100 flex flex-col gap-2">
+                  <p><strong>Syarat Kolom Spreadsheet:</strong></p>
+                  <ul className="list-disc pl-4 space-y-1 mb-2">
+                    <li>Kolom dengan kata kunci <strong>Email</strong> atau <strong>Nama / Siswa</strong> untuk identitas.</li>
+                    <li>Kolom dengan kata kunci <strong>Tabungan</strong> (opsional) untuk update saldo tabungan.</li>
+                    <li>Kolom dengan kata <strong>SPP / Iuran / Tagihan</strong> (opsional) untuk update total tagihan siswa.</li>
+                  </ul>
+                  <p><strong>Cara mendapatkan link CSV:</strong></p>
+                  <ol className="list-decimal pl-4 space-y-2">
+                    <li>Buka Google Sheets anda.</li>
+                    <li>Klik menu <strong>File</strong> &gt; <strong>Share (Bagikan)</strong> &gt; <strong>Publish to web (Publikasikan ke web)</strong>.</li>
+                    <li>Ubah format dari "Web Page" menjadi <strong>Comma-separated values (.csv)</strong>.</li>
+                    <li>Klik <strong>Publish (Publikasikan)</strong> dan copy link yang muncul.</li>
+                  </ol>
+                  <p className="mt-2 text-[10px] opacity-70 italic">Link yang benar mengandung: <strong>pub?output=csv</strong></p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">URL Spreadsheet CSV</label>
+                  <input
+                    type="url"
+                    value={syncSpreadsheetUrl}
+                    onChange={(e) => setSyncSpreadsheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-50">
+                  <button onClick={() => setShowSyncSpreadsheetModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors text-sm">Batal</button>
+                  <button 
+                    onClick={handleSyncSpreadsheet} 
+                    disabled={isSyncing}
+                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    {isSyncing ? 'Menyinkronkan...' : 'Mulai Sinkronisasi'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
