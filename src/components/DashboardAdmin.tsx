@@ -52,6 +52,7 @@ export default function DashboardAdmin() {
   const [newUserRole, setNewUserRole] = useState('siswa');
   const [newUserKelas, setNewUserKelas] = useState('');
   const [newUserWhatsapp, setNewUserWhatsapp] = useState('');
+  const [editUserWhatsapp, setEditUserWhatsapp] = useState('');
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
   const [announceTarget, setAnnounceTarget] = useState('all');
@@ -609,6 +610,22 @@ export default function DashboardAdmin() {
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleWhatsAppInfoPulang = (student: any) => {
+    if (!student.whatsapp) {
+      alert("Nomor WhatsApp siswa/wali belum terdaftar!");
+      return;
+    }
+    
+    let number = student.whatsapp.replace(/\D/g, '');
+    if (number.startsWith('0')) {
+      number = '62' + number.substring(1);
+    }
+    
+    const message = `Halo Bapak/Ibu Wali Murid dari *${student.name}*,\n\nKami menginformasikan bahwa Ananda telah selesai mengikuti kegiatan belajar di sekolah hari ini dan sedang bersiap untuk kepulangan. 🏠🔔\n\nTerima kasih atas perhatiannya. 🙏`;
+    
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   const handleSyncSpreadsheet = async () => {
     if(!syncSpreadsheetUrl) return alert('Masukkan URL Spreadsheet yang valid');
     
@@ -990,13 +1007,14 @@ export default function DashboardAdmin() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Nama', 'Email', 'Tanggal', 'Jam', 'Status', 'Latitude', 'Longitude'];
+    const headers = ['Nama', 'Email', 'WhatsApp', 'Tanggal', 'Jam', 'Status', 'Latitude', 'Longitude'];
     const rows = attendance.map(a => {
       const student = allUsers.find(u => u.id === a.studentId);
       const date = a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleString() : '';
       return [
         student?.name || 'Unknown',
         student?.email || 'Unknown',
+        student?.whatsapp || '',
         a.date,
         date.split(', ')[1] || '',
         a.status,
@@ -1016,6 +1034,24 @@ export default function DashboardAdmin() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportStudentsToExcel = () => {
+    const students = allUsers.filter(u => u.role === 'siswa');
+    const data = students.map(s => ({
+      Nama: s.name,
+      Email: s.email,
+      WhatsApp: s.whatsapp || '',
+      Kelas: s.kelas || '',
+      Status: s.status || 'Aktif',
+      Total_Tabungan: s.savings || 0,
+      Total_Tunggakan: s.arrears || 0
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
+    XLSX.writeFile(wb, "Data_Siswa_Sekolah.xlsx");
   };
 
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1819,9 +1855,15 @@ export default function DashboardAdmin() {
                     className="hidden" 
                   />
                   <button 
+                    onClick={exportStudentsToExcel}
+                    className="w-full bg-indigo-50 text-indigo-600 border border-indigo-100 hover:border-indigo-300 px-4 py-2.5 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all text-[10px] uppercase tracking-widest shadow-sm"
+                  >
+                    <Download size={16} /> Export Data Siswa (Excel)
+                  </button>
+                  <button 
                     onClick={() => {
                         const ws = XLSX.utils.json_to_sheet([
-                            { Nama: "Contoh Siswa", Email: "siswa1@ra.com", Password: "password123", Kelas: "KELAS A" }
+                            { Nama: "Contoh Siswa", Email: "siswa1@ra.com", Password: "password123", Kelas: "KELAS A", WhatsApp: "08123456789" }
                         ]);
                         const wb = XLSX.utils.book_new();
                         XLSX.utils.book_append_sheet(wb, ws, "FormatSiswa");
@@ -2239,7 +2281,17 @@ export default function DashboardAdmin() {
                               </a>
                             </td>
                             <td className="px-8 py-6 text-right">
-                              <button onClick={async () => {
+                              <div className="flex items-center justify-end gap-2">
+                                {student?.role === 'siswa' && student?.whatsapp && (
+                                  <button 
+                                    onClick={() => handleWhatsAppInfoPulang(student)} 
+                                    className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all shadow-sm"
+                                    title="Kirim Info Pulang via WA"
+                                  >
+                                    <Megaphone size={18} />
+                                  </button>
+                                )}
+                                <button onClick={async () => {
                                 if(window.confirm('Hapus data absensi ini?')) {
                                   try {
                                     await deleteDoc(doc(db, 'attendance', a.id));
@@ -2251,10 +2303,11 @@ export default function DashboardAdmin() {
                               }} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all group-hover:shadow-lg">
                                 <Trash2 size={18} />
                               </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2479,15 +2532,34 @@ export default function DashboardAdmin() {
                         <td className="px-6 py-4 font-bold text-green-600">Rp {(u.savings || 0).toLocaleString()}</td>
                         <td className="px-6 py-4 font-bold text-red-600">Rp {(u.arrears || 0).toLocaleString()}</td>
                         <td className="px-6 py-4 text-right">
-                          <button 
-                            onClick={() => {
-                              setSelectedStudentForFinance(u);
-                              setShowManageFinanceModal(true);
-                            }}
-                            className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
-                          >
-                            Kelola Keuangan
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {u.whatsapp && (u.arrears > 0) && (
+                              <button 
+                                onClick={() => {
+                                  // Find the first arrear detail to follow up
+                                  const firstArrear = u.arrears_details?.[0];
+                                  if (firstArrear) {
+                                    handleWhatsAppFollowUp(u, firstArrear);
+                                  } else {
+                                    alert("Tidak ada rincian tunggakan spesifik.");
+                                  }
+                                }}
+                                className="bg-green-50 text-green-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-all flex items-center gap-1"
+                                title="Follow up Tagihan via WA"
+                              >
+                                <Megaphone size={14} /> Follow-up
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => {
+                                setSelectedStudentForFinance(u);
+                                setShowManageFinanceModal(true);
+                              }}
+                              className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                            >
+                              Kelola Keuangan
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2520,15 +2592,26 @@ export default function DashboardAdmin() {
                         <p className="font-bold text-red-600">Rp {(u.arrears || 0).toLocaleString()}</p>
                       </div>
                     </div>
-                    <div className="flex justify-end mt-2">
+                    <div className="flex justify-end items-center gap-2 mt-4">
+                       {u.whatsapp && u.arrears > 0 && (
+                         <button 
+                           onClick={() => {
+                             const firstArrear = u.arrears_details?.[0];
+                             if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
+                           }}
+                           className="flex-1 bg-green-50 text-green-600 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-widest flex items-center justify-center gap-2"
+                         >
+                           <Megaphone size={14} /> Tagih WA
+                         </button>
+                       )}
                        <button 
                          onClick={() => {
                            setSelectedStudentForFinance(u);
                            setShowManageFinanceModal(true);
                          }}
-                         className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] uppercase font-bold hover:bg-blue-100 transition-colors"
+                         className="flex-1 bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-widest flex items-center justify-center gap-2"
                        >
-                         Kelola Keuangan
+                         Detail Keuangan
                        </button>
                     </div>
                   </div>
