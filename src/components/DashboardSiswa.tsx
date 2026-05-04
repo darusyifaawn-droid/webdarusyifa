@@ -39,6 +39,8 @@ export default function DashboardSiswa() {
   
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
+  const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState('Transfer');
   const [paymentProof, setPaymentProof] = useState<string>('');
@@ -148,33 +150,39 @@ export default function DashboardSiswa() {
     setPaymentSubmitting(false);
   };
 
-  const handlePrintRapot = () => {
+  const handleExecutePrintRapot = () => {
     if (!userData) return;
     
+    // Sort progress ascending by date or createdAt and filter by period
+    const sortedProgress = [...progress]
+      .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
+      .sort((a,b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateA - dateB;
+      });
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     let itemsHtml = '';
     
-    // Sort progress ascending by date or createdAt
-    const sortedProgress = [...progress].sort((a,b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateA - dateB;
-    });
-
     sortedProgress.forEach((p, idx) => {
        const scoreNum = Number(p.score) || 0;
        const gradeInfo = getScoreGradeInfo(scoreNum);
+       let periodBadge = p.evaluationPeriod ? `<span style="font-size:10px; background:#eef2ff; color:#4f46e5; padding:2px 6px; border-radius:10px; margin-left:8px;">${p.evaluationPeriod}</span>` : '';
        itemsHtml += `
          <tr>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">
-             <strong style="display:block;">${p.title}</strong>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <div style="display:flex; align-items:center;">
+               <strong style="display:block;">${p.title}</strong>
+               ${periodBadge}
+             </div>
              <small style="color: #666;">${p.category}</small>
            </td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
          </tr>
        `;
     });
@@ -183,10 +191,15 @@ export default function DashboardSiswa() {
       itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
     }
 
+    let reportTitle = `Rapot Belajar - ${userData.name}`;
+    if (printRapotPeriod !== 'Semua') {
+       reportTitle = `Rapot ${printRapotPeriod} - ${userData.name}`;
+    }
+
     const html = `
       <html>
         <head>
-          <title>Rapot Belajar - ${userData.name}</title>
+          <title>${reportTitle}</title>
           <style>
             ${getPrintStyles()}
           </style>
@@ -567,7 +580,7 @@ export default function DashboardSiswa() {
           )}
           <div>
             <span className="font-bold text-gray-800 block leading-tight">Portal Siswa</span>
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa</span>
+            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
           </div>
         </div>
         <button onClick={() => auth.signOut()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
@@ -587,7 +600,7 @@ export default function DashboardSiswa() {
           )}
           <div>
             <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Siswa</h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa Arjawinangun</p>
           </div>
         </div>
         <NavItems />
@@ -755,7 +768,10 @@ export default function DashboardSiswa() {
                 <p className="text-sm text-gray-400 font-medium">Monitoring nilai dan capaian pembelajaran.</p>
               </div>
               <button 
-                onClick={handlePrintRapot}
+                onClick={() => {
+                  setPrintRapotPeriod('Semua');
+                  setShowPrintRapotModal(true);
+                }}
                 className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
               >
                 <Printer size={20} /> Cetak Rapot
@@ -829,7 +845,7 @@ export default function DashboardSiswa() {
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                 <div className="text-center">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[10px] font-black text-green-600 uppercase tracking-[2px] hover:underline">Ganti Foto Profil</button>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 tracking-widest leading-relaxed">RA Darusyifa - Portal Siswa</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 tracking-widest leading-relaxed">RA Darusyifa Arjawinangun - Portal Siswa</p>
                 </div>
               </div>
 
@@ -963,13 +979,13 @@ export default function DashboardSiswa() {
             <div className="card-3d p-6 md:p-8">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Administrasi Keuangan</h3>
                <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-                <div className="p-8 md:p-10 bg-gradient-to-br from-green-600 to-green-700 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
+                <div className="p-8 md:p-10 bg-green-600 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                    <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 md:gap-3 text-green-100 uppercase tracking-widest text-[10px] md:text-xs"><CreditCard size={20} /> Saldo Tabungan</h4>
                   <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
                    <p className="text-[10px] md:text-xs text-green-100/60 mt-3 md:mt-4 leading-relaxed italic">Gunakan tabungan untuk keperluan sekolah yang terencana.</p>
                  </div>
-                 <div className="p-8 md:p-10 bg-gradient-to-br from-red-500 to-red-600 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
+                 <div className="p-8 md:p-10 bg-red-500 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                    <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 md:gap-3 text-red-100 uppercase tracking-widest text-[10px] md:text-xs"><CreditCard size={20} /> Total Tunggakan</h4>
                   <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.arrears || 0).toLocaleString()}</p>
@@ -1225,6 +1241,48 @@ export default function DashboardSiswa() {
                   Belum ada pengumuman baru.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {showPrintRapotModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[32px] p-6 md:p-8 shadow-2xl relative">
+              <button 
+                onClick={() => setShowPrintRapotModal(false)} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+              
+              <h3 className="text-xl font-black text-gray-800 mb-2">Cetak Rapot</h3>
+              <p className="text-xs font-bold text-gray-500 mb-6 uppercase tracking-widest">{userData?.name}</p>
+
+              <div className="space-y-4">
+                 <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pilih Periode Penilaian</label>
+                  <select 
+                    value={printRapotPeriod} 
+                    onChange={(e) => setPrintRapotPeriod(e.target.value)} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
+                  >
+                    <option value="Semua">Cetak Semua Periode</option>
+                    <option value="PTS Ganjil">PTS Ganjil</option>
+                    <option value="PAS Ganjil">PAS Ganjil</option>
+                    <option value="PTS Genap">PTS Genap</option>
+                    <option value="PAS Genap">PAS Genap</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={() => {
+                    handleExecutePrintRapot();
+                    setShowPrintRapotModal(false);
+                  }}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} /> Cetak Dokumen
+                </button>
+              </div>
             </div>
           </div>
         )}

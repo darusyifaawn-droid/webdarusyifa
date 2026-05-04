@@ -521,7 +521,7 @@ export default function DashboardGuru() {
           )}
           <div>
             <span className="font-bold text-gray-800 block leading-tight">Portal Guru</span>
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa</span>
+            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
           </div>
         </div>
         <button onClick={() => auth.signOut()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
@@ -541,7 +541,7 @@ export default function DashboardGuru() {
           )}
           <div>
             <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Guru</h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa Arjawinangun</p>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -583,7 +583,7 @@ export default function DashboardGuru() {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Selamat Datang, Guru!</h2>
-            <p className="text-gray-500 text-sm">Kelola perkembangan belajar siswa RA Darusyifa.</p>
+            <p className="text-gray-500 text-sm">Kelola perkembangan belajar siswa RA Darusyifa Arjawinangun.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <button 
@@ -1109,7 +1109,7 @@ export default function DashboardGuru() {
                 <input type="file" ref={profileFileInputRef} onChange={handleProfilePhotoChange} accept="image/*" className="hidden" />
                 <div className="text-center">
                   <button type="button" onClick={() => profileFileInputRef.current?.click()} className="text-xs font-bold text-blue-600 uppercase tracking-widest hover:underline">Ganti Foto Profil</button>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 tracking-widest">RA Darusyifa - Portal Guru</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2 tracking-widest">RA Darusyifa Arjawinangun - Portal Guru</p>
                 </div>
               </div>
 
@@ -1314,7 +1314,7 @@ export default function DashboardGuru() {
                 </button>
                 <div className="w-14 h-14"></div>
               </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal Guru RA Darusyifa</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal Guru RA Darusyifa Arjawinangun</p>
             </div>
           </div>
         )}

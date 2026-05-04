@@ -67,7 +67,7 @@ export default function LandingPage() {
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-green-600">
               <img 
                 src={logoUrl} 
-                alt="Logo RA Darusyifa" 
+                alt="Logo RA Darusyifa Arjawinangun" 
                 className="w-full h-full object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=RA+Darusyifa&background=16a34a&color=fff'; }}
                 referrerPolicy="no-referrer"
@@ -130,7 +130,7 @@ export default function LandingPage() {
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-green-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
             <img 
               src={heroImageUrl} 
-              alt="RA Darusyifa Activities" 
+              alt="RA Darusyifa Arjawinangun Activities" 
               className="rounded-3xl shadow-2xl relative z-10 border-8 border-white object-cover w-full h-[400px] lg:h-[500px]"
               referrerPolicy="no-referrer"
             />
@@ -217,14 +217,14 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h3 className="text-3xl font-bold text-green-900 mb-4">Galeri Kegiatan</h3>
             <div className="w-20 h-1.5 bg-green-600 mx-auto rounded-full"></div>
-            <p className="mt-4 text-gray-600">Momen-momen berharga dalam proses belajar dan bermain di RA Darusyifa.</p>
+            <p className="mt-4 text-gray-600">Momen-momen berharga dalam proses belajar dan bermain di RA Darusyifa Arjawinangun.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {galleryImages.map((img, i) => (
               <div key={i} className="group overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all aspect-video">
                 <img 
                   src={img} 
-                  alt={`Kegiatan RA Darusyifa ${i + 1}`} 
+                  alt={`Kegiatan RA Darusyifa Arjawinangun ${i + 1}`} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   referrerPolicy="no-referrer"
                 />
@@ -242,7 +242,7 @@ export default function LandingPage() {
               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center p-1 border border-green-600">
                 <img 
                   src={logoUrl} 
-                  alt="Logo RA Darusyifa" 
+                  alt="Logo RA Darusyifa Arjawinangun" 
                   className="w-full h-full object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=RA+Darusyifa&background=16a34a&color=fff'; }}
                   referrerPolicy="no-referrer"

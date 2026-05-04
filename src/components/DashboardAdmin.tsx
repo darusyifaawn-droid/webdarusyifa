@@ -1508,7 +1508,7 @@ export default function DashboardAdmin() {
           )}
           <div>
             <span className="font-bold text-gray-800 block leading-tight">Portal Admin</span>
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa</span>
+            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
           </div>
         </div>
         <button onClick={() => auth.signOut()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
@@ -1528,7 +1528,7 @@ export default function DashboardAdmin() {
           )}
           <div>
             <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Admin</h1>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">RA Darusyifa</p>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">RA Darusyifa Arjawinangun</p>
           </div>
         </div>
         <NavItems />
@@ -1897,7 +1897,7 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[32px] md:rounded-[40px] p-6 md:p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+                <div className="bg-indigo-600 rounded-[32px] md:rounded-[40px] p-6 md:p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                   <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2 opacity-90 tracking-tight"><Megaphone size={20} /> Pengumuman</h3>
                   {announcements.length > 0 ? (
@@ -3072,7 +3072,7 @@ export default function DashboardAdmin() {
               </button>
               
               {/* Left Decoration / Hero */}
-              <div className="hidden md:flex flex-col justify-end w-1/3 bg-gradient-to-br from-green-500 to-green-700 p-8 text-white relative overflow-hidden">
+              <div className="hidden md:flex flex-col justify-end w-1/3 bg-green-600 p-8 text-white relative overflow-hidden">
                 <div className="absolute -top-24 -left-24 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
                 <div className="absolute bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
                 

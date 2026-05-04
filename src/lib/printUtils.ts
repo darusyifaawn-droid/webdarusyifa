@@ -65,7 +65,7 @@ export const getPrintStyles = () => `
   }
 `;
 
-export const getPrintSignatureHTML = (dateStr: string = "", role1: string = "Bendahara / Penerima", role2: string = "Kepala Sekolah", qrData: string = "Ditandatangani secara elektronik oleh Kepala Sekolah RA Darusyifa") => `
+export const getPrintSignatureHTML = (dateStr: string = "", role1: string = "Bendahara / Penerima", role2: string = "Kepala Sekolah", qrData: string = "Ditandatangani secara elektronik oleh Kepala Sekolah RA Darusyifa Arjawinangun") => `
   <div style="text-align: right; margin-bottom: 30px; font-size: 14px; color: #4b5563;">
     Arjawinangun, ${dateStr || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
   </div>

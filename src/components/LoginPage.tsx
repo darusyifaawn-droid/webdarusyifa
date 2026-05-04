@@ -108,7 +108,7 @@ export default function LoginPage() {
           ) : (
             <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-lg shadow-green-200">RA</div>
           )}
-          <h2 className="text-2xl font-bold text-gray-800">Portal Darusyifa</h2>
+          <h2 className="text-2xl font-bold text-gray-800">RA Darusyifa Arjawinangun</h2>
           <p className="text-gray-500 text-sm">Silakan masuk untuk mengakses dashboard Anda</p>
         </div>
 
