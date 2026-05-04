@@ -28,6 +28,7 @@ export default function DashboardGuru() {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [progressTitle, setProgressTitle] = useState('');
   const [progressCategory, setProgressCategory] = useState('');
+  const [progressEvaluationPeriod, setProgressEvaluationPeriod] = useState('Harian');
   const [progressDesc, setProgressDesc] = useState('');
   const [progressTarget, setProgressTarget] = useState('');
   const [progressStatus, setProgressStatus] = useState('Lulus');
@@ -38,6 +39,9 @@ export default function DashboardGuru() {
   const [editingSubject, setEditingSubject] = useState<any>(null);
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
+  const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
+  const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
+  const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
 
   // Camera States
   const [showCamera, setShowCamera] = useState(false);
@@ -160,13 +164,15 @@ export default function DashboardGuru() {
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
   };
 
-  const handlePrintRapot = (studentId: string) => {
-    const student = students.find(s => s.id === studentId);
+  const handleExecutePrintRapot = () => {
+    if (!selectedStudentForRapot) return;
+    const student = students.find(s => s.id === selectedStudentForRapot.id);
     if (!student) return;
     
     // Get student's progress data and sort ascending by date
     const studentProgressList = progress
-      .filter(p => p.studentId === studentId)
+      .filter(p => p.studentId === student.id)
+      .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     const printWindow = window.open('', '_blank');
@@ -176,15 +182,19 @@ export default function DashboardGuru() {
     studentProgressList.forEach((p, idx) => {
        const scoreNum = Number(p.score) || 0;
        const gradeInfo = getScoreGradeInfo(scoreNum);
+       let periodBadge = p.evaluationPeriod ? `<span style="font-size:10px; background:#eef2ff; color:#4f46e5; padding:2px 6px; border-radius:10px; margin-left:8px;">${p.evaluationPeriod}</span>` : '';
        itemsHtml += `
          <tr>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">
-             <strong style="display:block;">${p.title}</strong>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <div style="display:flex; align-items:center;">
+               <strong style="display:block;">${p.title}</strong>
+               ${periodBadge}
+             </div>
              <small style="color: #666;">${p.category}</small>
            </td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
          </tr>
        `;
     });
@@ -193,10 +203,15 @@ export default function DashboardGuru() {
       itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
     }
 
+    let reportTitle = `Rapot Belajar - ${student.name}`;
+    if (printRapotPeriod !== 'Semua') {
+       reportTitle = `Rapot ${printRapotPeriod} - ${student.name}`;
+    }
+
     const html = `
       <html>
         <head>
-          <title>Rapot Belajar - ${student.name}</title>
+          <title>${reportTitle}</title>
           <style>
             ${getPrintStyles()}
           </style>
@@ -366,6 +381,7 @@ export default function DashboardGuru() {
         studentId: selectedStudent,
         title: progressCategory, // Use Mapel as Title to simplify
         category: progressCategory,
+        evaluationPeriod: progressEvaluationPeriod,
         description: progressDesc,
         target: progressTarget,
         status: progressStatus,
@@ -418,6 +434,7 @@ export default function DashboardGuru() {
     setSelectedStudent('');
     setProgressTitle('');
     setProgressCategory('');
+    setProgressEvaluationPeriod('Harian');
     setProgressDesc('');
     setProgressTarget('');
     setProgressStatus('Lulus');
@@ -432,6 +449,7 @@ export default function DashboardGuru() {
     setSelectedStudent(p.studentId);
     setProgressTitle(p.title);
     setProgressCategory(p.category);
+    setProgressEvaluationPeriod(p.evaluationPeriod || 'Harian');
     setProgressDesc(p.description);
     setProgressTarget(p.target || '');
     setProgressStatus(p.status || 'Lulus');
@@ -744,7 +762,11 @@ export default function DashboardGuru() {
                             Beri Laporan
                           </button>
                           <button 
-                            onClick={() => handlePrintRapot(s.id)}
+                            onClick={() => {
+                              setSelectedStudentForRapot(s);
+                              setPrintRapotPeriod('Semua');
+                              setShowPrintRapotModal(true);
+                            }}
                             className="bg-gray-800 text-white hover:bg-gray-900 font-bold text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1"
                           >
                             <Printer size={12} /> Cetak Rapot
@@ -777,7 +799,11 @@ export default function DashboardGuru() {
                         Beri Laporan
                       </button>
                       <button 
-                        onClick={() => handlePrintRapot(s.id)}
+                        onClick={() => {
+                          setSelectedStudentForRapot(s);
+                          setPrintRapotPeriod('Semua');
+                          setShowPrintRapotModal(true);
+                        }}
                         className="flex-1 bg-gray-800 text-white hover:bg-gray-900 font-bold text-xs py-2 rounded-xl transition-colors flex items-center justify-center gap-1"
                       >
                         <Printer size={12} /> Cetak
@@ -785,6 +811,50 @@ export default function DashboardGuru() {
                     </div>
                  </div>
                ))}
+            </div>
+          </div>
+        )}
+
+        {showPrintRapotModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
+              <button 
+                onClick={() => {
+                  setShowPrintRapotModal(false);
+                  setSelectedStudentForRapot(null);
+                }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+              >
+                <X />
+              </button>
+              <h3 className="text-xl font-black text-gray-800 mb-2">Cetak Rapot Siswa</h3>
+              <p className="text-xs font-bold text-gray-500 mb-6 uppercase tracking-widest">{selectedStudentForRapot?.name}</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pilih Periode Penilaian</label>
+                  <select 
+                    value={printRapotPeriod} 
+                    onChange={(e) => setPrintRapotPeriod(e.target.value)} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
+                  >
+                    <option value="Semua">Cetak Semua Periode</option>
+                    <option value="PTS Ganjil">PTS Ganjil</option>
+                    <option value="PAS Ganjil">PAS Ganjil</option>
+                    <option value="PTS Genap">PTS Genap</option>
+                    <option value="PAS Genap">PAS Genap</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={() => {
+                    handleExecutePrintRapot();
+                    setShowPrintRapotModal(false);
+                  }}
+                  className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold hover:bg-gray-900 transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} /> Cetak Dokumen
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1136,9 +1206,27 @@ export default function DashboardGuru() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Jenis Penilaian</label>
+                    <select 
+                      value={progressEvaluationPeriod} 
+                      onChange={(e) => setProgressEvaluationPeriod(e.target.value)} 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="Harian">Laporan Harian / Mingguan</option>
+                      <option value="PTS Ganjil">PTS Ganjil</option>
+                      <option value="PAS Ganjil">PAS Ganjil</option>
+                      <option value="PTS Genap">PTS Genap</option>
+                      <option value="PAS Genap">PAS Genap</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tanggal Laporan</label>
                     <input type="date" value={progressDate} onChange={(e) => setProgressDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800" required />
                   </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Perkembangan</label>
                     <input type="text" value={progressTarget} onChange={(e) => setProgressTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: Mampu membaca 1 paragraf" />

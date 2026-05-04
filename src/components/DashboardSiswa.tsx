@@ -277,6 +277,7 @@ export default function DashboardSiswa() {
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editWhatsapp, setEditWhatsapp] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -297,6 +298,7 @@ export default function DashboardSiswa() {
           setUser(currentUser);
           setUserData(userDoc.data());
           setEditName(userDoc.data().name);
+          setEditWhatsapp(userDoc.data().whatsapp || '');
           setEditPhoto(userDoc.data().photoURL || '');
         } catch (error) {
           console.error('Error verifying siswa role:', error);
@@ -497,9 +499,10 @@ export default function DashboardSiswa() {
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         name: editName,
+        whatsapp: editWhatsapp,
         photoURL: editPhoto
       });
-      setUserData({ ...userData, name: editName, photoURL: editPhoto });
+      setUserData({ ...userData, name: editName, whatsapp: editWhatsapp, photoURL: editPhoto });
       setIsEditingProfile(false);
       alert('Profil berhasil diperbarui!');
     } catch (error) {
@@ -848,6 +851,16 @@ export default function DashboardSiswa() {
                     value={user?.email} 
                     readOnly 
                     className="w-full p-5 bg-gray-100 border border-gray-100 rounded-3xl text-gray-400 font-bold cursor-not-allowed" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-2 ml-1">Nomor WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    value={editWhatsapp} 
+                    onChange={(e) => setEditWhatsapp(e.target.value)} 
+                    className="w-full p-5 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all font-bold text-gray-800" 
+                    placeholder="Contoh: 081234567890"
                   />
                 </div>
               </div>

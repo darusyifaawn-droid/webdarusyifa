@@ -27,12 +27,15 @@ export default function DashboardAdmin() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
+  const [showBroadcastPulangModal, setShowBroadcastPulangModal] = useState(false);
+  const [broadcastPulangTarget, setBroadcastPulangTarget] = useState('all');
+  const [searchStudentBroadcast, setSearchStudentBroadcast] = useState('');
   const [showTabunganModal, setShowTabunganModal] = useState(false);
+  const [showImportTabunganModal, setShowImportTabunganModal] = useState(false);
+  const [importTabunganStartDate, setImportTabunganStartDate] = useState('');
+  const [importTabunganEndDate, setImportTabunganEndDate] = useState('');
   const [showIuranModal, setShowIuranModal] = useState(false);
   const [showDeleteIuranModal, setShowDeleteIuranModal] = useState(false);
-  const [showSyncSpreadsheetModal, setShowSyncSpreadsheetModal] = useState(false);
-  const [syncSpreadsheetUrl, setSyncSpreadsheetUrl] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
   const [showPayConfirmModal, setShowPayConfirmModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
   const [paymentNote, setPaymentNote] = useState('');
@@ -44,6 +47,7 @@ export default function DashboardAdmin() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
+  const importTabunganInputRef = useRef<HTMLInputElement>(null);
   
   // Form States
   const [newUserName, setNewUserName] = useState('');
@@ -58,7 +62,7 @@ export default function DashboardAdmin() {
   const [announceTarget, setAnnounceTarget] = useState('all');
   
   // Finance Form States
-  const [financeStudentId, setFinanceStudentId] = useState('');
+  const [financeStudentIds, setFinanceStudentIds] = useState<string[]>([]);
   const [financeAmount, setFinanceAmount] = useState('');
   const [financeDate, setFinanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [financeIuranName, setFinanceIuranName] = useState('');
@@ -95,6 +99,7 @@ export default function DashboardAdmin() {
   const [filterName, setFilterName] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
+  const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
 
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
@@ -105,6 +110,8 @@ export default function DashboardAdmin() {
   const [mutasiTargetClass, setMutasiTargetClass] = useState('');
   const [selectedStudentsForMutasi, setSelectedStudentsForMutasi] = useState<string[]>([]);
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
+  const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
+  const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
 
   useEffect(() => {
     if (showManageFinanceModal && selectedStudentForFinance) {
@@ -446,6 +453,37 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleTarikTabungan = async (userId: string, amountTarik: string) => {
+    try {
+      const student = allUsers.find(u => u.id === userId);
+      if (!student) return;
+      const currentSavings = student.savings || 0;
+      if (currentSavings < Number(amountTarik)) {
+        alert('Saldo tabungan tidak cukup!');
+        return;
+      }
+      const newSavings = currentSavings - Number(amountTarik);
+      await updateDoc(doc(db, 'users', userId), { savings: newSavings });
+      
+      await addDoc(collection(db, 'payments'), {
+        studentId: userId,
+        amount: Number(amountTarik),
+        description: 'Penarikan/Kurangi Tabungan',
+        type: 'tabungan_keluar',
+        date: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp()
+      });
+      
+      if (selectedStudentForFinance && selectedStudentForFinance.id === userId) {
+        setSelectedStudentForFinance((prev: any) => ({ ...prev, savings: newSavings }));
+      }
+      alert('Berhasil ditarik!');
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi kesalahan saat penarikan.');
+    }
+  };
+
   const updateFinance = async (userId: string, field: 'savings' | 'arrears', value: string) => {
     try {
       await updateDoc(doc(db, 'users', userId), {
@@ -560,27 +598,36 @@ export default function DashboardAdmin() {
 
   const handleAddTabungan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!financeStudentId || !financeAmount || !financeDate) return;
+    if (financeStudentIds.length === 0 || !financeAmount || !financeDate) {
+      alert('Pilih siswa, masukkan nominal, dan tanggal!');
+      return;
+    }
+    
     try {
-      const student = allUsers.find(u => u.id === financeStudentId);
-      if (!student) return;
-      const newSavings = (student.savings || 0) + Number(financeAmount);
-      await updateDoc(doc(db, 'users', financeStudentId), { savings: newSavings });
+      const amount = Number(financeAmount);
       
-      // Log to payments history
-      await addDoc(collection(db, 'payments'), {
-        studentId: financeStudentId,
-        amount: Number(financeAmount),
-        description: 'Setoran Tabungan',
-        type: 'tabungan',
-        date: financeDate,
-        createdAt: serverTimestamp()
-      });
+      for (const studentId of financeStudentIds) {
+        const student = allUsers.find(u => u.id === studentId);
+        if (!student) continue;
+
+        const newSavings = (student.savings || 0) + amount;
+        await updateDoc(doc(db, 'users', studentId), { savings: newSavings });
+        
+        // Log to payments history
+        await addDoc(collection(db, 'payments'), {
+          studentId: studentId,
+          amount: amount,
+          description: financeStudentIds.length > 1 ? 'Setoran Tabungan Massal/Grup' : 'Setoran Tabungan',
+          type: 'tabungan',
+          date: financeDate,
+          createdAt: serverTimestamp()
+        });
+      }
 
       setShowTabunganModal(false);
-      setFinanceStudentId('');
+      setFinanceStudentIds([]);
       setFinanceAmount('');
-      alert('Tabungan berhasil ditambahkan!');
+      alert(`Tabungan berhasil ditambahkan untuk ${financeStudentIds.length} siswa!`);
     } catch (error) {
       alert('Gagal menambahkan tabungan.');
       console.error(error);
@@ -610,134 +657,130 @@ export default function DashboardAdmin() {
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const handleWhatsAppInfoPulang = (student: any) => {
-    if (!student.whatsapp) {
-      alert("Nomor WhatsApp siswa/wali belum terdaftar!");
+  const handleBroadcastPulang = (e: React.FormEvent) => {
+    e.preventDefault();
+    let targetStudents = [];
+    
+    if (broadcastPulangTarget === 'all') {
+      targetStudents = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && u.whatsapp);
+    } else if (broadcastPulangTarget.startsWith('kelas_')) {
+      const targetKelas = broadcastPulangTarget.replace('kelas_', '').toLowerCase();
+      targetStudents = allUsers.filter(u => {
+        if (u.role !== 'siswa' || (u.status || 'Aktif') !== 'Aktif' || !u.whatsapp) return false;
+        const k = (u.kelas || '').toLowerCase();
+        return k === targetKelas || k === `kelas ${targetKelas}` || k.includes(targetKelas);
+      });
+    } else {
+      const s = allUsers.find(u => u.id === broadcastPulangTarget);
+      if (s && s.whatsapp) targetStudents = [s];
+    }
+
+    if (targetStudents.length === 0) {
+      alert('Tidak ada siswa dengan nomor WhatsApp di target yang dipilih.');
       return;
     }
-    
-    let number = student.whatsapp.replace(/\D/g, '');
-    if (number.startsWith('0')) {
-      number = '62' + number.substring(1);
-    }
-    
-    const message = `Halo Bapak/Ibu Wali Murid dari *${student.name}*,\n\nKami menginformasikan bahwa Ananda telah selesai mengikuti kegiatan belajar di sekolah hari ini dan sedang bersiap untuk kepulangan. 🏠🔔\n\nTerima kasih atas perhatiannya. 🙏`;
-    
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
+
+    const confirmMsg = `Pesan akan dikirim ke ${targetStudents.length} nomor WhatsApp secara berurutan.\n\nPastikan Anda mengizinkan (ALLOW POPUPS) di browser agar semua tab WhatsApp bisa terbuka.\n\nLanjutkan?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    let delay = 0;
+    targetStudents.forEach(student => {
+      let number = student.whatsapp.replace(/\D/g, '');
+      if (number.startsWith('0')) {
+        number = '62' + number.substring(1);
+      }
+      const message = `Halo Bapak/Ibu Wali Murid dari *${student.name}*,\n\nKami menginformasikan bahwa Ananda telah selesai mengikuti kegiatan belajar di sekolah hari ini dan sedang bersiap untuk kepulangan. 🏠🔔\n\nBapak/Ibu sudah bisa menjemput Ananda di sekolah.\n\nTerima kasih atas perhatiannya. 🙏`;
+      
+      setTimeout(() => {
+        window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
+      }, delay);
+      
+      delay += 800; // Open a new tab every 800ms to prevent browser crashing
+    });
+
+    setShowBroadcastPulangModal(false);
   };
 
-  const handleSyncSpreadsheet = async () => {
-    if(!syncSpreadsheetUrl) return alert('Masukkan URL Spreadsheet yang valid');
-    
-    let finalUrl = syncSpreadsheetUrl;
-    // Auto-convert shareable Google Sheets links to CSV export links
-    if (finalUrl.includes('docs.google.com/spreadsheets') && finalUrl.includes('/edit')) {
-      finalUrl = finalUrl.replace(/\/edit.*$/, '/export?format=csv');
-    } else if (finalUrl.includes('docs.google.com/spreadsheets')) {
-      if (!finalUrl.includes('pub?') && !finalUrl.includes('export?')) {
-        const confirm = window.confirm(
-          'Peringatan: Link yang anda masukkan sepertinya bukan link "Publish to Web" (CSV) atau link sharing yang valid.\n\n' +
-          'Tetap coba lanjutkan dengan link ini?'
-        );
-        if (!confirm) return;
-      }
+  const handleImportTabunganSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importTabunganStartDate) {
+      alert("Masukkan minimal Tanggal Mulai periode!");
+      return;
     }
-    
-    setIsSyncing(true);
-    try {
-      Papa.parse(finalUrl, {
-        download: true,
-        header: true,
-        complete: async (results) => {
-          try {
-            const data = results.data as any[];
-            let updatedCount = 0;
-            let notFoundCount = 0;
-            for(const row of data) {
-              // Find student by email or name.
-              let emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));
-              let nameKey = Object.keys(row).find(k => k.toLowerCase() === 'nama' || k.toLowerCase().includes('name') || k.toLowerCase().includes('siswa'));
-              let savingKey = Object.keys(row).find(k => k.toLowerCase().includes('tabungan') || k.toLowerCase().includes('saving'));
-              let sppKey = Object.keys(row).find(k => k.toLowerCase().includes('spp') || k.toLowerCase().includes('iuran') || k.toLowerCase().includes('tagihan'));
-              
-              if(!savingKey && !sppKey) continue;
-              
-              let student = null;
-              if(emailKey && row[emailKey]) {
-                student = allUsers.find(u => u.email?.toLowerCase().trim() === row[emailKey].toLowerCase().trim());
-              }
-              if(!student && nameKey && row[nameKey]) {
-                student = allUsers.find(u => u.name?.toLowerCase().trim() === row[nameKey].toLowerCase().trim());
-              }
-              
-              if(student) {
-                let updates: any = {};
-                if (savingKey && row[savingKey]) {
-                  const valStr = String(row[savingKey] || '');
-                  // For Indonesian Format, remove Rp, dot separator, spaces
-                  const cleanStr = valStr.replace(/[^0-9-]/g, "");
-                  const savingAmount = parseInt(cleanStr, 10);
-                  if(!isNaN(savingAmount)) {
-                    updates.savings = savingAmount;
-                  }
-                }
+    importTabunganInputRef.current?.click();
+  };
+
+  const handleImportTabungan = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
+      alert('Gagal membaca file Excel.');
+    };
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        let successCount = 0;
+        let notFoundCount = 0;
+
+        for (const row of data as any[]) {
+          const nameField = Object.keys(row).find(k => k.toLowerCase() === 'nama' || k.toLowerCase().includes('name') || k.toLowerCase().includes('siswa'));
+          const savingField = Object.keys(row).find(k => k.toLowerCase().includes('tabungan') || k.toLowerCase().includes('saving') || k.toLowerCase().includes('nominal'));
+
+          if (nameField && savingField && row[nameField] && row[savingField] !== undefined) {
+            const studentName = String(row[nameField]).trim().toLowerCase();
+            const savingAmountStr = String(row[savingField]).replace(/[^0-9-]/g, "");
+            const savingAmount = parseInt(savingAmountStr, 10);
+
+            if (!isNaN(savingAmount)) {
+              const student = allUsers.find(u => u.name?.trim().toLowerCase() === studentName);
+              if (student) {
+                const currentSavings = student.savings || 0;
+                await updateDoc(doc(db, 'users', student.id), { savings: currentSavings + savingAmount });
                 
-                if (sppKey && row[sppKey]) {
-                  const valStr = String(row[sppKey] || '');
-                  const cleanStr = valStr.replace(/[^0-9-]/g, "");
-                  const sppAmount = parseInt(cleanStr, 10);
-                  if(!isNaN(sppAmount)) {
-                    updates.arrears = sppAmount; // Override tagihan/tunggakan total
-                  }
+                let periodText = '';
+                if (importTabunganStartDate && importTabunganEndDate) {
+                    periodText = ` (Periode: ${importTabunganStartDate} s/d ${importTabunganEndDate})`;
+                } else if (importTabunganStartDate) {
+                    periodText = ` (Tanggal: ${importTabunganStartDate})`;
                 }
-                
-                if (Object.keys(updates).length > 0) {
-                  await updateDoc(doc(db, 'users', student.id), updates);
-                  updatedCount++;
-                }
+
+                await addDoc(collection(db, 'payments'), {
+                  studentId: student.id,
+                  amount: savingAmount,
+                  description: `Import Tabungan Excel${periodText}`,
+                  type: 'tabungan',
+                  date: importTabunganEndDate || importTabunganStartDate || new Date().toISOString().split('T')[0],
+                  createdAt: serverTimestamp()
+                });
+
+                successCount++;
               } else {
                 notFoundCount++;
               }
             }
-            alert(`Sinkronisasi selesai.\nBerhasil update tabungan: ${updatedCount} siswa.\nTidak ditemukan: ${notFoundCount} baris data.`);
-          } catch (err) {
-            console.error(err);
-            alert('Terjadi kesalahan saat mengupdate data ke database.');
-          } finally {
-            setIsSyncing(false);
-            setShowSyncSpreadsheetModal(false);
-            setSyncSpreadsheetUrl('');
           }
-        },
-        error: (error: any) => {
-          console.error('PapaParse error:', error);
-          let msg = 'Gagal sinkronisasi Spreadsheet.';
-          
-          // Check if it's a ProgressEvent (common for CORS/Network errors in PapaParse download)
-          if (error instanceof ProgressEvent || (error && error.type === 'error' && !error.message)) {
-            msg += '\n\nError Koneksi atau CORS. Pastikan:\n1. Spreadsheet sudah di-"Publish to Web" sebagai CSV.\n2. URL yang dimasukkan adalah link CSV (akhiran ?output=csv).\n3. Koneksi internet stabil.';
-          } else if (error && typeof error === 'object') {
-            if (error.message) {
-              msg += `\n\nDetail: ${error.message}`;
-            } else if (error.errors && Array.isArray(error.errors) && error.errors[0]?.message) {
-              msg += `\n\nDetail: ${error.errors[0].message}`;
-            } else {
-              msg += '\n\nTerjadi kesalahan format file atau akses ditolak. Pastikan file adalah CSV publik.';
-            }
-          } else {
-            msg += `\n\n${String(error)}`;
-          }
-          
-          alert(msg);
-          setIsSyncing(false);
         }
-      });
-    } catch(err) {
-      console.error(err);
-      alert('Terjadi kesalahan.');
-      setIsSyncing(false);
-    }
+        alert(`Impor tabungan selesai!\nBerhasil update tabungan: ${successCount} siswa.\nTidak ditemukan/Gagal: ${notFoundCount} baris data.`);
+        if (importTabunganInputRef.current) importTabunganInputRef.current.value = '';
+        setShowImportTabunganModal(false);
+        setImportTabunganStartDate('');
+        setImportTabunganEndDate('');
+      } catch (error) {
+        alert('Gagal mengimpor data Excel. Pastikan format sesuai.');
+        console.error(error);
+      }
+    };
+    reader.readAsBinaryString(file);
   };
+
 
   const handleAddIuran = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1006,42 +1049,122 @@ export default function DashboardAdmin() {
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ['Nama', 'Email', 'WhatsApp', 'Tanggal', 'Jam', 'Status', 'Latitude', 'Longitude'];
-    const rows = attendance.map(a => {
-      const student = allUsers.find(u => u.id === a.studentId);
-      const date = a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleString() : '';
-      return [
-        student?.name || 'Unknown',
-        student?.email || 'Unknown',
-        student?.whatsapp || '',
-        a.date,
-        date.split(', ')[1] || '',
-        a.status,
-        a.location?.latitude || '',
-        a.location?.longitude || ''
-      ];
+  const exportUsersToExcel = () => {
+    const students = allUsers.filter(u => {
+      const matchKelas = filterKelas ? (u.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+      const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
+      return matchKelas && matchName;
+    });
+    
+    students.sort((a, b) => {
+      if (a.role === b.role) return a.name.localeCompare(b.name);
+      return a.role.localeCompare(b.role);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-      + headers.map(h => `"${h}"`).join(",") + "\n" 
-      + rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `absensi_ra_darusyifa_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportStudentsToExcel = () => {
-    const students = allUsers.filter(u => u.role === 'siswa');
     const data = students.map(s => ({
       Nama: s.name,
-      Email: s.email,
-      WhatsApp: s.whatsapp || '',
+      Peran: s.role.toUpperCase(),
+      Kelas: s.kelas || '-',
+      WhatsApp: s.whatsapp || '-',
+      Email: s.email || '-',
+      Status: s.status || 'Aktif'
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    if(data.length > 0) {
+      const colWidths = Object.keys(data[0]).map(k => ({ wch: k.length + 5 }));
+      data.forEach(row => {
+          Object.values(row).forEach((v, i) => {
+              if (String(v).length + 5 > colWidths[i].wch) colWidths[i].wch = String(v).length + 5;
+          });
+      });
+      ws['!cols'] = colWidths;
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data User List");
+    const safeKelas = filterKelas ? `_Kelas_${filterKelas}` : '';
+    XLSX.writeFile(wb, `Data_User${safeKelas}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportAttendanceToExcel = () => {
+    let filteredAttendance = attendance;
+    if (filterDateStart) filteredAttendance = filteredAttendance.filter(a => a.date >= filterDateStart);
+    if (filterDateEnd) filteredAttendance = filteredAttendance.filter(a => a.date <= filterDateEnd);
+
+    const uniqueDates = Array.from(new Set(filteredAttendance.map(a => a.date))).sort();
+
+    if (uniqueDates.length === 0) {
+      alert("Tidak ada data presensi pada rentang tanggal tersebut.");
+      return;
+    }
+
+    const filteredUsers = allUsers.filter(u => {
+      const matchRole = filterRole === 'semua' ? true : u.role === filterRole;
+      const matchKelas = filterKelas ? (u.role === 'siswa' && (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) : true;
+      const matchStatus = (u.status || 'Aktif') === 'Aktif'; 
+      return matchRole && matchKelas && matchStatus;
+    });
+
+    const data: any[] = [];
+
+    for (const date of uniqueDates) {
+      for (const user of filteredUsers) {
+        const att = filteredAttendance.find(a => a.date === date && a.studentId === user.id);
+        
+        let statusDisplay = 'ALPHA';
+        if (att?.status) {
+          if (Array.isArray(att.status)) {
+            statusDisplay = att.status.map(s => s.replace(/_/g, ' ')).join(', ').toUpperCase();
+          } else {
+            statusDisplay = typeof att.status === 'string' ? att.status.replace(/_/g, ' ').toUpperCase() : 'HADIR';
+          }
+        } else if (att) {
+           statusDisplay = 'HADIR';
+        }
+
+        data.push({
+          Tanggal: date,
+          Nama: user.name,
+          Peran: user.role.toUpperCase(),
+          Kelas: user.kelas || '-',
+          Waktu: att?.timestamp ? new Date(att.timestamp.seconds * 1000).toLocaleTimeString() : '-',
+          Status: statusDisplay,
+          Keterangan_Gambar: att?.imageUrl ? 'Ada' : '-',
+          Lokasi: att?.location ? `Lat: ${att.location.latitude}, Lng: ${att.location.longitude}` : '-'
+        });
+      }
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    if(data.length > 0) {
+      const colWidths = Object.entries(data[0]).map(([k]) => ({ wch: k.length + 5 }));
+      data.forEach(row => {
+          Object.values(row).forEach((v, i) => {
+              if (String(v).length + 5 > colWidths[i].wch) colWidths[i].wch = String(v).length + 5;
+          });
+      });
+      ws['!cols'] = colWidths;
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Absensi Lengkap");
+    const safeKelas = filterKelas ? `_Kelas_${filterKelas}` : '_Semua';
+    XLSX.writeFile(wb, `Data_Absensi${safeKelas}_${filterDateStart || 'Awal'}_SD_${filterDateEnd || 'Akhir'}.xlsx`);
+  };
+
+  const exportFinanceToExcel = () => {
+    const students = allUsers.filter(u => {
+      const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
+      const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
+      const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
+      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+      return matchBase && matchKelas && matchName && matchStatus;
+    });
+    
+    const data = students.map(s => ({
+      Nama: s.name,
       Kelas: s.kelas || '',
       Status: s.status || 'Aktif',
       Total_Tabungan: s.savings || 0,
@@ -1050,8 +1173,8 @@ export default function DashboardAdmin() {
     
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
-    XLSX.writeFile(wb, "Data_Siswa_Sekolah.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Data Keuangan");
+    XLSX.writeFile(wb, `Data_Keuangan_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1205,13 +1328,15 @@ export default function DashboardAdmin() {
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
   };
 
-  const handlePrintRapot = (studentId: string) => {
-    const student = allUsers.find(u => u.id === studentId);
+  const handleExecutePrintRapot = () => {
+    if (!selectedStudentForRapot) return;
+    const student = allUsers.find(u => u.id === selectedStudentForRapot.id);
     if (!student) return;
     
-    // Get student's progress data and sort ascending by date
+    // Filter by student and evaluation period
     const studentProgressList = progressData
-      .filter(p => p.studentId === studentId)
+      .filter(p => p.studentId === student.id)
+      .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     const printWindow = window.open('', '_blank');
@@ -1221,15 +1346,19 @@ export default function DashboardAdmin() {
     studentProgressList.forEach((p, idx) => {
        const scoreNum = Number(p.score) || 0;
        const gradeInfo = getScoreGradeInfo(scoreNum);
+       let periodBadge = p.evaluationPeriod ? `<span style="font-size:10px; background:#eef2ff; color:#4f46e5; padding:2px 6px; border-radius:10px; margin-left:8px;">${p.evaluationPeriod}</span>` : '';
        itemsHtml += `
          <tr>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">${idx + 1}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee;">
-             <strong style="display:block;">${p.title}</strong>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <div style="display:flex; align-items:center;">
+               <strong style="display:block;">${p.title}</strong>
+               ${periodBadge}
+             </div>
              <small style="color: #666;">${p.category}</small>
            </td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
-           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
          </tr>
        `;
     });
@@ -1238,10 +1367,15 @@ export default function DashboardAdmin() {
       itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
     }
 
+    let reportTitle = `Rapot Belajar - ${student.name}`;
+    if (printRapotPeriod !== 'Semua') {
+       reportTitle = `Rapot ${printRapotPeriod} - ${student.name}`;
+    }
+
     const html = `
       <html>
         <head>
-          <title>Rapot Belajar - ${student.name}</title>
+          <title>${reportTitle}</title>
           <style>
             ${getPrintStyles()}
           </style>
@@ -1277,6 +1411,39 @@ export default function DashboardAdmin() {
     printWindow.document.write(html);
     printWindow.document.close();
   };
+
+  const getFinanceChartData = () => {
+    const dataMap: any = {};
+    const months = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const monthStr = d.toISOString().split('T')[0].substring(0, 7);
+      months.push(monthStr);
+      dataMap[monthStr] = { 
+        month: monthStr, 
+        name: d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }), 
+        ['Tabungan Masuk']: 0, 
+        ['Pelunasan Iuran']: 0 
+      };
+    }
+
+    payments.forEach(pay => {
+      if (!pay.date) return;
+      const monthStr = pay.date.substring(0, 7);
+      if (dataMap[monthStr]) {
+        if (pay.type === 'tabungan') {
+          dataMap[monthStr]['Tabungan Masuk'] += pay.amount || 0;
+        } else if (pay.type === 'iuran') {
+          dataMap[monthStr]['Pelunasan Iuran'] += pay.amount || 0;
+        }
+      }
+    });
+
+    return months.map(m => dataMap[m]);
+  };
+  const financeChartData = getFinanceChartData();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
 
@@ -1415,6 +1582,50 @@ export default function DashboardAdmin() {
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8">
+        {showPrintRapotModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
+              <button 
+                onClick={() => {
+                  setShowPrintRapotModal(false);
+                  setSelectedStudentForRapot(null);
+                }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+              >
+                <X />
+              </button>
+              <h3 className="text-xl font-black text-gray-800 mb-2">Cetak Rapot Siswa</h3>
+              <p className="text-xs font-bold text-gray-500 mb-6 uppercase tracking-widest">{selectedStudentForRapot?.name}</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pilih Periode Penilaian</label>
+                  <select 
+                    value={printRapotPeriod} 
+                    onChange={(e) => setPrintRapotPeriod(e.target.value)} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700"
+                  >
+                    <option value="Semua">Cetak Semua Periode</option>
+                    <option value="PTS Ganjil">PTS Ganjil</option>
+                    <option value="PAS Ganjil">PAS Ganjil</option>
+                    <option value="PTS Genap">PTS Genap</option>
+                    <option value="PAS Genap">PAS Genap</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={() => {
+                    handleExecutePrintRapot();
+                    setShowPrintRapotModal(false);
+                  }}
+                  className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-100 flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} /> Cetak Dokumen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showClassModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
@@ -1437,12 +1648,6 @@ export default function DashboardAdmin() {
             <p className="text-gray-500 text-sm">Monitoring operasional sekolah secara real-time.</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-            <button 
-              onClick={exportToCSV}
-              className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 text-sm"
-            >
-              <Download size={18} /> Export CSV
-            </button>
             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 overflow-hidden border-2 border-white shadow-sm">
               {userData?.photoURL ? (
                 <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -1715,6 +1920,12 @@ export default function DashboardAdmin() {
             <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-800">User Management</h3>
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={exportUsersToExcel}
+                  className="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 hover:border-indigo-300 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all text-xs"
+                >
+                  <Download size={16} /> Export Data User
+                </button>
                 <input 
                   type="text" 
                   placeholder="Cari Nama..." 
@@ -1854,12 +2065,6 @@ export default function DashboardAdmin() {
                     onChange={handleImportExcel} 
                     className="hidden" 
                   />
-                  <button 
-                    onClick={exportStudentsToExcel}
-                    className="w-full bg-indigo-50 text-indigo-600 border border-indigo-100 hover:border-indigo-300 px-4 py-2.5 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all text-[10px] uppercase tracking-widest shadow-sm"
-                  >
-                    <Download size={16} /> Export Data Siswa (Excel)
-                  </button>
                   <button 
                     onClick={() => {
                         const ws = XLSX.utils.json_to_sheet([
@@ -2028,7 +2233,11 @@ export default function DashboardAdmin() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <button 
-                            onClick={() => handlePrintRapot(student.id)}
+                            onClick={() => {
+                              setSelectedStudentForRapot(student);
+                              setPrintRapotPeriod('Semua');
+                              setShowPrintRapotModal(true);
+                            }}
                             className="bg-gray-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-2"
                           >
                             <Printer size={14} /> Cetak
@@ -2074,7 +2283,11 @@ export default function DashboardAdmin() {
                     </div>
                     <div className="flex justify-end mt-2">
                       <button 
-                        onClick={() => handlePrintRapot(student.id)}
+                        onClick={() => {
+                          setSelectedStudentForRapot(student);
+                          setPrintRapotPeriod('Semua');
+                          setShowPrintRapotModal(true);
+                        }}
                         className="bg-gray-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-2"
                       >
                         <Printer size={14} /> Cetak Rapot
@@ -2098,6 +2311,12 @@ export default function DashboardAdmin() {
                 <p className="text-gray-400 text-sm font-medium">Filter dan monitoring kehadiran warga sekolah.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={exportAttendanceToExcel}
+                  className="bg-indigo-50 text-indigo-600 border border-indigo-100 hover:border-indigo-300 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-100 transition-colors inline-flex items-center gap-2"
+                >
+                  <Download size={14} /> Export Excel
+                </button>
                 <select 
                   value={filterKelas}
                   onChange={(e) => setFilterKelas(e.target.value)}
@@ -2119,12 +2338,6 @@ export default function DashboardAdmin() {
                     </button>
                   ))}
                 </div>
-                <button 
-                  onClick={exportToCSV}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 text-xs"
-                >
-                  <Download size={18} /> EXPORT ABSENSI
-                </button>
               </div>
             </div>
 
@@ -2282,15 +2495,6 @@ export default function DashboardAdmin() {
                             </td>
                             <td className="px-8 py-6 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                {student?.role === 'siswa' && student?.whatsapp && (
-                                  <button 
-                                    onClick={() => handleWhatsAppInfoPulang(student)} 
-                                    className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all shadow-sm"
-                                    title="Kirim Info Pulang via WA"
-                                  >
-                                    <Megaphone size={18} />
-                                  </button>
-                                )}
                                 <button onClick={async () => {
                                 if(window.confirm('Hapus data absensi ini?')) {
                                   try {
@@ -2321,11 +2525,33 @@ export default function DashboardAdmin() {
               <h3 className="text-lg font-bold text-gray-800">Administrasi & Keuangan</h3>
               <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                 <button 
-                  onClick={() => setShowSyncSpreadsheetModal(true)}
-                  className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all text-xs sm:text-sm"
+                  onClick={exportFinanceToExcel}
+                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-xs sm:text-sm"
                 >
-                  <RefreshCw size={18} /> Sync Spreadsheet
+                  <Download size={18} /> Export Keuangan (Excel)
                 </button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button 
+                    onClick={() => setShowImportTabunganModal(true)}
+                    className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all text-xs sm:text-sm"
+                  >
+                    <Upload size={18} /> Import Tabungan
+                  </button>
+                  <button 
+                    onClick={() => {
+                        const ws = XLSX.utils.json_to_sheet([
+                            { Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }
+                        ]);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
+                        XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
+                    }}
+                    className="flex-1 sm:flex-none bg-gray-100 text-gray-600 px-4 py-2 rounded-xl border border-gray-200 font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all text-xs sm:text-sm"
+                    title="Download format Excel untuk import tabungan otomatis"
+                  >
+                    <Download size={18} /> Format Import
+                  </button>
+                </div>
                 <button 
                   onClick={() => setShowTabunganModal(true)}
                   className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-xs sm:text-sm"
@@ -2497,6 +2723,15 @@ export default function DashboardAdmin() {
                     <Users className="absolute left-3 top-2 text-gray-400" size={16} />
                   </div>
                   <select 
+                    value={filterKeuanganStatus}
+                    onChange={(e) => setFilterKeuanganStatus(e.target.value as any)}
+                    className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                  >
+                    <option value="semua">Semua Status Keuangan</option>
+                    <option value="menunggak">Menunggak</option>
+                    <option value="lunas">Lunas</option>
+                  </select>
+                  <select 
                     value={filterKelas}
                     onChange={(e) => setFilterKelas(e.target.value)}
                     className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
@@ -2520,12 +2755,13 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allUsers.filter(u => 
-                      u.role === 'siswa' && 
-                      (u.status || 'Aktif') === 'Aktif' && 
-                      (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) &&
-                      (!searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase()))
-                    ).map((u) => (
+                    {allUsers.filter(u => {
+                      const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
+                      const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
+                      const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
+                      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+                      return matchBase && matchKelas && matchName && matchStatus;
+                    }).map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
@@ -2569,12 +2805,13 @@ export default function DashboardAdmin() {
 
               {/* Mobile View Keuangan */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => 
-                  u.role === 'siswa' && 
-                  (u.status || 'Aktif') === 'Aktif' && 
-                  (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) &&
-                  (!searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase()))
-                ).map((u) => (
+                {allUsers.filter(u => {
+                  const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
+                  const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
+                  const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
+                  const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+                  return matchBase && matchKelas && matchName && matchStatus;
+                }).map((u) => (
                   <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -2623,14 +2860,22 @@ export default function DashboardAdmin() {
 
         {activeTab === 'announcements' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Broadcast Pengumuman</h3>
-              <button 
-                onClick={() => setShowAnnounceModal(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2"
-              >
-                <Plus size={20} /> Buat Baru
-              </button>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h3 className="text-lg font-bold text-gray-800">Broadcast & Pengumuman</h3>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => setShowBroadcastPulangModal(true)}
+                  className="w-full sm:w-auto bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-all text-sm border border-blue-200"
+                >
+                  <Megaphone size={18} /> Broadcast Kepulangan (WA)
+                </button>
+                <button 
+                  onClick={() => setShowAnnounceModal(true)}
+                  className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-sm"
+                >
+                  <Plus size={18} /> Buat Info Baru
+                </button>
+              </div>
             </div>
             <div className="grid gap-4">
               {announcements.map(a => (
@@ -2944,6 +3189,41 @@ export default function DashboardAdmin() {
           </div>
         )}
 
+        {showImportTabunganModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+              <button onClick={() => setShowImportTabunganModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Upload className="text-indigo-600" /> Import Tabungan</h3>
+              <form onSubmit={handleImportTabunganSubmit} className="space-y-4">
+                <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
+                  <AlertCircle className="text-indigo-600 shrink-0 mt-0.5" size={18} />
+                  <p className="text-[10px] text-indigo-800 font-medium">Unggah file Excel berisi Nama siswa dan Nominal Tabungan. Nominal akan <strong className="text-indigo-700">dijumlahkan</strong> ke total tabungan saat ini berdasarkan periode yang dipilih.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dari Tanggal *</label>
+                  <input type="date" value={importTabunganStartDate} onChange={(e) => setImportTabunganStartDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Sampai Tanggal (Opsional)</label>
+                  <input type="date" value={importTabunganEndDate} onChange={(e) => setImportTabunganEndDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  ref={importTabunganInputRef} 
+                  onChange={handleImportTabungan} 
+                  className="hidden" 
+                />
+
+                <button type="submit" className="w-full px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all mt-4">
+                  Pilih File & Import Excel
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {showTabunganModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
@@ -2951,7 +3231,7 @@ export default function DashboardAdmin() {
               <h3 className="text-2xl font-bold text-gray-800 mb-6">Input Tabungan Siswa</h3>
               <form onSubmit={handleAddTabungan} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Siswa (Bisa lebih dari 1)</label>
                   <input
                     type="text"
                     placeholder="Cari Nama Siswa..."
@@ -2959,22 +3239,41 @@ export default function DashboardAdmin() {
                     onChange={(e) => setSearchStudentFinance(e.target.value)}
                     className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500"
                   />
-                  <select value={financeStudentId} onChange={(e) => setFinanceStudentId(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
-                    <option value="">-- Pilih Siswa --</option>
+                  <div className="max-h-40 overflow-y-auto bg-gray-50 border border-gray-200 rounded-xl p-2 space-y-1">
                     {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentFinance || u.name.toLowerCase().includes(searchStudentFinance.toLowerCase()))).map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
+                      <label key={u.id} className="flex items-center gap-2 p-2 hover:bg-green-50 rounded-lg cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="rounded text-green-600 focus:ring-green-500"
+                          checked={financeStudentIds.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setFinanceStudentIds([...financeStudentIds, u.id]);
+                            else setFinanceStudentIds(financeStudentIds.filter(id => id !== u.id));
+                          }}
+                        />
+                        <span className="text-sm font-medium text-gray-700">{u.name} ({u.kelas || '-'})</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button type="button" onClick={() => {
+                      const visibleIds = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentFinance || u.name.toLowerCase().includes(searchStudentFinance.toLowerCase()))).map(u => u.id);
+                      setFinanceStudentIds(Array.from(new Set([...financeStudentIds, ...visibleIds])));
+                    }} className="text-[10px] bg-gray-100 px-3 py-1 rounded-md text-gray-600 hover:bg-gray-200 font-bold">Pilih Semua (Terlihat)</button>
+                    <button type="button" onClick={() => setFinanceStudentIds([])} className="text-[10px] bg-red-50 px-3 py-1 rounded-md text-red-600 hover:bg-red-100 font-bold">Reset</button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tanggal</label>
                   <input type="date" value={financeDate} onChange={(e) => setFinanceDate(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nominal (Rp)</label>
-                  <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" placeholder="Contoh: 10000" required min="0" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nominal (Rp) Per Siswa</label>
+                  <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" placeholder="Contoh: 10000" required min="1" />
                 </div>
-                <button type="submit" className="w-full px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-xl shadow-green-200 transition-all mt-4">Simpan Tabungan</button>
+                <button type="submit" className="w-full px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-xl shadow-green-200 transition-all mt-4">
+                  Simpan Tabungan ({financeStudentIds.length} Siswa)
+                </button>
               </form>
             </div>
           </div>
@@ -3116,22 +3415,44 @@ export default function DashboardAdmin() {
                 <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
                   <p className="text-green-800 text-sm font-bold mb-1">Total Tabungan</p>
                   <p className="text-3xl font-bold text-green-600 mb-4">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
-                  <div className="flex gap-2">
-                    <input 
-                      type="number" 
-                      id="update-savings"
-                      placeholder="Nominal baru"
-                      className="w-full p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                    />
-                    <button 
-                      onClick={() => {
-                        const val = (document.getElementById('update-savings') as HTMLInputElement).value;
-                        if(val) updateFinance(selectedStudentForFinance.id, 'savings', val);
-                      }}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700"
-                    >
-                      Update
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        id="update-savings"
+                        placeholder="Ubah Total"
+                        className="w-full p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                      />
+                      <button 
+                        onClick={() => {
+                          const val = (document.getElementById('update-savings') as HTMLInputElement).value;
+                          if(val) updateFinance(selectedStudentForFinance.id, 'savings', val);
+                        }}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700"
+                      >
+                        Update
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        id="kurang-savings"
+                        placeholder="Nominal Tarik"
+                        className="w-full p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                      />
+                      <button 
+                        onClick={() => {
+                          const val = (document.getElementById('kurang-savings') as HTMLInputElement).value;
+                          if(val && Number(val) > 0) {
+                            handleTarikTabungan(selectedStudentForFinance.id, val);
+                            (document.getElementById('kurang-savings') as HTMLInputElement).value = '';
+                          }
+                        }}
+                        className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-600 whitespace-nowrap"
+                      >
+                        Tarik
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
@@ -3250,6 +3571,45 @@ export default function DashboardAdmin() {
               ) : (
                 <p className="text-gray-500 text-sm text-center py-4 bg-gray-50 rounded-xl border border-gray-100">Belum ada riwayat pembayaran.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {showBroadcastPulangModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+              <button onClick={() => setShowBroadcastPulangModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                 <Megaphone size={28} className="text-blue-500" /> WhatsApp Kepulangan
+              </h3>
+              <form onSubmit={handleBroadcastPulang} className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
+                  <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                  <p className="text-[10px] text-blue-800 font-medium">Pesan "Info Kepulangan" akan dikirimkan otomatis via tab WhatsApp Web baru untuk setiap siswa. Mohon izinkan popup di browser Anda.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Target Siswa</label>
+                  <input
+                    type="text"
+                    placeholder="Cari Nama Siswa (Jika spesifik)..."
+                    value={searchStudentBroadcast}
+                    onChange={(e) => setSearchStudentBroadcast(e.target.value)}
+                    className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <select value={broadcastPulangTarget} onChange={(e) => setBroadcastPulangTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="all">Semua Siswa Aktif</option>
+                    {schoolClasses.map(c => (
+                      <option key={`bc_kelas_${c.id}`} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
+                    ))}
+                    <optgroup label="Siswa Spesifik">
+                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentBroadcast || u.name.toLowerCase().includes(searchStudentBroadcast.toLowerCase()))).map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Kirim Pesan WA Kepulangan</button>
+              </form>
             </div>
           </div>
         )}
@@ -3391,60 +3751,7 @@ export default function DashboardAdmin() {
             </div>
           </div>
         )}
-        {showSyncSpreadsheetModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl p-8" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                <h3 className="text-2xl font-bold text-gray-800 tracking-tight">Sync Spreadsheet</h3>
-                <button onClick={() => setShowSyncSpreadsheetModal(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-2 rounded-xl transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Masukkan link CSV Google Spreadsheet untuk sinkronisasi otomatis Tabungan dan Tagihan SPP / Iuran.
-                </p>
-                <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-xs font-medium border border-yellow-100 flex flex-col gap-2">
-                  <p><strong>Syarat Kolom Spreadsheet:</strong></p>
-                  <ul className="list-disc pl-4 space-y-1 mb-2">
-                    <li>Kolom dengan kata kunci <strong>Email</strong> atau <strong>Nama / Siswa</strong> untuk identitas.</li>
-                    <li>Kolom dengan kata kunci <strong>Tabungan</strong> (opsional) untuk update saldo tabungan.</li>
-                    <li>Kolom dengan kata <strong>SPP / Iuran / Tagihan</strong> (opsional) untuk update total tagihan siswa.</li>
-                  </ul>
-                  <p><strong>Cara mendapatkan link CSV:</strong></p>
-                  <ol className="list-decimal pl-4 space-y-2">
-                    <li>Buka Google Sheets anda.</li>
-                    <li>Klik menu <strong>File</strong> &gt; <strong>Share (Bagikan)</strong> &gt; <strong>Publish to web (Publikasikan ke web)</strong>.</li>
-                    <li>Ubah format dari "Web Page" menjadi <strong>Comma-separated values (.csv)</strong>.</li>
-                    <li>Klik <strong>Publish (Publikasikan)</strong> dan copy link yang muncul.</li>
-                  </ol>
-                  <p className="mt-2 text-[10px] opacity-70 italic">Link yang benar mengandung: <strong>pub?output=csv</strong></p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">URL Spreadsheet CSV</label>
-                  <input
-                    type="url"
-                    value={syncSpreadsheetUrl}
-                    onChange={(e) => setSyncSpreadsheetUrl(e.target.value)}
-                    placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50/50"
-                  />
-                </div>
-                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-50">
-                  <button onClick={() => setShowSyncSpreadsheetModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors text-sm">Batal</button>
-                  <button 
-                    onClick={handleSyncSpreadsheet} 
-                    disabled={isSyncing}
-                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                    {isSyncing ? 'Menyinkronkan...' : 'Mulai Sinkronisasi'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
       </main>
       {/* Photo Viewer Modal */}
       {selectedPhoto && (
