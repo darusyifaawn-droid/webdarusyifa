@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs } from 'firebase/firestore';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer } from 'lucide-react';
+import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star } from 'lucide-react';
+import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -11,8 +12,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function DashboardGuru() {
   const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
+  const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -36,6 +39,11 @@ export default function DashboardGuru() {
   const [progressDate, setProgressDate] = useState(new Date().toISOString().split('T')[0]);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [evaluateHafalan, setEvaluateHafalan] = useState<StudentHafalanProgress | null>(null);
+  const [showHafalanModal, setShowHafalanModal] = useState(false);
+  const [hafalanEvalStars, setHafalanEvalStars] = useState<number>(0);
+  const [hafalanEvalNotes, setHafalanEvalNotes] = useState('');
+  const [hafalanEvalStatus, setHafalanEvalStatus] = useState<HafalanStatus>('Sedang Menghafal');
   const [editingSubject, setEditingSubject] = useState<any>(null);
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
@@ -56,6 +64,12 @@ export default function DashboardGuru() {
   
   const [filterName, setFilterName] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
+
+  // Editor settings for DashboardGuru.tsx
+  const [filterKelasHafalan, setFilterKelasHafalan] = useState('');
+  const [filterHafalanStatus, setFilterHafalanStatus] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
+  const [filterHafalanCategory, setFilterHafalanCategory] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
+
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
 
   const navigate = useNavigate();
@@ -65,14 +79,16 @@ export default function DashboardGuru() {
       if (currentUser) {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (!userDoc.exists() || userDoc.data().role !== 'guru') {
+          const data = userDoc.data();
+          if (!data || data.role !== 'guru') {
             navigate('/login');
             return;
           }
           
           setUser(currentUser);
-          setEditName(userDoc.data().name || '');
-          setEditPhoto(userDoc.data().photoURL || '');
+          setUserData(data);
+          setEditName(data.name || '');
+          setEditPhoto(data.photoURL || '');
         } catch (error) {
           console.error('Error verifying guru role:', error);
           navigate('/login');
@@ -91,7 +107,11 @@ export default function DashboardGuru() {
     const unsubStudents = onSnapshot(query(collection(db, 'users'), where('role', '==', 'siswa')), (snapshot) => {
       // Filter out non-active students explicitly on client side (since we don't have composite index for status)
       const mapped = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      setStudents(mapped.filter(u => (u.status || 'Aktif') === 'Aktif'));
+      setStudents(mapped.filter(u => {
+        const isActive = (u.status || 'Aktif') === 'Aktif';
+        const isSameClass = userData?.kelas ? u.kelas === userData.kelas : true;
+        return isActive && isSameClass;
+      }));
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
         console.error("Error fetching students:", error);
@@ -103,6 +123,14 @@ export default function DashboardGuru() {
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
         console.error("Error fetching progress:", error);
+      }
+    });
+
+    const unsubHafalanProgress = onSnapshot(collection(db, 'hafalan_progress'), (snapshot) => {
+      setHafalanProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentHafalanProgress)));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error fetching hafalan progress:", error);
       }
     });
 
@@ -149,19 +177,108 @@ export default function DashboardGuru() {
     return () => {
       unsubStudents();
       unsubProgress();
+      unsubHafalanProgress();
       unsubAnnounce();
       unsubAttendance();
       unsubSubjects();
       unsubClasses();
       unsubSettings();
     };
-  }, [user]);
+  }, [user, userData?.kelas]);
 
   const getScoreGradeInfo = (score: number) => {
     if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
     if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
     if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handleExecutePrintRapotHafalan = (student: any) => {
+    if (!student) return;
+    
+    // Get student's progress data
+    const studentHafalanProgressList = hafalanProgress
+      .filter(p => p.studentId === student.id)
+      // Only include already evaluated items
+      .filter(p => !p.isReadyForTest)
+      .sort((a,b) => new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime());
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    studentHafalanProgressList.forEach((p, idx) => {
+       const mat = hafalanMaterials.find(m => m.id === p.materialId);
+       let starStr = '';
+       for(let i=0; i<(p.stars || 0); i++) { starStr += '★ '; }
+       itemsHtml += `
+         <tr>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <strong style="display:block;">${mat?.judul || 'Materi tidak ditemukan'}</strong>
+             <small style="color: #666;">${mat?.kategori || ''}</small>
+           </td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <strong style="color: #2563eb;">${p.status}</strong>
+             <br/><small style="color: #eab308; font-size: 14px;">${starStr}</small>
+           </td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${p.catatanGuru || '-'}</td>
+         </tr>
+       `;
+    });
+
+    if (studentHafalanProgressList.length === 0) {
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi hafalan.</td></tr>`;
+    }
+
+    let reportTitle = `Rapot Hafalan - ${student.name}`;
+
+    const html = `
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            ${getPrintStyles()}
+          </style>
+        </head>
+        <body onload="window.print();">
+          ${getPrintHeaderHTML('LAPORAN HASIL HAFALAN (RAPOT)', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="student-info">
+            <div>Nama Siswa</div><div>: ${student.name}</div>
+            <div>NIS/NISN</div><div>: ${student.email?.split('@')[0] || '-'}</div>
+            <div>Kelas</div><div>: ${student.kelas || 'Belum Ditentukan'}</div>
+            <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50px;">No</th>
+                <th>Judul Hafalan</th>
+                <th>Status / Nilai</th>
+                <th>Catatan Guru</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          <div class="footer-signatures">
+            <div class="signature-box">
+              <p>Mengetahui,</p>
+              <p>Wali Kelas</p>
+              <br><br><br>
+              <p><strong>${userData?.name || '_________________________'}</strong></p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const handleExecutePrintRapot = () => {
@@ -481,6 +598,12 @@ export default function DashboardGuru() {
         <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
       </button>
       <button 
+        onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Modul Hafalan
+      </button>
+      <button 
         onClick={() => { setActiveTab('subjects'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'subjects' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
@@ -556,11 +679,12 @@ export default function DashboardGuru() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem] overflow-x-auto">
         {[
           { id: 'overview', icon: CheckCircle, label: 'Beranda' },
           { id: 'subjects', icon: TrendingUp, label: 'Mapel' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
+          { id: 'hafalan', icon: Star, label: 'Hafalan' },
           { id: 'attendance', icon: Camera, label: 'Absen' },
           { id: 'announcements', icon: Bell, label: 'Info' },
           { id: 'profile', icon: User, label: 'Profil' },
@@ -912,6 +1036,247 @@ export default function DashboardGuru() {
           </div>
         )}
 
+        {activeTab === 'hafalan' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+            <div className="card-3d p-6 md:p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">Evaluasi Hafalan</h3>
+                  <p className="text-sm text-gray-400 font-medium">Nilai hafalan surat, hadist, dan doa siswa.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select value={filterKelasHafalan} onChange={e => setFilterKelasHafalan(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
+                  <option value="">Semua Kelas</option>
+                  {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  <option value="Utsman (Semester 1)">Utsman (Semester 1)</option>
+                  <option value="Utsman (Semester 2)">Utsman (Semester 2)</option>
+                  <option value="Umar Bin Khattab">Umar Bin Khattab</option>
+                </select>
+                <select value={filterHafalanStatus} onChange={e => setFilterHafalanStatus(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
+                  <option value="Semua">Semua Status</option>
+                  <option value="Menunggu Evaluasi">Ada Setoran (Menunggu Evaluasi)</option>
+                  <option value="Sudah Dinilai">Sudah Dinilai (Selesai/Lulus)</option>
+                  <option value="Sedang Menghafal">Belum Ada Setoran / Sedang Menghafal</option>
+                </select>
+                <select value={filterHafalanCategory} onChange={e => setFilterHafalanCategory(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
+                  <option value="Semua Kategori">Semua Kategori</option>
+                  <option value="Surat Pendek">Surat Pendek</option>
+                  <option value="Hadist">Hadist</option>
+                  <option value="Doa Sehari-hari">Doa Sehari-hari</option>
+                  <option value="Bacaan Sholat">Bacaan Sholat</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {students.filter(s => filterKelasHafalan ? s.kelas === filterKelasHafalan : true).filter(student => {
+                const sp = hafalanProgress.filter(p => p.studentId === student.id);
+                
+                if (filterHafalanStatus === 'Menunggu Evaluasi') {
+                  return sp.some(p => p.isReadyForTest && p.status !== 'Mumtaz (Lulus)');
+                }
+                if (filterHafalanStatus === 'Sudah Dinilai') {
+                  return sp.some(p => p.status === 'Mumtaz (Lulus)');
+                }
+                if (filterHafalanStatus === 'Sedang Menghafal') {
+                  // True if they have no progress at all OR their progress doesn't include evaluated/pending ones
+                  if (sp.length === 0) return true;
+                  const hasDoneOrPending = sp.some(p => p.status === 'Mumtaz (Lulus)' || p.isReadyForTest);
+                  return !hasDoneOrPending;
+                }
+                
+                return true;
+              }).map(student => {
+                const studentProgress = hafalanProgress.filter(p => p.studentId === student.id);
+                // Filter waiting for evaluation (isReadyForTest === true) - applied with category filter
+                const pendingTestsFiltered = studentProgress.filter(p => p.isReadyForTest && p.status !== 'Mumtaz (Lulus)').filter(p => {
+                    if (filterHafalanCategory === 'Semua Kategori') return true;
+                    const m = hafalanMaterials.find(mat => mat.id === p.materialId);
+                    return m?.kategori === filterHafalanCategory;
+                });
+                // The rest - applied with category filter
+                const othersFiltered = studentProgress.filter(p => !p.isReadyForTest && p.status !== 'Mumtaz (Lulus)').filter(p => {
+                    if (filterHafalanCategory === 'Semua Kategori') return true;
+                    const m = hafalanMaterials.find(mat => mat.id === p.materialId);
+                    return m?.kategori === filterHafalanCategory;
+                });
+                
+                const evaluatedFiltered = studentProgress.filter(p => p.status === 'Mumtaz (Lulus)').filter(p => {
+                    if (filterHafalanCategory === 'Semua Kategori') return true;
+                    const m = hafalanMaterials.find(mat => mat.id === p.materialId);
+                    return m?.kategori === filterHafalanCategory;
+                });
+                
+                // Hide student card if no items left after filtering categories and they have no pending test
+                 if (filterHafalanCategory !== 'Semua Kategori' && pendingTestsFiltered.length === 0 && othersFiltered.length === 0 && evaluatedFiltered.length === 0) return null;
+
+                return (
+                <div key={student.id} className="card-3d p-6">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        {student.photoURL ? (
+                          <img src={student.photoURL} alt={student.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <User size={24} />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-800">{student.name}</h4>
+                        <p className="text-xs text-gray-500">{student.kelas || 'Belum ada kelas'}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleExecutePrintRapotHafalan(student)}
+                      className="text-gray-400 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 p-2 rounded-xl transition-colors"
+                      title="Cetak Rapot Hafalan"
+                    >
+                      <Printer size={18} />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {pendingTestsFiltered.length > 0 && <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Permintaan Setoran</p>}
+                    {pendingTestsFiltered.map(p => {
+                      const mat = hafalanMaterials.find(m => m.id === p.materialId);
+                      return (
+                      <div key={p.id} className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl flex justify-between items-center group relative">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">{mat?.judul || 'Materi tidak ditemukan'}</p>
+                          <p className="text-xs text-yellow-600 font-medium">Menunggu Evaluasi</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={async () => {
+                              if (confirm('Yakin ingin menghapus setoran siswa ini? Status akan kembali menjadi Belum Mulai / Sedang Menghafal sesuai log terakhir atau dihapus.')) {
+                                try {
+                                  await deleteDoc(doc(db, 'hafalan_progress', p.id));
+                                  alert('Berhasil dihapus!');
+                                } catch (error) {
+                                  handleFirestoreError(error, OperationType.DELETE, `hafalan_progress/${p.id}`);
+                                }
+                              }
+                            }}
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setEvaluateHafalan(p);
+                              setHafalanEvalStars(p.stars || 0);
+                              setHafalanEvalNotes(p.catatanGuru || '');
+                              setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setShowHafalanModal(true);
+                            }} 
+                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
+                          >
+                            Beri Nilai
+                          </button>
+                        </div>
+                      </div>
+                    )})}
+                    {othersFiltered.length > 0 && <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Sedang Dipelajari</p>}
+                    {othersFiltered.map(p => {
+                      const mat = hafalanMaterials.find(m => m.id === p.materialId);
+                      return (
+                      <div key={p.id} className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center mt-2 group relative">
+                        <div>
+                          <p className="text-sm font-bold text-gray-500">{mat?.judul || 'Materi tidak ditemukan'}</p>
+                          <p className="text-xs text-gray-400 font-medium">{p.status}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={async () => {
+                              if (confirm('Yakin ingin menghapus riwayat hafalan anak ini pada materi ini?')) {
+                                try {
+                                  await deleteDoc(doc(db, 'hafalan_progress', p.id));
+                                  alert('Berhasil dihapus!');
+                                } catch (error) {
+                                  handleFirestoreError(error, OperationType.DELETE, `hafalan_progress/${p.id}`);
+                                }
+                              }
+                            }}
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setEvaluateHafalan(p);
+                              setHafalanEvalStars(p.stars || 0);
+                              setHafalanEvalNotes(p.catatanGuru || '');
+                              setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setShowHafalanModal(true);
+                            }} 
+                            className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50"
+                          >
+                            Ubah
+                          </button>
+                        </div>
+                      </div>
+                    )})}
+                    {evaluatedFiltered.length > 0 && <p className="text-xs font-bold text-green-500 uppercase tracking-widest mb-2 mt-4">Sudah Lulus</p>}
+                    {evaluatedFiltered.map(p => {
+                      const mat = hafalanMaterials.find(m => m.id === p.materialId);
+                      return (
+                      <div key={p.id} className="bg-green-50/50 p-4 rounded-2xl flex justify-between items-center mt-2 group relative border border-green-100">
+                        <div>
+                          <p className="text-sm font-bold text-green-800">{mat?.judul || 'Materi tidak ditemukan'}</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">{p.status}</span>
+                            <span className="text-[10px] font-bold text-yellow-500">★ {p.stars}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={async () => {
+                              if (confirm('Yakin ingin menghapus riwayat hafalan anak ini pada materi ini?')) {
+                                try {
+                                  await deleteDoc(doc(db, 'hafalan_progress', p.id));
+                                  alert('Berhasil dihapus!');
+                                } catch (error) {
+                                  handleFirestoreError(error, OperationType.DELETE, `hafalan_progress/${p.id}`);
+                                }
+                              }
+                            }}
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setEvaluateHafalan(p);
+                              setHafalanEvalStars(p.stars || 0);
+                              setHafalanEvalNotes(p.catatanGuru || '');
+                              setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setShowHafalanModal(true);
+                            }} 
+                            className="bg-white border border-green-200 text-green-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-50"
+                          >
+                            Revisi
+                          </button>
+                        </div>
+                      </div>
+                    )})}
+                    {pendingTestsFiltered.length === 0 && othersFiltered.length === 0 && evaluatedFiltered.length === 0 && (
+                      <div className="text-center p-4 bg-gray-50 rounded-2xl text-xs text-gray-400 border border-dashed border-gray-200">Tidak ada data untuk filter ini.</div>
+                    )}
+                  </div>
+                </div>
+              )})}
+              {students.length === 0 && (
+                <div className="lg:col-span-2 text-center p-8 bg-white rounded-3xl text-gray-400 border border-dashed border-gray-200">
+                  Belum ada data siswa.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'subjects' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -1158,6 +1523,108 @@ export default function DashboardGuru() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hafalan Evaluation Modal */}
+        {showHafalanModal && evaluateHafalan && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+              <button onClick={() => setShowHafalanModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Evaluasi Hafalan</h3>
+              {(() => {
+                 const mat = hafalanMaterials.find(m => m.id === evaluateHafalan.materialId);
+                 const st = students.find(s => s.id === evaluateHafalan.studentId);
+                 return (
+                   <>
+                     <p className="text-sm text-gray-500 mb-6">Siswa: <span className="font-bold text-gray-800">{st?.name}</span> • Materi: <span className="font-bold border-b border-gray-300">{mat?.judul}</span></p>
+                     
+                     <div className="space-y-6">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Pilih Status Baru</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['Sedang Menghafal', 'Lancar', 'Mumtaz (Lulus)'].map((s) => (
+                              <label key={s} className={`cursor-pointer p-3 border rounded-xl flex items-center gap-2 ${hafalanEvalStatus === s ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50 border-gray-100'}`}>
+                                <input type="radio" value={s} checked={hafalanEvalStatus === s} onChange={e => setHafalanEvalStatus(e.target.value as HafalanStatus)} className="hidden" />
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${hafalanEvalStatus === s ? 'border-blue-600' : 'border-gray-300'}`}>
+                                  {hafalanEvalStatus === s && <div className="w-2 h-2 bg-blue-600 rounded-full" />}
+                                </div>
+                                <span className={`text-sm font-bold ${hafalanEvalStatus === s ? 'text-blue-800' : 'text-gray-600'}`}>{s}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bintang Penilaian (1-5)</label>
+                          <div className="flex gap-2">
+                             {[1, 2, 3, 4, 5].map(star => (
+                               <button 
+                                 key={star} type="button" 
+                                 onClick={() => setHafalanEvalStars(star)}
+                                 className={`p-2 transition-colors ${hafalanEvalStars >= star ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-200'}`}
+                               >
+                                 <Star size={32} fill={hafalanEvalStars >= star ? "currentColor" : "none"} />
+                               </button>
+                             ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Catatan Tambahan</label>
+                          <textarea 
+                            value={hafalanEvalNotes} 
+                            onChange={e => setHafalanEvalNotes(e.target.value)}
+                            placeholder="Contoh: Tajwid sudah bagus, tapi perhatikan panjang pendeknya."
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
+                          />
+                        </div>
+                        
+                        <div className="pt-4 flex gap-4">
+                          <button onClick={() => setShowHafalanModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 flex-1 transition-colors">Batal</button>
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const docRef = doc(db, 'hafalan_progress', evaluateHafalan.id);
+                                await updateDoc(docRef, {
+                                  status: hafalanEvalStatus,
+                                  stars: hafalanEvalStars,
+                                  catatanGuru: hafalanEvalNotes,
+                                  isReadyForTest: false,
+                                  updatedAt: new Date().toISOString()
+                                });
+                                // Automatically unlock next material if 'Mumtaz (Lulus)'
+                                if (hafalanEvalStatus === 'Mumtaz (Lulus)' && mat) {
+                                  const nextId = getNextMaterialId(mat.id, mat.kelas);
+                                  if (nextId) {
+                                    const nextRef = doc(db, 'hafalan_progress', `${evaluateHafalan.studentId}_${nextId}`);
+                                    await setDoc(nextRef, {
+                                      studentId: evaluateHafalan.studentId,
+                                      materialId: nextId,
+                                      status: 'Belum Mulai',
+                                      stars: 0,
+                                      catatanGuru: '',
+                                      isReadyForTest: false,
+                                      updatedAt: new Date().toISOString()
+                                    }, { merge: true });
+                                  }
+                                }
+                                alert('Evaluasi berhasil disimpan!');
+                                setShowHafalanModal(false);
+                              } catch (err) {
+                                handleFirestoreError(err, OperationType.UPDATE, `hafalan_progress/${evaluateHafalan.id}`);
+                              }
+                            }}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold flex-1 shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors"
+                          >
+                            Simpan Penilaian
+                          </button>
+                        </div>
+                     </div>
+                   </>
+                 );
+              })()}
             </div>
           </div>
         )}

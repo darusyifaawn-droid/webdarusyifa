@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc } from 'firebase/firestore';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer } from 'lucide-react';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star } from 'lucide-react';
+import { hafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -24,8 +25,11 @@ export default function DashboardSiswa() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
+  const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
+  const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -148,6 +152,92 @@ export default function DashboardSiswa() {
       alert('Gagal mengirim pembayaran.');
     }
     setPaymentSubmitting(false);
+  };
+
+  const handleExecutePrintRapotHafalan = () => {
+    if (!userData) return;
+    
+    // Sort progress descending by updatedAt, wait we want to print ascending or it doesn't matter much. Let's do descending.
+    const sortedHafalan = hafalanProgress
+      .filter(p => !p.isReadyForTest)
+      .sort((a,b) => new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime());
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    sortedHafalan.forEach((p, idx) => {
+       const mat = hafalanMaterials.find(m => m.id === p.materialId);
+       let starStr = '';
+       for(let i=0; i<(p.stars || 0); i++) { starStr += '★ '; }
+       itemsHtml += `
+         <tr>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <strong style="display:block;">${mat?.judul || 'Materi tidak ditemukan'}</strong>
+             <small style="color: #666;">${mat?.kategori || ''}</small>
+           </td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">
+             <strong style="color: #16a34a;">${p.status}</strong>
+             <br/><small style="color: #eab308; font-size: 14px;">${starStr}</small>
+           </td>
+           <td style="padding: 12px; border-bottom: 1px solid #eee;">${p.catatanGuru || '-'}</td>
+         </tr>
+       `;
+    });
+
+    if (sortedHafalan.length === 0) {
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi hafalan.</td></tr>`;
+    }
+
+    let reportTitle = `Rapot Hafalan - ${userData.name}`;
+
+    const html = `
+      <html>
+        <head>
+          <title>${reportTitle}</title>
+          <style>
+            ${getPrintStyles()}
+          </style>
+        </head>
+        <body onload="window.print();">
+          ${getPrintHeaderHTML('LAPORAN HASIL HAFALAN (RAPOT)', settings?.schoolName, settings?.logoUrl)}
+          
+          <div class="student-info">
+            <div>Nama Siswa</div><div>: ${userData.name}</div>
+            <div>NIS/NISN</div><div>: ${userData.email?.split('@')[0] || '-'}</div>
+            <div>Kelas</div><div>: ${userData.kelas || 'Belum Ditentukan'}</div>
+            <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50px;">No</th>
+                <th>Judul Hafalan</th>
+                <th>Status / Nilai</th>
+                <th>Catatan Guru</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          <div class="footer-signatures">
+            <div class="signature-box">
+              <p>Mengetahui,</p>
+              <p>Wali Kelas</p>
+              <br><br><br>
+              <p><strong>_________________________</strong></p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const handleExecutePrintRapot = () => {
@@ -347,6 +437,16 @@ export default function DashboardSiswa() {
       }
     );
 
+    const unsubHafalanProgress = onSnapshot(
+      query(collection(db, 'hafalan_progress'), where('studentId', '==', user.uid)),
+      (snapshot) => setHafalanProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentHafalanProgress))),
+      (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          console.error("Error fetching hafalan progress:", error);
+        }
+      }
+    );
+
     const unsubAnnounce = onSnapshot(
       query(collection(db, 'announcements'), orderBy('createdAt', 'desc')),
       (snapshot) => {
@@ -382,6 +482,7 @@ export default function DashboardSiswa() {
     return () => {
       unsubAttendance();
       unsubProgress();
+      unsubHafalanProgress();
       unsubAnnounce();
       unsubPayments();
       unsubSettings();
@@ -540,6 +641,12 @@ export default function DashboardSiswa() {
         <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
       </button>
       <button 
+        onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Modul Hafalan
+      </button>
+      <button 
         onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'attendance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
@@ -613,10 +720,11 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem] overflow-x-auto">
         {[
           { id: 'overview', icon: Calendar, label: 'Beranda' },
           { id: 'progress', icon: BookOpen, label: 'Laporan' },
+          { id: 'hafalan', icon: Star, label: 'Hafalan' },
           { id: 'attendance', icon: CheckCircle, label: 'Absensi' },
           { id: 'announcements', icon: Bell, label: 'Info' },
           { id: 'administration', icon: CreditCard, label: 'Admin' },
@@ -819,6 +927,131 @@ export default function DashboardSiswa() {
                   Belum ada laporan perkembangan.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'hafalan' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+            <div className="card-3d p-6 md:p-8">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">Modul Hafalan</h3>
+                  <p className="text-sm text-gray-400 font-medium">Panduan dan progres hafalan surat, hadist, dan doa.</p>
+                </div>
+                <button
+                  onClick={handleExecutePrintRapotHafalan}
+                  className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
+                >
+                  <Printer size={20} /> Cetak Rapot Hafalan
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select value={filterHafalanStatusSiswa} onChange={e => setFilterHafalanStatusSiswa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none">
+                  <option value="Semua">Semua Status</option>
+                  <option value="Sudah Setor">Sudah Ada Setoran (Menunggu / Selesai)</option>
+                  <option value="Belum Setor">Belum Disetor (Sedang Menghafal / Belum Mulai)</option>
+                </select>
+                <select value={filterHafalanCategorySiswa} onChange={e => setFilterHafalanCategorySiswa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none">
+                  <option value="Semua Kategori">Semua Kategori</option>
+                  <option value="Surat Pendek">Surat Pendek</option>
+                  <option value="Hadist">Hadist</option>
+                  <option value="Doa Sehari-hari">Doa Sehari-hari</option>
+                  <option value="Bacaan Sholat">Bacaan Sholat</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-6">
+              {hafalanMaterials
+                .filter(m => {
+                   if (!userData?.kelas) return true; // show all if class is not set
+                   const uKelas = userData.kelas.toLowerCase();
+                   const mKelas = m.kelas.toLowerCase();
+                   // Match if uKelas is contained in mKelas or vice versa
+                   return mKelas.includes(uKelas) || uKelas.includes(mKelas);
+                })
+                .filter(m => filterHafalanCategorySiswa === 'Semua Kategori' ? true : m.kategori === filterHafalanCategorySiswa)
+                .filter(m => {
+                   const prog = hafalanProgress.find(p => p.materialId === m.id);
+                   const isSettored = prog?.isReadyForTest || prog?.status === 'Mumtaz (Lulus)';
+                   if (filterHafalanStatusSiswa === 'Sudah Setor') return isSettored;
+                   if (filterHafalanStatusSiswa === 'Belum Setor') return !isSettored;
+                   return true;
+                })
+                .map((material) => {
+                  const prog = hafalanProgress.find(p => p.materialId === material.id);
+                  const status = prog?.status || 'Belum Mulai';
+                  const stars = prog?.stars || 0;
+                  
+                  return (
+                    <div key={material.id} className="card-3d p-6 md:p-8 relative overflow-hidden group">
+                       <div className="flex justify-between items-start mb-4">
+                         <div>
+                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-widest">{material.kategori}</span>
+                           <h4 className="text-xl font-bold text-gray-800 mt-3">{material.judul}</h4>
+                         </div>
+                         <div className="flex flex-col items-end gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              status === 'Mumtaz (Lulus)' ? 'bg-green-100 text-green-700' :
+                              status === 'Lancar' ? 'bg-blue-100 text-blue-700' :
+                              status === 'Sedang Menghafal' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
+                            }`}>{status}</span>
+                            <div className="flex text-yellow-400">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={16} fill={i < stars ? "currentColor" : "none"} className={i < stars ? "text-yellow-400" : "text-gray-200"} />
+                              ))}
+                            </div>
+                         </div>
+                       </div>
+                       
+                       <div className="bg-gray-50 rounded-2xl p-6 mt-4 space-y-4">
+                         <p className="text-2xl text-right font-arab text-gray-800 leading-loose" dir="rtl">{material.arab}</p>
+                         <p className="text-sm text-gray-600 font-medium italic">{material.latin}</p>
+                         <p className="text-sm text-gray-500 leading-relaxed">"{material.terjemahan}"</p>
+                       </div>
+
+                       {/* Audio Placeholder */}
+                       <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                         <button className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 w-full sm:w-auto justify-center sm:justify-start">
+                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                             <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-blue-600 border-b-4 border-b-transparent ml-1"></div>
+                           </div> 
+                           Dengarkan Audio
+                         </button>
+                         <button 
+                           onClick={async () => {
+                             if (!user) return;
+                             try {
+                               const docRef = doc(db, 'hafalan_progress', `${user.uid}_${material.id}`);
+                               await setDoc(docRef, {
+                                 studentId: user.uid,
+                                 materialId: material.id,
+                                 status: status === 'Belum Mulai' ? 'Sedang Menghafal' : status,
+                                 isReadyForTest: true,
+                                 updatedAt: new Date().toISOString()
+                               }, { merge: true });
+                               alert("Notifikasi telah dikirim ke guru. Anda sudah siap untuk setoran!");
+                             } catch (error) {
+                               handleFirestoreError(error, OperationType.UPDATE, `hafalan_progress/${user.uid}_${material.id}`);
+                             }
+                           }}
+                           className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors shadow-lg shadow-green-100 disabled:opacity-50"
+                           disabled={status === 'Mumtaz (Lulus)' || prog?.isReadyForTest}
+                         >
+                           {status === 'Mumtaz (Lulus)' ? 'Sudah Lulus' : prog?.isReadyForTest ? 'Menunggu Guru' : 'Siap Setoran'}
+                         </button>
+                       </div>
+                       
+                       {prog?.catatanGuru && (
+                         <div className="mt-4 p-4 bg-orange-50 border border-orange-100 rounded-xl">
+                           <p className="text-xs font-bold text-orange-800 mb-1 uppercase tracking-wider">Catatan Guru:</p>
+                           <p className="text-sm text-orange-900">{prog.catatanGuru}</p>
+                         </div>
+                       )}
+                    </div>
+                  );
+              })}
             </div>
           </div>
         )}

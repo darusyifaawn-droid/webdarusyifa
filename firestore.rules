@@ -118,5 +118,27 @@ service cloud.firestore {
       );
       allow update, delete: if isAdmin();
     }
+    // Rules for Hafalan Progress
+    match /hafalan_progress/{progressId} {
+      allow read: if isSignedIn() && (
+        (isSiswa() && request.auth.uid == resource.data.studentId) || 
+        isGuru() || 
+        isAdmin()
+      );
+      
+      allow create: if isSignedIn() && (
+        isGuru() || 
+        isAdmin() || 
+        (isSiswa() && request.auth.uid == request.resource.data.studentId)
+      );
+      
+      allow update: if isSignedIn() && (
+        isGuru() || 
+        isAdmin() || 
+        (isSiswa() && request.auth.uid == resource.data.studentId && request.auth.uid == request.resource.data.studentId)
+      );
+      
+      allow delete: if isAdmin() || isGuru();
+    }
   }
 }
