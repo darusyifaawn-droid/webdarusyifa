@@ -45,6 +45,14 @@ export default function DashboardSiswa() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
+  
+  // Setoran Modal State
+  const [showSetoranModal, setShowSetoranModal] = useState(false);
+  const [activeMaterialForSetoran, setActiveMaterialForSetoran] = useState<any>(null);
+  const [setoranLink, setSetoranLink] = useState('');
+  const [setoranFileBase64, setSetoranFileBase64] = useState('');
+  const [isSetoranSubmitting, setIsSetoranSubmitting] = useState(false);
+  
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState('Transfer');
   const [paymentProof, setPaymentProof] = useState<string>('');
@@ -84,6 +92,55 @@ export default function DashboardSiswa() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSetoranFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 800 * 1024) {
+      alert("Ukuran file terlalu besar! Maksimal 800 KB. Jika file lebih besar dari 800 KB, silakan upload ke Google Drive atau YouTube dan masukkan link-nya saja.");
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setSetoranFileBase64(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const submitSetoran = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !activeMaterialForSetoran) return;
+    setIsSetoranSubmitting(true);
+    try {
+      const docRef = doc(db, 'hafalan_progress', `${user.uid}_${activeMaterialForSetoran.material.id}`);
+      const currentStatus = activeMaterialForSetoran.status === 'Belum Mulai' ? 'Sedang Menghafal' : activeMaterialForSetoran.status;
+      
+      const payload: any = {
+        studentId: user.uid,
+        materialId: activeMaterialForSetoran.material.id,
+        status: currentStatus,
+        isReadyForTest: true,
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (setoranLink) {
+        payload.recordingLink = setoranLink;
+      } else if (setoranFileBase64) {
+        payload.recordingDataUrl = setoranFileBase64;
+      }
+      
+      await setDoc(docRef, payload, { merge: true });
+      alert("Setoran berhasil dikirim! Silakan tunggu evaluasi dari guru.");
+      setShowSetoranModal(false);
+      setActiveMaterialForSetoran(null);
+      setSetoranLink('');
+      setSetoranFileBase64('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `hafalan_progress/${user.uid}_${activeMaterialForSetoran.material.id}`);
+    }
+    setIsSetoranSubmitting(false);
   };
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
@@ -1020,21 +1077,9 @@ export default function DashboardSiswa() {
                            Dengarkan Audio
                          </button>
                          <button 
-                           onClick={async () => {
-                             if (!user) return;
-                             try {
-                               const docRef = doc(db, 'hafalan_progress', `${user.uid}_${material.id}`);
-                               await setDoc(docRef, {
-                                 studentId: user.uid,
-                                 materialId: material.id,
-                                 status: status === 'Belum Mulai' ? 'Sedang Menghafal' : status,
-                                 isReadyForTest: true,
-                                 updatedAt: new Date().toISOString()
-                               }, { merge: true });
-                               alert("Notifikasi telah dikirim ke guru. Anda sudah siap untuk setoran!");
-                             } catch (error) {
-                               handleFirestoreError(error, OperationType.UPDATE, `hafalan_progress/${user.uid}_${material.id}`);
-                             }
+                           onClick={() => {
+                             setActiveMaterialForSetoran({ material, status, prog });
+                             setShowSetoranModal(true);
                            }}
                            className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors shadow-lg shadow-green-100 disabled:opacity-50"
                            disabled={status === 'Mumtaz (Lulus)' || prog?.isReadyForTest}
@@ -1516,6 +1561,72 @@ export default function DashboardSiswa() {
                   <Printer size={18} /> Cetak Dokumen
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Setoran Modal */}
+        {showSetoranModal && activeMaterialForSetoran && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-[32px] p-6 md:p-8 shadow-2xl relative">
+              <button 
+                onClick={() => { setShowSetoranModal(false); setActiveMaterialForSetoran(null); }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"
+                disabled={isSetoranSubmitting}
+              >
+                <X size={20} />
+              </button>
+              
+              <h3 className="font-bold text-xl md:text-2xl text-gray-800 mb-2">Kirim Setoran Hafalan</h3>
+              <p className="text-sm text-gray-500 mb-6">Materi: <span className="font-bold">{activeMaterialForSetoran.material.judul}</span></p>
+              
+              <form onSubmit={submitSetoran} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Upload Audio / Video (Maks 800 KB)</label>
+                  <input 
+                    type="file" 
+                    accept="audio/*,video/*"
+                    onChange={handleSetoranFileUpload}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 border border-gray-200 rounded-2xl"
+                  />
+                  {setoranFileBase64 && (
+                    <div className="mt-2 text-xs text-green-600 font-bold flex items-center gap-2">
+                       <CheckCircle size={14} /> File berhasil dipilih dan siap dikirim.
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="px-3 bg-white text-xs font-bold text-gray-400 uppercase tracking-widest">
+                      ATAU
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Link Google Drive / YouTube</label>
+                  <input 
+                    type="url" 
+                    value={setoranLink}
+                    onChange={(e) => setSetoranLink(e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-700 placeholder-gray-400"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">Gunakan opsi ini jika ukuran file video/suara Anda besar. Pastikan link bisa diakses (publik).</p>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  disabled={isSetoranSubmitting || (!setoranLink && !setoranFileBase64)}
+                  className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSetoranSubmitting ? 'Mengirim...' : 'Kirim Setoran Sekarang'}
+                </button>
+              </form>
             </div>
           </div>
         )}

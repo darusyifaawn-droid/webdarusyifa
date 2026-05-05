@@ -21,6 +21,8 @@ export interface StudentHafalanProgress {
   catatanGuru: string;
   isReadyForTest: boolean;
   updatedAt: string;
+  recordingDataUrl?: string;
+  recordingLink?: string;
 }
 
 // Data List with Placeholders for Arabic, Latin and Translation

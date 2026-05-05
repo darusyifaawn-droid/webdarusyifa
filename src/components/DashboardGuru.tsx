@@ -1536,9 +1536,37 @@ export default function DashboardGuru() {
               {(() => {
                  const mat = hafalanMaterials.find(m => m.id === evaluateHafalan.materialId);
                  const st = students.find(s => s.id === evaluateHafalan.studentId);
+                 
+                 const hasRecording = evaluateHafalan.recordingDataUrl || evaluateHafalan.recordingLink;
+                 
                  return (
                    <>
                      <p className="text-sm text-gray-500 mb-6">Siswa: <span className="font-bold text-gray-800">{st?.name}</span> • Materi: <span className="font-bold border-b border-gray-300">{mat?.judul}</span></p>
+                     
+                     {hasRecording && (
+                       <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Setoran Siswa (Audio / Video)</h4>
+                         
+                         {evaluateHafalan.recordingDataUrl && (
+                           evaluateHafalan.recordingDataUrl.startsWith('data:video/') ? (
+                             <video controls src={evaluateHafalan.recordingDataUrl} className="w-full rounded-xl bg-black" />
+                           ) : (
+                             <audio controls src={evaluateHafalan.recordingDataUrl} className="w-full" />
+                           )
+                         )}
+                         
+                         {evaluateHafalan.recordingLink && (
+                           <a 
+                             href={evaluateHafalan.recordingLink} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-bold hover:bg-blue-200 transition-colors"
+                           >
+                             <BookOpen size={16} /> Buka Link Rekaman Eksternal
+                           </a>
+                         )}
+                       </div>
+                     )}
                      
                      <div className="space-y-6">
                         <div>
