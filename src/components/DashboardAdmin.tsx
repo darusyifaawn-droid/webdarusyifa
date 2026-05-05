@@ -1541,42 +1541,42 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-2 z-50 pb-safe overflow-x-auto">
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'overview' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'overview' ? 'bg-green-50' : ''}`}>
-            <BarChart size={22} />
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-2 py-1.5 z-50 pb-safe">
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'overview' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'overview' ? 'bg-green-50' : ''}`}>
+            <BarChart size={20} />
           </div>
-          <span className="text-[10px] font-bold">Beranda</span>
+          <span className="text-[9px] font-bold tracking-tight">Beranda</span>
         </button>
-        <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'users' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'users' ? 'bg-green-50' : ''}`}>
-            <Users size={22} />
+        <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'users' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'users' ? 'bg-green-50' : ''}`}>
+            <Users size={20} />
           </div>
-          <span className="text-[10px] font-bold">Users</span>
+          <span className="text-[9px] font-bold tracking-tight">Users</span>
         </button>
-        <button onClick={() => setActiveTab('academic')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'academic' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'academic' ? 'bg-green-50' : ''}`}>
-            <BookOpen size={22} />
+        <button onClick={() => setActiveTab('academic')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'academic' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'academic' ? 'bg-green-50' : ''}`}>
+            <BookOpen size={20} />
           </div>
-          <span className="text-[10px] font-bold">Akademik</span>
+          <span className="text-[9px] font-bold tracking-tight">Akademik</span>
         </button>
-        <button onClick={() => setActiveTab('finance')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'finance' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'finance' ? 'bg-green-50' : ''}`}>
-            <CreditCard size={22} />
+        <button onClick={() => setActiveTab('finance')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'finance' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'finance' ? 'bg-green-50' : ''}`}>
+            <CreditCard size={20} />
           </div>
-          <span className="text-[10px] font-bold">Admin</span>
+          <span className="text-[9px] font-bold tracking-tight">Admin</span>
         </button>
-        <button onClick={() => setActiveTab('attendance')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'attendance' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'attendance' ? 'bg-green-50' : ''}`}>
-            <CheckCircle size={22} />
+        <button onClick={() => setActiveTab('attendance')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'attendance' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'attendance' ? 'bg-green-50' : ''}`}>
+            <CheckCircle size={20} />
           </div>
-          <span className="text-[10px] font-bold">Absen</span>
+          <span className="text-[9px] font-bold tracking-tight">Absen</span>
         </button>
-        <button onClick={() => setActiveTab('announcements')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors min-w-[60px] ${activeTab === 'announcements' ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-lg ${activeTab === 'announcements' ? 'bg-green-50' : ''}`}>
-            <Megaphone size={22} />
+        <button onClick={() => setActiveTab('announcements')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'announcements' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+          <div className={`p-1.5 rounded-xl ${activeTab === 'announcements' ? 'bg-green-50' : ''}`}>
+            <Megaphone size={20} />
           </div>
-          <span className="text-[10px] font-bold">Info</span>
+          <span className="text-[9px] font-bold tracking-tight">Info</span>
         </button>
       </div>
 
@@ -1642,13 +1642,13 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pt-2">
+        <header className="flex flex-row justify-between items-center mb-8 pt-2">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight">Control Panel</h2>
-            <p className="text-gray-500 text-sm">Monitoring operasional sekolah secara real-time.</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight tracking-tight">Control Panel</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm font-medium mt-1">Monitoring operasional sekolah secara real-time.</p>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 overflow-hidden border-2 border-white shadow-sm">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 overflow-hidden border border-gray-200 shadow-sm">
               {userData?.photoURL ? (
                 <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
@@ -2521,21 +2521,23 @@ export default function DashboardAdmin() {
 
         {activeTab === 'finance' && (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-lg font-bold text-gray-800">Administrasi & Keuangan</h3>
-              <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+            <div className="flex flex-col justify-between items-start gap-4">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
+              <div className="flex flex-col gap-3 w-full">
                 <button 
                   onClick={exportFinanceToExcel}
-                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-xs sm:text-sm"
+                  className="w-full bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-100/50"
                 >
                   <Download size={18} /> Export Keuangan (Excel)
                 </button>
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="grid grid-cols-2 gap-3 w-full">
                   <button 
                     onClick={() => setShowImportTabunganModal(true)}
-                    className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all text-xs sm:text-sm"
+                    className="w-full bg-indigo-600 text-white p-3 rounded-2xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100/50"
                   >
-                    <Upload size={18} /> Import Tabungan
+                    <Upload size={18} className="sm:hidden" />
+                    <Upload size={16} className="hidden sm:block" />
+                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Import<br className="sm:hidden" /> Tabungan</span>
                   </button>
                   <button 
                     onClick={() => {
@@ -2546,27 +2548,35 @@ export default function DashboardAdmin() {
                         XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
                         XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
                     }}
-                    className="flex-1 sm:flex-none bg-gray-100 text-gray-600 px-4 py-2 rounded-xl border border-gray-200 font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all text-xs sm:text-sm"
+                    className="w-full bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-200 font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-gray-100 transition-all"
                     title="Download format Excel untuk import tabungan otomatis"
                   >
-                    <Download size={18} /> Format Import
+                    <Download size={18} className="sm:hidden" />
+                    <Download size={16} className="hidden sm:block" />
+                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Format<br className="sm:hidden" /> Import</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <button 
+                    onClick={() => setShowTabunganModal(true)}
+                    className="w-full bg-green-600 text-white p-3 rounded-2xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-green-700 transition-all shadow-lg shadow-green-100/50"
+                  >
+                    <Plus size={18} className="sm:hidden" />
+                    <Plus size={16} className="hidden sm:block" />
+                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Input<br className="sm:hidden" /> Tabungan</span>
+                  </button>
+                  <button 
+                    onClick={() => setShowDeleteIuranModal(true)}
+                    className="w-full bg-red-50 text-red-600 p-3 rounded-2xl border border-red-100 font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-red-100 transition-all"
+                  >
+                    <Trash2 size={18} className="sm:hidden" />
+                    <Trash2 size={16} className="hidden sm:block" />
+                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Hapus<br className="sm:hidden" /> Massal</span>
                   </button>
                 </div>
                 <button 
-                  onClick={() => setShowTabunganModal(true)}
-                  className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-xs sm:text-sm"
-                >
-                  <Plus size={18} /> Input Tabungan
-                </button>
-                <button 
-                  onClick={() => setShowDeleteIuranModal(true)}
-                  className="flex-1 sm:flex-none bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-100 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-all text-xs sm:text-sm"
-                >
-                  <Trash2 size={18} /> Hapus Iuran Massal
-                </button>
-                <button 
                   onClick={() => setShowIuranModal(true)}
-                  className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-xs sm:text-sm"
+                  className="w-full bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-100/50"
                 >
                   <Plus size={18} /> Penetapan Iuran
                 </button>
@@ -2574,23 +2584,25 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Visual Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex items-center gap-6">
-                <div className="w-16 h-16 bg-green-100 rounded-3xl flex items-center justify-center text-green-600">
-                  <CreditCard size={32} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-50 rounded-full blur-2xl z-0"></div>
+                <div className="relative z-10 w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
+                  <CreditCard size={24} />
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
-                  <h4 className="text-2xl font-black text-gray-800">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}</h4>
+                <div className="relative z-10">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
+                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}</h4>
                 </div>
               </div>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex items-center gap-6">
-                <div className="w-16 h-16 bg-red-100 rounded-3xl flex items-center justify-center text-red-600">
-                  <AlertCircle size={32} />
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-50 rounded-full blur-2xl z-0"></div>
+                <div className="relative z-10 w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600">
+                  <AlertCircle size={24} />
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan Siswa</p>
-                  <h4 className="text-2xl font-black text-gray-800">Rp {allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}</h4>
+                <div className="relative z-10">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan Siswa</p>
+                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}</h4>
                 </div>
               </div>
             </div>
