@@ -1020,23 +1020,40 @@ export default function DashboardSiswa() {
             </div>
 
             <div className="grid gap-6">
-              {hafalanMaterials
-                .filter(m => {
-                   if (!userData?.kelas) return true; // show all if class is not set
-                   const uKelas = userData.kelas.toLowerCase();
-                   const mKelas = m.kelas.toLowerCase();
-                   // Match if uKelas is contained in mKelas or vice versa
-                   return mKelas.includes(uKelas) || uKelas.includes(mKelas);
-                })
-                .filter(m => filterHafalanCategorySiswa === 'Semua Kategori' ? true : m.kategori === filterHafalanCategorySiswa)
-                .filter(m => {
-                   const prog = hafalanProgress.find(p => p.materialId === m.id);
-                   const isSettored = prog?.isReadyForTest || prog?.status === 'Mumtaz (Lulus)';
-                   if (filterHafalanStatusSiswa === 'Sudah Setor') return isSettored;
-                   if (filterHafalanStatusSiswa === 'Belum Setor') return !isSettored;
-                   return true;
-                })
-                .map((material) => {
+              {(() => {
+                const filteredMaterials = hafalanMaterials
+                  .filter(m => {
+                     if (!userData?.kelas || userData.kelas.trim() === "") return true; // show all if class is not set
+                     const uKelas = userData.kelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+                     const mKelas = m.kelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+                     // More robust match: checks if standardized strings contain each other
+                     return mKelas.includes(uKelas) || uKelas.includes(mKelas);
+                  })
+                  .filter(m => filterHafalanCategorySiswa === 'Semua Kategori' ? true : m.kategori === filterHafalanCategorySiswa)
+                  .filter(m => {
+                     const prog = hafalanProgress.find(p => p.materialId === m.id);
+                     const isSettored = prog?.isReadyForTest || prog?.status === 'Mumtaz (Lulus)';
+                     if (filterHafalanStatusSiswa === 'Sudah Setor') return isSettored;
+                     if (filterHafalanStatusSiswa === 'Belum Setor') return !isSettored;
+                     return true;
+                  });
+
+                if (filteredMaterials.length === 0) {
+                  return (
+                    <div className="bg-white p-12 rounded-[40px] border border-dashed border-gray-200 text-center col-span-full">
+                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                        <BookOpen size={40} />
+                      </div>
+                      <h4 className="text-lg font-bold text-gray-800 mb-2">Materi Tidak Ditemukan</h4>
+                      <p className="text-sm text-gray-500 max-w-sm mx-auto">
+                        Materi untuk kategori <strong>{filterHafalanCategorySiswa}</strong> dan kelas <strong>{userData?.kelas || 'Belum Diatur'}</strong> tidak tersedia. 
+                        Pastikan profil kelas Anda sudah benar di menu <strong>Profil Saya</strong>.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return filteredMaterials.map((material) => {
                   const prog = hafalanProgress.find(p => p.materialId === material.id);
                   const status = prog?.status || 'Belum Mulai';
                   const stars = prog?.stars || 0;
@@ -1096,7 +1113,8 @@ export default function DashboardSiswa() {
                        )}
                     </div>
                   );
-              })}
+                });
+              })()}
             </div>
           </div>
         )}
