@@ -55,6 +55,8 @@ export default function DashboardAdmin() {
   const [newUserPassword, setNewUserPassword] = useState('123456');
   const [newUserRole, setNewUserRole] = useState('siswa');
   const [newUserKelas, setNewUserKelas] = useState('');
+  const [newUserTeacherType, setNewUserTeacherType] = useState('Guru Kelas');
+  const [newUserAssignedClass, setNewUserAssignedClass] = useState('');
   const [newUserWhatsapp, setNewUserWhatsapp] = useState('');
   const [editUserWhatsapp, setEditUserWhatsapp] = useState('');
   const [announceTitle, setAnnounceTitle] = useState('');
@@ -96,6 +98,7 @@ export default function DashboardAdmin() {
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
+  const [filterTeacherType, setFilterTeacherType] = useState('semua');
   const [filterName, setFilterName] = useState('');
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
@@ -295,6 +298,10 @@ export default function DashboardAdmin() {
         userData.kelas = newUserKelas;
         userData.whatsapp = newUserWhatsapp;
       }
+      if (newUserRole === 'guru') {
+        userData.teacherType = newUserTeacherType;
+        userData.assignedClass = newUserAssignedClass;
+      }
       
       // Save to Firestore using the UID from Auth
       await setDoc(doc(db, path, userCredential.user.uid), userData);
@@ -327,6 +334,10 @@ export default function DashboardAdmin() {
         userData.kelas = editingUser.kelas || '';
         userData.whatsapp = editingUser.whatsapp || '';
         userData.status = editingUser.status || 'Aktif';
+      }
+      if (editingUser.role === 'guru') {
+        userData.teacherType = editingUser.teacherType || 'Guru Kelas';
+        userData.assignedClass = editingUser.assignedClass || '';
       }
       await updateDoc(doc(db, 'users', editingUser.id), userData);
       setShowEditUser(false);
@@ -1756,6 +1767,16 @@ export default function DashboardAdmin() {
                     <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                 </select>
+                <select 
+                  value={filterTeacherType}
+                  onChange={(e) => setFilterTeacherType(e.target.value)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                >
+                  <option value="semua">Semua Tipe Guru</option>
+                  <option value="Wali Kelas">Wali Kelas</option>
+                  <option value="Guru Kelas">Guru Kelas</option>
+                  <option value="Guru Bidang">Guru Bidang</option>
+                </select>
                 <button 
                   onClick={() => { setNewUserRole('siswa'); setShowAddUser(true); }}
                   className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
@@ -1768,35 +1789,38 @@ export default function DashboardAdmin() {
                <table className="w-full text-left whitespace-nowrap min-w-[800px]">
                  <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
                    <tr>
-                     <th className="px-6 py-4">Nama</th>
-                     <th className="px-6 py-4">Email (Username)</th>
-                     <th className="px-6 py-4">Password</th>
-                     <th className="px-6 py-4">Kelas</th>
-                     <th className="px-6 py-4">Role</th>
-                     <th className="px-6 py-4">Status</th>
-                     <th className="px-6 py-4">Aksi</th>
+                     <th className="px-6 py-4">Nama Lengkap</th>
+                     <th className="px-6 py-4">Username & Password</th>
+                     <th className="px-6 py-4">Keterangan</th>
+                     <th className="px-6 py-4">Tipe / Role</th>
+                     <th className="px-6 py-4">Status / Jabatan</th>
+                     <th className="px-6 py-4 text-right">Aksi</th>
                    </tr>
                  </thead>
                 <tbody className="divide-y divide-gray-100">
                   {allUsers.filter(u => {
-                    if (!filterKelas) return true;
-                    const uK = (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    return uK.includes(fK) || fK.includes(uK);
-                  }).filter(u => {
-                    const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
-                    return matchName;
+                    const matchKelas = !filterKelas || (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) || (u.assignedClass || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                    const matchName = !filterName || u.name.toLowerCase().includes(filterName.toLowerCase());
+                    const matchTeacherType = filterTeacherType === 'semua' || u.teacherType === filterTeacherType;
+                    return matchKelas && matchName && matchTeacherType;
                   }).map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">{u.email}</td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">{u.plainPassword || '***'}</td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          u.role === 'admin' ? 'bg-red-100 text-red-600' :
-                          u.role === 'guru' ? 'bg-blue-100 text-blue-600' :
-                          'bg-green-100 text-green-600'
+                        <div className="font-bold text-gray-800">{u.name}</div>
+                        <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{u.role === 'admin' ? 'Administrator' : u.role === 'guru' ? 'Tenaga Pengajar' : 'Peserta Didik'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-700">{u.email}</div>
+                        <div className="text-[10px] text-gray-400 border border-gray-100 w-fit px-1.5 rounded bg-gray-50 mt-1">PW: {u.plainPassword || '***'}</div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-500 text-sm">
+                        {u.role === 'siswa' ? (u.kelas || '-') : (u.assignedClass || 'Umum')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                          u.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-100' :
+                          u.role === 'guru' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                          'bg-green-50 text-green-600 border border-green-100'
                         }`}>
                           {u.role}
                         </span>
@@ -1811,15 +1835,22 @@ export default function DashboardAdmin() {
                           }`}>
                             {u.status || 'Aktif'}
                           </span>
+                        ) : u.role === 'guru' ? (
+                           <div className="flex flex-col gap-0.5">
+                             <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase border border-indigo-100 w-fit">
+                               {u.teacherType || 'Guru Kelas'}
+                             </span>
+                             {u.assignedClass && <span className="text-[10px] text-gray-400 font-medium ml-1">Unit: {u.assignedClass}</span>}
+                           </div>
                         ) : (
                           <span className="text-gray-400 text-xs">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-3">
-                          <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="text-gray-400 hover:text-yellow-600 transition-colors" title="Reset Password"><Key size={18} /></button>
-                          <button onClick={() => { setEditingUser(u); setShowEditUser(true); }} className="text-gray-400 hover:text-blue-600 transition-colors"><Edit size={18} /></button>
-                          <button onClick={() => { setUserToDelete(u); setShowDeleteConfirm(true); }} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-3">
+                          <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="p-2 bg-yellow-50 text-yellow-600 rounded-xl hover:bg-yellow-100 transition-all" title="Reset Password"><Key size={16} /></button>
+                          <button onClick={() => { setEditingUser(u); setShowEditUser(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all"><Edit size={16} /></button>
+                          <button onClick={() => { setUserToDelete(u); setShowDeleteConfirm(true); }} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -1831,15 +1862,19 @@ export default function DashboardAdmin() {
             {/* Mobile View User Management */}
             <div className="md:hidden divide-y divide-gray-100">
               {allUsers.filter(u => {
-                const matchKelas = filterKelas ? (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
+                const matchKelas = filterKelas ? (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) || (u.assignedClass || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
                 const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
-                return matchKelas && matchName;
+                const matchTeacherType = filterTeacherType === 'semua' || u.teacherType === filterTeacherType;
+                return matchKelas && matchName && matchTeacherType;
               }).map((u) => (
                 <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-bold text-gray-800">{u.name}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-widest">{u.email}</p>
+                      {u.role === 'guru' && (
+                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mt-0.5">{u.teacherType} - {u.assignedClass || 'Umum'}</p>
+                      )}
                     </div>
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                          u.role === 'admin' ? 'bg-red-100 text-red-600' :
@@ -1851,7 +1886,7 @@ export default function DashboardAdmin() {
                   </div>
                   <div className="flex justify-between items-center bg-gray-50 p-2.5 border border-gray-100 rounded-lg shrink-0">
                     <div className="text-[10px] font-bold text-gray-400">
-                      KL: <span className="text-gray-800">{u.kelas || '-'}</span> | PW: <span className="text-gray-800">{u.plainPassword || '***'}</span>
+                      {u.role === 'siswa' ? `KL: ${u.kelas || '-'} | ` : `ASS: ${u.assignedClass || '-'} | `}PW: <span className="text-gray-800">{u.plainPassword || '***'}</span>
                     </div>
                     <div className="flex gap-4">
                       <button onClick={() => { setUserToReset(u); setShowResetPassword(true); }} className="text-gray-400 hover:text-yellow-600"><Key size={16} /></button>
@@ -2343,63 +2378,71 @@ export default function DashboardAdmin() {
           <div className="space-y-6">
             <div className="flex flex-col justify-between items-start gap-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
-              <div className="flex flex-col gap-3 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full mt-4">
                 <button 
                   onClick={exportFinanceToExcel}
-                  className="w-full bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-100/50"
+                  className="bg-blue-600 text-white px-6 py-4 rounded-3xl font-bold flex items-center justify-center gap-3 hover:bg-blue-700 transition-all text-sm shadow-xl shadow-blue-100 group"
                 >
-                  <Download size={18} /> Export Keuangan (Excel)
+                  <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+                    <Download size={20} /> 
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs opacity-80 font-medium">Laporan Rekap</p>
+                    <p>Export Keuangan</p>
+                  </div>
                 </button>
-                <div className="grid grid-cols-2 gap-3 w-full">
+
+                <button 
+                  onClick={() => setShowIuranModal(true)}
+                  className="bg-indigo-600 text-white px-6 py-4 rounded-3xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all text-sm shadow-xl shadow-indigo-100 group"
+                >
+                  <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+                    <Plus size={20} /> 
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs opacity-80 font-medium">Buat Tagihan</p>
+                    <p>Penetapan Iuran</p>
+                  </div>
+                </button>
+
+                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 lg:col-span-1">
                   <button 
-                    onClick={() => setShowImportTabunganModal(true)}
-                    className="w-full bg-indigo-600 text-white p-3 rounded-2xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100/50"
+                    onClick={() => setShowTabunganModal(true)}
+                    className="bg-green-600 text-white p-4 rounded-3xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl shadow-green-100 group"
                   >
-                    <Upload size={18} className="sm:hidden" />
-                    <Upload size={16} className="hidden sm:block" />
-                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Import<br className="sm:hidden" /> Tabungan</span>
+                    <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                    <span className="text-xs uppercase tracking-widest text-center">Input Tabungan</span>
                   </button>
                   <button 
+                    onClick={() => setShowImportTabunganModal(true)}
+                    className="bg-purple-600 text-white p-4 rounded-3xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-purple-700 transition-all shadow-xl shadow-purple-100 group"
+                  >
+                    <Upload size={24} className="group-hover:-translate-y-1 transition-transform" />
+                    <span className="text-xs uppercase tracking-widest text-center">Import Excel</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 lg:col-span-1">
+                  <button 
                     onClick={() => {
-                        const ws = XLSX.utils.json_to_sheet([
-                            { Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }
-                        ]);
+                        const ws = XLSX.utils.json_to_sheet([{ Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }]);
                         const wb = XLSX.utils.book_new();
                         XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
                         XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
                     }}
-                    className="w-full bg-gray-50 text-gray-600 p-3 rounded-2xl border border-gray-200 font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-gray-100 transition-all"
-                    title="Download format Excel untuk import tabungan otomatis"
+                    className="bg-white text-gray-600 p-4 rounded-3xl border-2 border-gray-100 font-bold flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-all group"
                   >
-                    <Download size={18} className="sm:hidden" />
-                    <Download size={16} className="hidden sm:block" />
-                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Format<br className="sm:hidden" /> Import</span>
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <button 
-                    onClick={() => setShowTabunganModal(true)}
-                    className="w-full bg-green-600 text-white p-3 rounded-2xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-green-700 transition-all shadow-lg shadow-green-100/50"
-                  >
-                    <Plus size={18} className="sm:hidden" />
-                    <Plus size={16} className="hidden sm:block" />
-                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Input<br className="sm:hidden" /> Tabungan</span>
+                    <Download size={24} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
+                    <span className="text-xs uppercase tracking-widest text-center">Format Import</span>
                   </button>
                   <button 
                     onClick={() => setShowDeleteIuranModal(true)}
-                    className="w-full bg-red-50 text-red-600 p-3 rounded-2xl border border-red-100 font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 hover:bg-red-100 transition-all"
+                    className="bg-red-50 text-red-600 p-4 rounded-3xl border-2 border-red-100 font-bold flex flex-col items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all group"
                   >
-                    <Trash2 size={18} className="sm:hidden" />
-                    <Trash2 size={16} className="hidden sm:block" />
-                    <span className="text-[11px] sm:text-sm leading-tight text-center truncate w-full">Hapus<br className="sm:hidden" /> Massal</span>
+                    <Trash2 size={24} className="group-hover:scale-110 transition-transform" />
+                    <span className="text-xs uppercase tracking-widest text-center">Hapus Iuran</span>
                   </button>
                 </div>
-                <button 
-                  onClick={() => setShowIuranModal(true)}
-                  className="w-full bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-100/50"
-                >
-                  <Plus size={18} /> Penetapan Iuran
-                </button>
               </div>
             </div>
 
@@ -2851,6 +2894,27 @@ export default function DashboardAdmin() {
                     </div>
                   </>
                 )}
+                {editingUser.role === 'guru' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipe Guru</label>
+                      <select value={editingUser.teacherType || 'Guru Kelas'} onChange={(e) => setEditingUser({...editingUser, teacherType: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required>
+                        <option value="Wali Kelas">Wali Kelas</option>
+                        <option value="Guru Kelas">Guru Kelas</option>
+                        <option value="Guru Bidang">Guru Bidang</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Unit / Kelas Tugas</label>
+                      <select value={editingUser.assignedClass || ''} onChange={(e) => setEditingUser({...editingUser, assignedClass: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500">
+                        <option value="">-- Pilih Unit/Kelas --</option>
+                        {schoolClasses.map((c: any) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Simpan Perubahan</button>
               </form>
             </div>
@@ -3002,6 +3066,38 @@ export default function DashboardAdmin() {
                             placeholder="08123456789"
                             required 
                           />
+                        </div>
+                      </>
+                    )}
+
+                    {newUserRole === 'guru' && (
+                      <>
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Tipe Guru</label>
+                          <select 
+                            value={newUserTeacherType} 
+                            onChange={(e) => setNewUserTeacherType(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700 transition-all cursor-pointer" 
+                            required
+                          >
+                            <option value="Wali Kelas">Wali Kelas</option>
+                            <option value="Guru Kelas">Guru Kelas</option>
+                            <option value="Guru Bidang">Guru Bidang</option>
+                          </select>
+                        </div>
+                        
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Unit / Kelas Tugas</label>
+                          <select 
+                            value={newUserAssignedClass} 
+                            onChange={(e) => setNewUserAssignedClass(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700 transition-all cursor-pointer" 
+                          >
+                            <option value="">-- PILIH UNIT/KELAS --</option>
+                            {schoolClasses.map((c: any) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
                         </div>
                       </>
                     )}
