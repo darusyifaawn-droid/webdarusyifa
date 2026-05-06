@@ -749,6 +749,36 @@ export default function DashboardGuru() {
         </button>
       </div>
 
+      {/* Mobile Sidebar/Drawer */}
+      {isSidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarOpen(false)}></div>
+          <div className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-6 animate-in slide-in-from-left duration-300">
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-3">
+                {settings?.logoUrl ? (
+                  <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-white p-0.5">
+                    <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">RA</div>
+                )}
+                <div>
+                  <h2 className="font-bold text-gray-800 text-sm">Portal Guru</h2>
+                  <p className="text-[8px] text-gray-400 font-bold uppercase">RA Darusyifa</p>
+                </div>
+              </div>
+              <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 p-1 hover:bg-gray-100 rounded-lg">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <NavItems />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch">
         {activeTab === 'overview' && (
@@ -837,6 +867,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500' },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'from-pink-400 to-pink-500' },
                   { id: 'subjects', label: 'Penilaian', icon: TrendingUp, color: 'from-orange-400 to-orange-500' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'from-blue-400 to-blue-500' },
                   { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'from-amber-400 to-amber-500' },

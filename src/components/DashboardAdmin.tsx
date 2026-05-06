@@ -108,6 +108,8 @@ export default function DashboardAdmin() {
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
   const [progressData, setProgressData] = useState<any[]>([]);
+  const [filterAssessmentName, setFilterAssessmentName] = useState('');
+  const [filterAssessmentKelas, setFilterAssessmentKelas] = useState('');
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [showClassModal, setShowClassModal] = useState(false);
@@ -2527,8 +2529,35 @@ export default function DashboardAdmin() {
         {activeTab === 'assessments' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="card-3d p-8">
-              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Siswa</h3>
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Detail Siswa</h3>
               <p className="text-gray-400 text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
+              
+              <div className="mt-8 flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Users size={16} className="text-gray-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Cari Nama Siswa / Guru..." 
+                    value={filterAssessmentName}
+                    onChange={(e) => setFilterAssessmentName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
+                  />
+                </div>
+                <div className="w-full md:w-64">
+                  <select 
+                    value={filterAssessmentKelas}
+                    onChange={(e) => setFilterAssessmentKelas(e.target.value)}
+                    className="w-full p-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
+                  >
+                    <option value="">Semua Kelas</option>
+                    {schoolClasses.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                <table className="w-full text-left whitespace-nowrap min-w-[800px]">
@@ -2536,30 +2565,76 @@ export default function DashboardAdmin() {
                    <tr>
                      <th className="px-6 py-4">Tanggal</th>
                      <th className="px-6 py-4">Siswa</th>
-                     <th className="px-6 py-4">Guru Penilai</th>
-                     <th className="px-6 py-4">Materi / Kategori</th>
-                     <th className="px-6 py-4 text-center">Nilai</th>
+                     <th className="px-6 py-4 text-indigo-600">Guru Penilai</th>
+                     <th className="px-6 py-4 font-black">Detail Penilaian</th>
+                     <th className="px-6 py-4 text-center">Hasil & Skor</th>
                    </tr>
                  </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {progressData.map(p => {
-                    const student = allUsers.find(u => u.id === p.studentId);
-                    const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
-                    return (
-                      <tr key={p.id} className="hover:bg-gray-50 cursor-pointer transition-colors" title={p.description}>
-                        <td className="px-6 py-4 text-xs font-bold text-gray-500">{new Date(p.date).toLocaleDateString('id-ID')}</td>
-                        <td className="px-6 py-4 font-bold text-gray-800 max-w-[200px] truncate">{student?.name || 'Siswa'} <br/><span className="text-[10px] text-gray-400 font-medium">{student?.kelas || ''}</span></td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{p.teacherName || 'Guru'}</td>
-                        <td className="px-6 py-4 text-sm text-indigo-600 font-medium">{p.category || 'Penilaian Umum'}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex flex-col items-center justify-center p-2 rounded-xl bg-gray-50 border border-gray-100 w-16 h-16`}>
-                            <span className="font-black text-lg text-gray-800 leading-none">{p.score || 0}</span>
-                            <span className={`text-[10px] font-bold mt-1 ${gradeInfo.color}`}>{gradeInfo.grade}</span>
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                   {progressData
+                    .filter(p => {
+                      const student = allUsers.find(u => u.id === p.studentId);
+                      const matchesName = 
+                        student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase()) || 
+                        p.teacherName?.toLowerCase().includes(filterAssessmentName.toLowerCase());
+                      const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
+                      return matchesName && matchesKelas;
+                    })
+                    .map(p => {
+                     const student = allUsers.find(u => u.id === p.studentId);
+                     const teacher = allUsers.find(u => u.id === p.teacherId);
+                     const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
+                     return (
+                       <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
+                         <td className="px-6 py-4">
+                           <div className="flex flex-col">
+                             <span className="text-xs font-black text-indigo-500">{new Date(p.date).toLocaleDateString('id-ID')}</span>
+                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex flex-col">
+                             <span className="font-black text-gray-800 text-sm">{student?.name || 'Siswa'}</span>
+                             <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full w-fit font-black mt-1 uppercase tracking-tighter">{student?.kelas || '-'}</span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex items-center gap-3">
+                             <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-sm border border-indigo-200">
+                               <User size={16} />
+                             </div>
+                             <div>
+                               <p className="text-xs font-black text-gray-800 leading-tight">{p.teacherName || teacher?.name || 'Guru'}</p>
+                               <p className="text-[9px] text-gray-400 font-bold mt-0.5">Penilai Utama</p>
+                             </div>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 min-w-[300px]">
+                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 group-hover:bg-white group-hover:border-indigo-100 transition-all">
+                              <span className="text-[10px] font-black text-indigo-600 block mb-1 uppercase tracking-widest">{p.category || 'Penilaian Umum'}</span>
+                              <p className="text-[11px] text-gray-600 leading-relaxed font-semibold italic line-clamp-3">"{p.description || 'Guru tidak memberikan catatan detail.'}"</p>
+                              {p.target && (
+                                <div className="mt-2 flex items-center gap-1.5 opacity-80">
+                                  <TrendingUp size={10} className="text-emerald-500" />
+                                  <span className="text-[9px] text-emerald-600 font-black uppercase tracking-tighter">Target: {p.target}</span>
+                                </div>
+                              )}
+                            </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex items-center justify-center gap-4">
+                             <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${p.status === 'Lulus' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                               {p.status || 'Selesai'}
+                             </div>
+                             <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-[1rem] font-black ${gradeInfo.color} bg-white shadow-md border-2 border-white`}>
+                               <span className="text-base leading-none">{p.score || 0}</span>
+                               <span className="text-[8px] font-bold mt-1 opacity-80">{gradeInfo.grade}</span>
+                             </div>
+                           </div>
+                         </td>
+                       </tr>
+                     )
+                   })}
                   {progressData.length === 0 && (
                     <tr>
                       <td colSpan={5} className="text-center p-8 text-gray-400 font-medium italic">Belum ada penilaian siswa yang diinputkan guru.</td>
