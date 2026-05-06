@@ -32,30 +32,33 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Login failed', error);
       
+      const errorCode = error.code || '';
+      
       // Auto-create admin account if it doesn't exist
-      if (email === 'darusyifa.awn@gmail.com' && (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found')) {
+      if (email === 'darusyifa.awn@gmail.com' && (errorCode === 'auth/invalid-credential' || errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password')) {
         try {
           const { createUserWithEmailAndPassword } = await import('firebase/auth');
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           await handleUserRedirect(userCredential.user.uid, userCredential.user.email);
           return; // Success!
         } catch (createError: any) {
-          if (createError.code === 'auth/email-already-in-use') {
-            setError('Password yang Anda masukkan salah. Silakan klik "Lupa Password?" untuk mereset.');
+          const createErrCode = createError.code || '';
+          if (createErrCode === 'auth/email-already-in-use') {
+            setError('Email sudah terdaftar. Password yang Anda masukkan salah. Gunakan fitur "Lupa Password?" jika perlu.');
           } else {
-            setError('Gagal membuat akun admin: ' + createError.message);
+            setError('Masalah kredensial. Periksa kembali email dan password Anda.');
           }
           setLoading(false);
           return;
         }
       }
 
-      if (error.code === 'auth/operation-not-allowed') {
+      if (errorCode === 'auth/operation-not-allowed') {
         setError('Login dengan Email/Password belum diaktifkan di Firebase Console. Silakan hubungi admin.');
-      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setError('Email atau password salah.');
+      } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
+        setError('Email atau password salah. Pastikan anda sudah terdaftar dan memasukkan password yang benar.');
       } else {
-        setError('Gagal masuk. Silakan coba lagi nanti.');
+        setError('Gagal masuk. ' + (error.message || 'Coba lagi nanti.'));
       }
     } finally {
       setLoading(false);

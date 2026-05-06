@@ -1541,42 +1541,24 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-2 py-1.5 z-50 pb-safe">
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'overview' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'overview' ? 'bg-green-50' : ''}`}>
-            <BarChart size={20} />
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe">
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
+            <BarChart size={24} />
           </div>
-          <span className="text-[9px] font-bold tracking-tight">Beranda</span>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
-        <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'users' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'users' ? 'bg-green-50' : ''}`}>
-            <Users size={20} />
+        <button onClick={() => { /* Open personal profile tab or modal */ setActiveTab('profile') }} className="flex flex-col items-center gap-1 flex-1 text-gray-400">
+           <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white">
+            <User size={28} />
           </div>
-          <span className="text-[9px] font-bold tracking-tight">Users</span>
+          <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
         </button>
-        <button onClick={() => setActiveTab('academic')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'academic' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'academic' ? 'bg-green-50' : ''}`}>
-            <BookOpen size={20} />
+        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-400">
+          <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
+            <LogOut size={24} />
           </div>
-          <span className="text-[9px] font-bold tracking-tight">Akademik</span>
-        </button>
-        <button onClick={() => setActiveTab('finance')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'finance' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'finance' ? 'bg-green-50' : ''}`}>
-            <CreditCard size={20} />
-          </div>
-          <span className="text-[9px] font-bold tracking-tight">Admin</span>
-        </button>
-        <button onClick={() => setActiveTab('attendance')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'attendance' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'attendance' ? 'bg-green-50' : ''}`}>
-            <CheckCircle size={20} />
-          </div>
-          <span className="text-[9px] font-bold tracking-tight">Absen</span>
-        </button>
-        <button onClick={() => setActiveTab('announcements')} className={`flex flex-col items-center gap-0.5 p-1 rounded-xl transition-all ${activeTab === 'announcements' ? 'text-green-600 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
-          <div className={`p-1.5 rounded-xl ${activeTab === 'announcements' ? 'bg-green-50' : ''}`}>
-            <Megaphone size={20} />
-          </div>
-          <span className="text-[9px] font-bold tracking-tight">Info</span>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Logout</span>
         </button>
       </div>
 
@@ -1642,274 +1624,114 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        <header className="flex flex-row justify-between items-center mb-8 pt-2">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight tracking-tight">Control Panel</h2>
-            <p className="text-gray-500 text-[10px] sm:text-sm font-medium mt-1">Monitoring operasional sekolah secara real-time.</p>
-          </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 overflow-hidden border border-gray-200 shadow-sm">
-              {userData?.photoURL ? (
-                <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <User size={24} />
-              )}
-            </div>
-          </div>
-        </header>
-
         {activeTab === 'overview' && (
-          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
-            <div className="card-3d p-6 md:p-8">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-6">
+          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+            {/* Mobile Header (Hidden on Desktop) */}
+            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+              <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
+                <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
+                   <Menu size={20} />
+                </button>
+                <div className="text-center">
+                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md">SIMANDU</h1>
+                  <p className="text-[8px] font-black tracking-[0.2em] opacity-80 uppercase -mt-1">Sistem Manajemen Terpadu</p>
+                </div>
+                <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative">
+                  <Bell size={20} />
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/10 p-5 rounded-[2.5rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl">
+                <div className="w-16 h-16 rounded-full border-4 border-white/30 overflow-hidden bg-white shadow-inner flex items-center justify-center p-2">
+                  <img src={settings?.logoUrl || '/logo.png'} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mb-0.5">Selamat Datang,</p>
+                  <h2 className="text-xl font-black tracking-tight leading-tight truncate">{userData?.name || 'Administrator'}</h2>
+                  <p className="text-[9px] opacity-70 font-bold uppercase tracking-tighter truncate">{userData?.role} • {settings?.schoolName || 'RA Darusyifa'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Header */}
+            <header className="hidden md:flex justify-between items-center mb-8 pt-2">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-800 leading-tight tracking-tight underline decoration-blue-500 decoration-4 underline-offset-8 uppercase italic">Beranda</h2>
+                <p className="text-gray-500 text-sm font-medium mt-4">Monitoring operasional sekolah secara real-time.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                 <button onClick={() => setActiveTab('announcements')} className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-blue-600 transition-all relative">
+                  <Bell size={24} />
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                </button>
+                <div className="bg-white p-2 pr-6 rounded-full border border-gray-100 shadow-sm flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-lg">
+                    {userData?.name?.[0] || 'A'}
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-gray-800 leading-tight">{userData?.name}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Administrator</p>
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* Stats Cards Section */}
+            <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
+              {[
+                { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'from-purple-500 to-indigo-600', icon: Users },
+                { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, detail: 'Saldo Sekolah', color: 'from-amber-400 to-orange-500', icon: CreditCard },
+                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, detail: 'Tagihan Berjalan', color: 'from-rose-500 to-pink-600', icon: AlertCircle }
+              ].map((stat, i) => (
+                <div key={i} className={`relative overflow-hidden bg-gradient-to-br ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-opacity-20 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                    <stat.icon size={100} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
+                    <h4 className="text-4xl font-black tracking-tighter">{stat.value}</h4>
+                  </div>
+                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                    {stat.detail}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Menu Utama Section */}
+            <div className="mt-10">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1.5 h-8 bg-blue-600 rounded-full"></div>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Menu Utama</h3>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
-                  { label: 'Total Siswa Aktif', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, color: 'bg-blue-500', icon: Users },
-                  { label: 'Total Guru', value: allUsers.filter(u => u.role === 'guru').length, color: 'bg-green-500', icon: Shield },
-                  { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length, color: 'bg-purple-500', icon: CheckCircle },
-                  { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, color: 'bg-yellow-500', icon: CreditCard },
-                  { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, color: 'bg-red-500', icon: AlertCircle }
-                ].map((stat, i) => (
-                  <div key={i} className="bg-gray-50/50 p-4 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all h-full">
-                    <div className={`w-10 h-10 md:w-14 md:h-14 ${stat.color} rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-2 md:mb-4 group-hover:scale-110 transition-transform`}>
-                      <stat.icon size={20} className="md:w-7 md:h-7" />
+                  { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'from-orange-400 to-orange-500' },
+                  { id: 'users', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500' },
+                  { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'from-emerald-400 to-emerald-500' },
+                  { id: 'academic', label: 'Jadwal', icon: Calendar, color: 'from-pink-400 to-pink-500' },
+                  { id: 'academic', label: 'Materi', icon: BookOpen, color: 'from-blue-400 to-blue-500' },
+                  { id: 'attendance', label: 'Jurnal', icon: FileText, color: 'from-cyan-400 to-cyan-500' },
+                  { id: 'academic', label: 'Penilaian', icon: TrendingUp, color: 'from-indigo-400 to-indigo-500' },
+                  { id: 'users', label: 'Guru', icon: Shield, color: 'from-teal-400 to-teal-500' },
+                  { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'from-amber-400 to-amber-500' },
+                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'from-blue-500 to-blue-600' },
+                  { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-400 to-gray-500' },
+                ].map((item, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setActiveTab(item.id)}
+                    className="group flex flex-col items-center gap-3 transition-all"
+                  >
+                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-opacity-20 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                      <item.icon size={28} className="md:w-10 md:h-10" />
                     </div>
-                    <p className="text-gray-400 text-[8px] md:text-xs font-black uppercase tracking-widest mb-1 leading-tight">{stat.label}</p>
-                    <h4 className="text-sm md:text-xl xl:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
-                  </div>
+                    <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
+                  </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Siswa Berprestasi Section */}
-            <div className="card-3d p-6 md:p-8 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div>
-                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight flex items-center gap-3">
-                    <TrendingUp className="text-yellow-500" /> Siswa Berprestasi
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-widest">Peringkat berdasarkan nilai rata-rata raport</p>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
-                  {['Semua', ...schoolClasses.map(c => c.name)].map((cls) => (
-                    <button
-                      key={cls}
-                      onClick={() => setRankingClassFilter(cls)}
-                      className={`whitespace-nowrap px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${rankingClassFilter === cls ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      {cls}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {(() => {
-                  let students = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
-                  if (rankingClassFilter !== 'Semua') {
-                    students = students.filter(s => (s.kelas || '').toUpperCase() === rankingClassFilter.toUpperCase());
-                  }
-                  
-                  const ranked = students.map(s => {
-                    const sProgress = progressData.filter(p => p.studentId === s.id);
-                    const avgScore = sProgress.length > 0 
-                      ? sProgress.reduce((acc, p) => acc + (Number(p.score) || 0), 0) / sProgress.length 
-                      : 0;
-                    return { ...s, avgScore };
-                  }).sort((a, b) => b.avgScore - a.avgScore).slice(0, 3);
-
-                  if (ranked.length === 0) {
-                    return <div className="col-span-full py-12 text-center text-gray-400 italic">Belum ada data prestasi untuk filter ini.</div>;
-                  }
-
-                  return ranked.map((s, idx) => (
-                    <div key={s.id} className={`relative p-6 rounded-[2.5rem] border ${idx === 0 ? 'bg-yellow-50 border-yellow-100' : 'bg-gray-50 border-gray-100'} flex items-center gap-4 group hover:scale-[1.02] transition-all`}>
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${
-                        idx === 0 ? 'bg-yellow-500 text-white' : 
-                        idx === 1 ? 'bg-gray-300 text-gray-700' : 
-                        'bg-orange-300 text-orange-800'
-                      } shadow-lg shadow-opacity-20`}>
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-gray-800 truncate">{s.name}</h4>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest truncate">{s.kelas || 'N/A'}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="h-1.5 flex-1 bg-white rounded-full overflow-hidden">
-                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${s.avgScore}%` }}></div>
-                          </div>
-                          <span className="text-xs font-black text-yellow-600">{s.avgScore.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      {idx === 0 && (
-                        <div className="absolute -top-2 -right-2 text-3xl animate-bounce">🏆</div>
-                      )}
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-              <div className="lg:col-span-2 card-3d overflow-hidden">
-                <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">Peluncur Aktivitas Terbaru</h3>
-                  <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Lihat Semua</button>
-                </div>
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left whitespace-nowrap">
-                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                      <tr>
-                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-l-xl">Siswa</th>
-                        <th className="px-4 py-3 md:px-6 md:py-4">Waktu</th>
-                        <th className="px-4 py-3 md:px-6 md:py-4">Status</th>
-                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-r-xl">Lokasi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {attendance.slice(0, 10).map((a) => {
-                        const student = allUsers.find(u => u.id === a.studentId);
-                        return (
-                          <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-4 py-3 md:px-6 md:py-4">
-                              <div className="font-bold text-gray-800 text-sm md:text-base">{student?.name || 'Unknown'}</div>
-                              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">{student?.email}</div>
-                            </td>
-                            <td className="px-4 py-3 md:px-6 md:py-4">
-                              <div className="text-xs md:text-sm font-bold text-gray-600">{a.date}</div>
-                              <span className="text-[10px] text-gray-400 font-bold uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
-                            </td>
-                            <td className="px-4 py-3 md:px-6 md:py-4">
-                              <span className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                {a.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 md:px-6 md:py-4">
-                              {a.location?.latitude ? (
-                                <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noreferrer" className="w-8 h-8 md:w-10 md:h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all">
-                                  <MapPin size={16} />
-                                </a>
-                              ) : (
-                                <span className="text-[10px] text-gray-400 italic">No Loc</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {attendance.length === 0 && (
-                         <tr>
-                          <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile View Peluncur Aktivitas */}
-                <div className="md:hidden divide-y divide-gray-100">
-                  {attendance.slice(0, 10).map((a) => {
-                    const student = allUsers.find(u => u.id === a.studentId);
-                    return (
-                      <div key={a.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-bold text-gray-800 text-sm">{student?.name || 'Unknown'}</p>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest">{student?.email}</p>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {a.status}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center bg-gray-50 p-2.5 border border-gray-100 rounded-lg">
-                           <div>
-                             <p className="text-xs font-bold text-gray-700">{a.date}</p>
-                             <p className="text-[10px] text-gray-400 uppercase tracking-widest">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</p>
-                           </div>
-                           {a.location?.latitude ? (
-                             <a href={`https://www.google.com/maps?q=${a.location.latitude},${a.location.longitude}`} target="_blank" rel="noreferrer" className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all">
-                               <MapPin size={14} />
-                             </a>
-                           ) : (
-                             <span className="text-[10px] text-gray-400 italic">No Loc</span>
-                           )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {attendance.length === 0 && (
-                    <div className="p-6 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-6 md:space-y-8">
-                <div className="card-3d p-6 md:p-8">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center gap-2">
-                    <Settings size={20} className="text-blue-500" /> Pengaturan Sekolah
-                  </h3>
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="block text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Sekolah</label>
-                      <input 
-                        type="text" 
-                        value={settings.schoolName || ''} 
-                        onChange={(e) => setSettings({...settings, schoolName: e.target.value})} 
-                        onBlur={async (e) => {
-                          try {
-                            await setDoc(doc(db, 'settings', 'landingPage'), {...settings, schoolName: e.target.value}, { merge: true });
-                          } catch(err) {
-                            console.error(err);
-                          }
-                        }}
-                        placeholder="Contoh: SD Negeri 1"
-                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
-                      />
-                    </div>
-                  </div>
-                  <div className="aspect-video bg-gray-50 rounded-2xl md:rounded-[24px] border border-dashed border-gray-200 flex flex-col items-center justify-center gap-3 relative group overflow-hidden">
-                    {settings.logoUrl ? (
-                      <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2 md:p-4" referrerPolicy="no-referrer" />
-                    ) : (
-                      <Upload size={28} className="text-gray-300" />
-                    )}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <label className="cursor-pointer text-[10px] md:text-xs font-bold text-white uppercase tracking-widest border border-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl hover:bg-white/20 transition-colors">
-                        Ganti Logo
-                        <input type="file" accept="image/*" onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                             const reader = new FileReader();
-                             reader.onloadend = async () => {
-                               const result = reader.result as string;
-                               try {
-                                 const compressed = await compressImage(result, 600, 600, 0.7);
-                                 setSettings({...settings, logoUrl: compressed});
-                                 await setDoc(doc(db, 'settings', 'landingPage'), {...settings, logoUrl: compressed}, { merge: true });
-                               } catch (error) {
-                                  console.error(error);
-                               }
-                             };
-                             reader.readAsDataURL(file);
-                          }
-                        }} className="hidden" />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-indigo-600 rounded-[32px] md:rounded-[40px] p-6 md:p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                  <h3 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center gap-2 opacity-90 tracking-tight"><Megaphone size={20} /> Pengumuman</h3>
-                  {announcements.length > 0 ? (
-                    <div>
-                      <h4 className="font-bold text-base md:text-lg mb-2 line-clamp-1">{announcements[0].title}</h4>
-                      <p className="text-indigo-100/70 text-xs md:text-sm line-clamp-2 md:line-clamp-3 leading-relaxed mb-4 md:mb-6">{announcements[0].content}</p>
-                      <button onClick={() => setActiveTab('announcements')} className="w-full py-2.5 md:py-3 bg-white/10 hover:bg-white/20 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-[2px] transition-all">Kelola Info</button>
-                    </div>
-                  ) : (
-                    <p className="text-indigo-100/50 text-xs md:text-sm italic mb-4">Belum ada pengumuman.</p>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -1966,9 +1788,13 @@ export default function DashboardAdmin() {
                  </thead>
                 <tbody className="divide-y divide-gray-100">
                   {allUsers.filter(u => {
-                    const matchKelas = filterKelas ? (u.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                    if (!filterKelas) return true;
+                    const uK = (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    return uK.includes(fK) || fK.includes(uK);
+                  }).filter(u => {
                     const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
-                    return matchKelas && matchName;
+                    return matchName;
                   }).map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
@@ -2014,7 +1840,7 @@ export default function DashboardAdmin() {
             {/* Mobile View User Management */}
             <div className="md:hidden divide-y divide-gray-100">
               {allUsers.filter(u => {
-                const matchKelas = filterKelas ? (u.kelas || '').toLowerCase() === filterKelas.toLowerCase() : true;
+                const matchKelas = filterKelas ? (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
                 const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
                 return matchKelas && matchName;
               }).map((u) => (
@@ -2206,7 +2032,7 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
+                    {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, ''))) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
                       <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <input 
@@ -2252,9 +2078,8 @@ export default function DashboardAdmin() {
                 </table>
               </div>
 
-              {/* Mobile View Academic */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
+                {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, ''))) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).map(student => (
                   <div key={student.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div className="flex gap-3">
@@ -2449,7 +2274,11 @@ export default function DashboardAdmin() {
                       .filter(a => {
                         const student = allUsers.find(u => u.id === a.studentId);
                         if (filterRole !== 'semua' && student?.role !== filterRole) return false;
-                        if (filterKelas && student?.role === 'siswa' && (student?.kelas || '').toLowerCase() !== filterKelas.toLowerCase()) return false;
+                        if (filterKelas && student?.role === 'siswa') {
+                          const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                          const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+                          if (!uK.includes(fK) && !fK.includes(uK)) return false;
+                        }
                         if (filterDateStart && a.date < filterDateStart) return false;
                         if (filterDateEnd && a.date > filterDateEnd) return false;
                         return true;

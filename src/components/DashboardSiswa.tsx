@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -777,149 +777,181 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem] overflow-x-auto">
-        {[
-          { id: 'overview', icon: Calendar, label: 'Beranda' },
-          { id: 'progress', icon: BookOpen, label: 'Laporan' },
-          { id: 'hafalan', icon: Star, label: 'Hafalan' },
-          { id: 'attendance', icon: CheckCircle, label: 'Absensi' },
-          { id: 'announcements', icon: Bell, label: 'Info' },
-          { id: 'administration', icon: CreditCard, label: 'Admin' },
-          { id: 'profile', icon: User, label: 'Profil' },
-        ].map(item => (
-          <button 
-            key={item.id}
-            onClick={() => setActiveTab(item.id)} 
-            className={`flex flex-col items-center gap-1 p-0.5 transition-all ${activeTab === item.id ? 'text-green-600' : 'text-gray-400'}`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'hover:bg-gray-50'}`}>
-              <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
-            </div>
-            <span className={`text-[7px] font-black uppercase tracking-[0.5px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
-          </button>
-        ))}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all">
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
+            <BarChartIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
+        </button>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
+           <div className={`w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
+            <User size={28} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
+        </button>
+        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-400">
+          <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
+            <LogOut size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Logout</span>
+        </button>
       </div>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-          <div className="flex-1">
-            <h2 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">Halo, {userData?.name || 'Siswa'}!</h2>
-            <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-2xl">
-              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-              <p className="text-xs md:text-sm text-green-700 font-bold italic">"{quote}"</p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <button 
-              onClick={startCamera}
-              className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
-            >
-              <Camera size={20} /> Absen Sekarang
-            </button>
-            <button 
-              onClick={() => setActiveTab('progress')}
-              className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-            >
-              <BookOpen size={20} /> Lihat Laporan
-            </button>
-          </div>
-        </header>
-
         {activeTab === 'overview' && (
-          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
-            {/* Top Stat Bubbles for Unified UI */}
-            <div className="card-3d p-6 md:p-8">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                {[
-                  { label: 'Total Kehadiran', value: attendance.length, color: 'bg-blue-500', icon: CheckCircle },
-                  { label: 'Laporan Belajar', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                  { label: 'Pengumuman', value: announcements.filter(a => !a.target || a.target === 'all' || a.target === `kelas_${userData?.kelas || ''}`).length, color: 'bg-purple-500', icon: Bell },
-                  { label: 'Absensi Hari Ini', value: attendance.filter(a => a.date === new Date().toISOString().split('T')[0]).length > 0 ? 'Hadir' : '-', color: 'bg-orange-500', icon: Clock },
-                ].map((stat, idx) => (
-                  <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
-                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
-                      <stat.icon size={24} className="md:w-7 md:h-7" />
+          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+            {/* Mobile Header */}
+            <div className="md:hidden -mx-4 -mt-3 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+              <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
+                <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
+                   <Menu size={20} />
+                </button>
+                <div className="text-center">
+                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md">SIMANDU</h1>
+                  <p className="text-[8px] font-black tracking-[0.2em] opacity-80 uppercase -mt-1">Sistem Manajemen Terpadu</p>
+                </div>
+                <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative">
+                  <Bell size={20} />
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/10 p-5 rounded-[2.5rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl">
+                <div className="w-16 h-16 rounded-full border-4 border-white/30 overflow-hidden bg-white shadow-inner flex items-center justify-center p-2">
+                   <img src={userData?.photoURL || (settings?.logoUrl || '/logo.png')} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mb-0.5">Welcome, Student</p>
+                  <h2 className="text-xl font-black tracking-tight leading-tight truncate">{userData?.name || 'Siswa RA'}</h2>
+                  <p className="text-[9px] opacity-70 font-bold uppercase tracking-tighter truncate">Kelas {userData?.kelas || '-'} • {settings?.schoolName || 'RA Darusyifa'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Header */}
+            <header className="hidden md:flex justify-between items-center mb-8 pt-2">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-800 leading-tight tracking-tight underline decoration-blue-500 decoration-4 underline-offset-8 uppercase italic">Beranda</h2>
+                <p className="text-gray-500 text-sm font-medium mt-4">Halo {userData?.name}, pantau laporan belajarmu hari ini.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                 <button onClick={() => setActiveTab('announcements')} className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-blue-600 transition-all relative">
+                    <Bell size={24} />
+                    <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                 </button>
+                 <div className="bg-white p-2 pr-6 rounded-full border border-gray-100 shadow-sm flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-600 text-white overflow-hidden border border-gray-100">
+                      {userData?.photoURL ? (
+                        <img src={userData.photoURL} alt="P" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-black text-lg">{userData?.name?.[0] || 'S'}</span>
+                      )}
                     </div>
-                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                    <h4 className="text-lg md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
+                    <div>
+                      <p className="text-xs font-black text-gray-800 leading-tight">{userData?.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Siswa • Kelas {userData?.kelas}</p>
+                    </div>
+                 </div>
+              </div>
+            </header>
+
+            {/* Stats Cards Section */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {[
+                { label: 'Kehadiran', value: attendance.length, detail: 'Hadir Semester Ini', color: 'from-blue-500 to-indigo-600', icon: CheckCircle },
+                { label: 'Laporan Belajar', value: progress.length, detail: 'Hasil Evaluasi', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Hafalan Lulus', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Materi Selesai', color: 'from-amber-400 to-orange-500', icon: Star },
+                { label: 'Sisa SPP', value: 'RP 0', detail: 'Tagihan Berjalan', color: 'from-rose-500 to-pink-600', icon: CreditCard }
+              ].map((stat, i) => (
+                <div key={i} className={`relative overflow-hidden bg-gradient-to-br ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-opacity-20 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                    <stat.icon size={100} />
                   </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
+                    <h4 className="text-3xl font-black tracking-tighter truncate">{stat.value}</h4>
+                  </div>
+                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                    {stat.detail}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Menu Utama Siswa Grid */}
+            <div className="mt-10">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1.5 h-8 bg-blue-600 rounded-full"></div>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Menu Utama</h3>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
+                {[
+                  { id: 'progress', label: 'Hasil Pembelajaran', icon: GraduationCap, color: 'from-purple-400 to-purple-500' },
+                  { id: 'hafalan', label: 'Modul Hafalan', icon: Star, color: 'from-amber-400 to-amber-500' },
+                  { id: 'administration', label: 'Administrasi', icon: CreditCard, color: 'from-emerald-400 to-emerald-500' },
+                  { id: 'attendance', label: 'Absensi', icon: Camera, color: 'from-rose-400 to-rose-500' },
+                  { id: 'announcements', label: 'Info Sekolah', icon: Megaphone, color: 'from-blue-500 to-blue-600' },
+                  { id: 'profile', label: 'Profil Saya', icon: User, color: 'from-indigo-400 to-indigo-500' },
+                ].map((item, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setActiveTab(item.id)}
+                    className="group flex flex-col items-center gap-3 transition-all"
+                  >
+                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-opacity-20 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                      <item.icon size={28} className="md:w-10 md:h-10" />
+                    </div>
+                    <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* Riwayat Absensi Terakhir */}
-            <div className="card-3d overflow-hidden">
-               <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                 <h3 className="text-lg md:text-xl font-bold text-gray-800">Riwayat Kehadiran Terakhir</h3>
-                <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-green-600 hover:text-green-700 uppercase tracking-widest">Kehadiran Lengkap</button>
-               </div>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap">
-                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                      <tr>
-                       <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
-                       <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
-                        <th className="px-6 py-4 md:px-8 md:py-5">Foto</th>
-                        <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-50">
-                      {attendance.slice(0, 3).map((a) => (
-                        <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
-                         <td className="px-6 py-4 md:px-8 md:py-6 font-medium text-gray-700">{a.date}</td>
-                          <td className="px-6 py-4 md:px-8 md:py-6 text-gray-500 text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
-                          <td className="px-6 py-4 md:px-8 md:py-6">
-                            {a.photo ? (
-                              <button onClick={() => setSelectedPhoto(a.photo)} className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 shadow-sm hover:scale-110 transition-transform">
-                                <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
-                              </button>
-                            ) : (
-                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-300">
-                                <Camera size={16} />
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 md:px-8 md:py-6">
-                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
-                        </td>
-                      </tr>
+            {/* Recent Info & Attendance */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+               <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-gray-800">Info Terbaru</h3>
+                     <button onClick={() => setActiveTab('announcements')} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">Semua</button>
+                  </div>
+                  <div className="space-y-4">
+                     {announcements.filter(a => !a.target || a.target === 'all' || a.target === `kelas_${userData?.kelas}`).slice(0, 3).map((a) => (
+                        <div key={a.id} className="p-5 bg-gray-50 rounded-3xl border border-gray-100 hover:bg-gray-100/50 transition-colors cursor-pointer" onClick={() => setActiveTab('announcements')}>
+                           <h4 className="font-bold text-gray-800 line-clamp-1">{a.title}</h4>
+                           <p className="text-xs text-gray-400 mt-1 line-clamp-1">{a.content.replace(/[#*]/g, '')}</p>
+                        </div>
                      ))}
-                     {attendance.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="px-8 py-20 text-center text-gray-400 italic">Belum ada riwayat absensi.</td>
-                      </tr>
-                     )}
-                   </tbody>
-                 </table>
+                     {announcements.length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Belum ada pengumuman.</p>}
+                  </div>
                </div>
 
-               {/* Mobile View Kehadiran Terakhir */}
-               <div className="md:hidden divide-y divide-gray-50 border-t border-gray-50">
-                  {attendance.slice(0, 3).map((a) => (
-                    <div key={a.id} className="p-4 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
-                      <div className="flex gap-4 items-center">
-                        {a.photo ? (
-                          <button onClick={() => setSelectedPhoto(a.photo)} className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 shadow-sm shrink-0">
-                            <img src={a.photo} alt="Absen" className="w-full h-full object-cover" />
-                          </button>
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 shrink-0">
-                            <Camera size={16} />
-                          </div>
-                        )}
-                        <div>
-                           <p className="font-bold text-gray-800 text-sm">{a.date}</p>
-                           <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
+               <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-gray-800">Kehadiran Terakhir</h3>
+                     <button onClick={() => setActiveTab('attendance')} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">Absensi</button>
+                  </div>
+                  <div className="space-y-4">
+                     {attendance.slice(0, 4).map((a) => (
+                        <div key={a.id} className="flex items-center justify-between p-4 bg-blue-50/50 rounded-3xl border border-blue-100">
+                           <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm">
+                                 <Clock size={20} />
+                              </div>
+                              <div>
+                                 <p className="font-bold text-gray-800">{a.date}</p>
+                                 <p className="text-[10px] text-gray-400 font-black uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
+                              </div>
+                           </div>
+                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {a.status}
+                           </span>
                         </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
-                    </div>
-                  ))}
-                  {attendance.length === 0 && (
-                    <div className="p-8 text-center text-gray-400 italic">Belum ada riwayat absensi.</div>
-                  )}
+                     ))}
+                     {attendance.length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Belum ada riwayat absen.</p>}
+                  </div>
                </div>
             </div>
           </div>
@@ -1016,6 +1048,19 @@ export default function DashboardSiswa() {
                   <option value="Doa Sehari-hari">Doa Sehari-hari</option>
                   <option value="Bacaan Sholat">Bacaan Sholat</option>
                 </select>
+              </div>
+
+              {/* Quick Category Tabs */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {['Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterHafalanCategorySiswa(cat)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterHafalanCategorySiswa === cat ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1197,10 +1242,31 @@ export default function DashboardSiswa() {
         )}
 
         {activeTab === 'attendance' && (
-          <div className="card-3d overflow-hidden animate-in slide-in-from-bottom duration-500">
-            <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-800">Riwayat Absensi Lengkap</h3>
+          <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+            {/* Quick Action: Absen Sekarang */}
+            <div className="card-3d p-8 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+               <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+                  <div className="space-y-2">
+                     <h3 className="text-2xl md:text-3xl font-black tracking-tight">Presensi Mandiri</h3>
+                     <p className="text-blue-100 font-medium">Lakukan absensi harianmu dengan foto wajah sekarang.</p>
+                  </div>
+                  <button 
+                    onClick={startCamera}
+                    className="group bg-white text-blue-600 px-10 py-5 rounded-[32px] font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-4 active:scale-95"
+                  >
+                    <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                       <Camera size={24} />
+                    </div>
+                    Mulai Absen
+                  </button>
+               </div>
             </div>
+
+            <div className="card-3d overflow-hidden">
+              <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-800">Riwayat Absensi</h3>
+              </div>
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left whitespace-nowrap">
                 <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
@@ -1268,6 +1334,7 @@ export default function DashboardSiswa() {
                )}
             </div>
           </div>
+        </div>
         )}
 
         {activeTab === 'administration' && (

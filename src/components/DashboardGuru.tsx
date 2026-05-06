@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -679,158 +679,189 @@ export default function DashboardGuru() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-3d flex justify-around items-center p-3 z-50 pb-safe rounded-t-[2.5rem] overflow-x-auto">
-        {[
-          { id: 'overview', icon: CheckCircle, label: 'Beranda' },
-          { id: 'subjects', icon: TrendingUp, label: 'Mapel' },
-          { id: 'progress', icon: BookOpen, label: 'Laporan' },
-          { id: 'hafalan', icon: Star, label: 'Hafalan' },
-          { id: 'attendance', icon: Camera, label: 'Absen' },
-          { id: 'announcements', icon: Bell, label: 'Info' },
-          { id: 'profile', icon: User, label: 'Profil' },
-        ].map(item => (
-          <button 
-            key={item.id}
-            onClick={() => setActiveTab(item.id)} 
-            className={`flex flex-col items-center gap-1 p-0.5 transition-all ${activeTab === item.id ? 'text-blue-600' : 'text-gray-400'}`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'hover:bg-gray-50'}`}>
-              <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 2} />
-            </div>
-            <span className={`text-[7px] font-black uppercase tracking-[0.5px] transition-all duration-300 ${activeTab === item.id ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-1 h-0'}`}>{item.label}</span>
-          </button>
-        ))}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all">
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
+            <BarChartIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
+        </button>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
+           <div className={`w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
+            <User size={28} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
+        </button>
+        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-400">
+          <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
+            <LogOut size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Logout</span>
+        </button>
       </div>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Selamat Datang, Guru!</h2>
-            <p className="text-gray-500 text-sm">Kelola perkembangan belajar siswa RA Darusyifa Arjawinangun.</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <button 
-              onClick={startCamera}
-              className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
-            >
-              <Camera size={20} /> Absen Sekarang
-            </button>
-            <button 
-              onClick={() => setShowProgressModal(true)}
-              className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-            >
-              <Plus size={20} /> Buat Laporan Baru
-            </button>
-          </div>
-        </header>
-
         {activeTab === 'overview' && (
-          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
-            <div className="card-3d p-6 md:p-8">
-               <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Aktivitas</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                {[
-                  { label: 'Total Siswa', value: students.length, color: 'bg-blue-500', icon: Users },
-                  { label: 'Laporan Dibuat', value: progress.length, color: 'bg-green-500', icon: BookOpen },
-                  { label: 'Pengumuman', value: announcements.filter(a => !a.target || a.target === 'all' || a.target === 'guru').length, color: 'bg-orange-500', icon: Bell },
-                  { label: 'Total Absensi', value: attendance.length, color: 'bg-purple-500', icon: Clock },
-                ].map((stat, idx) => (
-                  <div key={idx} className="bg-gray-50/50 p-6 md:p-8 rounded-[24px] md:rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center group hover:bg-white hover:shadow-xl hover:shadow-gray-200/50 transition-all">
-                    <div className={`w-12 h-12 md:w-14 md:h-14 ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-opacity-20 mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
-                      <stat.icon size={24} className="md:w-7 md:h-7" />
+          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+            {/* Mobile Header */}
+            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+              <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
+                <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
+                   <Menu size={20} />
+                </button>
+                <div className="text-center">
+                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md">SIMANDU</h1>
+                  <p className="text-[8px] font-black tracking-[0.2em] opacity-80 uppercase -mt-1">Sistem Manajemen Terpadu</p>
+                </div>
+                <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative">
+                  <Bell size={20} />
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/10 p-5 rounded-[2.5rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl">
+                <div className="w-16 h-16 rounded-full border-4 border-white/30 overflow-hidden bg-white shadow-inner flex items-center justify-center p-2">
+                   <img src={settings?.logoUrl || '/logo.png'} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mb-0.5">Selamat Datang, Guru</p>
+                  <h2 className="text-xl font-black tracking-tight leading-tight truncate">{userData?.name || 'Guru Pengajar'}</h2>
+                  <p className="text-[9px] opacity-70 font-bold uppercase tracking-tighter truncate">{userData?.role} • {settings?.schoolName || 'RA Darusyifa'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Header */}
+            <header className="hidden md:flex justify-between items-center mb-8 pt-2">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-800 leading-tight tracking-tight underline decoration-blue-500 decoration-4 underline-offset-8 uppercase italic">Beranda</h2>
+                <p className="text-gray-500 text-sm font-medium mt-4">Kelola perkembangan belajar siswa secara efisien.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                 <button onClick={() => setActiveTab('announcements')} className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-blue-600 transition-all relative">
+                    <Bell size={24} />
+                    <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                 </button>
+                 <div className="bg-white p-2 pr-6 rounded-full border border-gray-100 shadow-sm flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-lg">
+                      {userData?.name?.[0] || 'G'}
                     </div>
-                    <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                    <h4 className="text-xl md:text-2xl font-black text-gray-800 tracking-tight">{stat.value}</h4>
+                    <div>
+                      <p className="text-xs font-black text-gray-800 leading-tight">{userData?.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Guru Pengajar</p>
+                    </div>
+                 </div>
+              </div>
+            </header>
+
+            {/* Stats Section */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              {[
+                { label: 'Jumlah Siswa', value: students.length, detail: 'Aktif Tahun Ini', color: 'from-purple-500 to-indigo-600', icon: Users },
+                { label: 'Laporan Belajar', value: progress.length, detail: 'Telah Dibuat', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Hafalan Siswa', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Lulus Materi', color: 'from-amber-400 to-orange-500', icon: Star },
+                { label: 'Absensi Saya', value: attendance.filter(a => a.studentId === user?.uid).length, detail: 'Total Kehadiran', color: 'from-rose-500 to-pink-600', icon: CheckCircle }
+              ].map((stat, i) => (
+                <div key={i} className={`relative overflow-hidden bg-gradient-to-br ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-opacity-20 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                    <stat.icon size={100} />
                   </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
+                    <h4 className="text-4xl font-black tracking-tighter">{stat.value}</h4>
+                  </div>
+                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                    {stat.detail}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Menu Utama - Guru Pattern */}
+            <div className="mt-10">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1.5 h-8 bg-blue-600 rounded-full"></div>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Menu Utama</h3>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
+                {[
+                  { id: 'students', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500' },
+                  { id: 'subjects', label: 'Penilaian', icon: TrendingUp, color: 'from-orange-400 to-orange-500' },
+                  { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'from-blue-400 to-blue-500' },
+                  { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'from-amber-400 to-amber-500' },
+                  { id: 'attendance', label: 'Absensi', icon: Camera, color: 'from-emerald-400 to-emerald-500' },
+                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'from-blue-500 to-blue-600' },
+                  { id: 'profile', label: 'Profil', icon: User, color: 'from-indigo-400 to-indigo-500' },
+                ].map((item, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setActiveTab(item.id)}
+                    className="group flex flex-col items-center gap-3 transition-all"
+                  >
+                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-opacity-20 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                      <item.icon size={28} className="md:w-10 md:h-10" />
+                    </div>
+                    <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
+                  </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              {/* Riwayat Absensi Terakhir */}
-              <div className="card-3d p-6 md:p-8 overflow-hidden">
-                <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><Clock size={20} className="text-blue-500"/> Kehadiran Saya Terakhir</h3>
-                  <button onClick={() => setActiveTab('attendance')} className="text-[10px] md:text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest">Detail</button>
-                </div>
-                <div className="hidden md:block overflow-x-auto">
-                   <table className="w-full text-left whitespace-nowrap">
-                    <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                       <tr>
-                        <th className="px-4 py-3 md:px-6 md:py-4 rounded-l-xl">Tanggal</th>
-                        <th className="px-4 py-3 md:px-6 md:py-4">Waktu</th>
-                         <th className="px-4 py-3 md:px-6 md:py-4 rounded-r-xl">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                       {attendance.slice(0, 4).map((a) => (
-                         <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-gray-700 text-sm md:text-base">{a.date}</td>
-                           <td className="px-4 py-3 md:px-6 md:py-4 text-gray-500 text-xs md:text-sm">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</td>
-                           <td className="px-4 py-3 md:px-6 md:py-4">
-                              <span className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
-                          </td>
-                        </tr>
-                       ))}
-                       {attendance.length === 0 && (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-12 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</td>
-                        </tr>
-                       )}
-                     </tbody>
-                   </table>
-                 </div>
+            {/* Middle Section: Recent Laporan & Hafalan Review */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+               <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-gray-800">Laporan Terakhir</h3>
+                     <button onClick={() => setActiveTab('progress')} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">Semua</button>
+                  </div>
+                  <div className="space-y-4">
+                     {progress.slice(0, 4).map((p) => {
+                        const s = students.find(st => st.id === p.studentId);
+                        return (
+                          <div key={p.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-3xl border border-gray-100">
+                             <div className="min-w-0">
+                                <p className="font-bold text-gray-800 truncate">{s?.name || 'Siswa'}</p>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter truncate">{p.title}</p>
+                             </div>
+                             <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${p.status === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                {p.status || 'Aktif'}
+                             </div>
+                          </div>
+                        );
+                     })}
+                     {progress.length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Belum ada laporan belajar.</p>}
+                  </div>
+               </div>
 
-                 {/* Mobile View Kehadiran */}
-                 <div className="md:hidden divide-y divide-gray-50 border-t border-gray-50">
-                    {attendance.slice(0, 4).map((a) => (
-                      <div key={a.id} className="p-4 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
-                        <div>
-                           <p className="font-bold text-gray-800 text-sm">{a.date}</p>
-                           <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
-                      </div>
-                    ))}
-                    {attendance.length === 0 && (
-                      <div className="p-6 text-center text-gray-400 italic text-sm">Belum ada riwayat absensi.</div>
-                    )}
-                 </div>
-              </div>
-
-              {/* Laporan Belajar Terakhir */}
-              <div className="card-3d p-6 md:p-8 overflow-hidden">
-                <div className="flex justify-between items-center mb-6 md:mb-8 pb-4 border-b border-gray-50">
-                  <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><BookOpen size={20} className="text-green-500"/> Laporan Terakhir</h3>
-                  <button onClick={() => setActiveTab('progress')} className="text-[10px] md:text-xs font-bold text-green-600 hover:underline uppercase tracking-widest">Detail</button>
-                </div>
-                 <div className="space-y-4">
-                  {progress.slice(0, 4).map(p => {
-                     const student = students.find(s => s.id === p.studentId);
-                     return (
-                      <div key={p.id} className="p-4 md:p-5 bg-gray-50 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-gray-100 transition-colors">
-                        <div>
-                           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{p.category}</p>
-                           <h4 className="font-bold text-gray-800 text-sm md:text-base">{p.title}</h4>
-                           <p className="text-xs text-gray-500 mt-0.5">Siswa: {student?.name || 'Unknown'}</p>
-                        </div>
-                        <span className={`self-start md:self-center px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${
-                           p.status === 'Lulus' ? 'bg-green-100 text-green-700' :
-                           p.status === 'Mengulang' ? 'bg-red-100 text-red-700' :
-                           p.status === 'Lanjut Perkembangan Lain' ? 'bg-purple-100 text-purple-700' :
-                           'bg-yellow-100 text-yellow-700'
-                         }`}>
-                           {p.status || 'Belum Lulus'}
-                         </span>
-                      </div>
-                     );
-                  })}
-                  {progress.length === 0 && (
-                     <div className="text-center text-gray-400 italic py-12 text-sm">Belum ada laporan belajar dibuat.</div>
-                  )}
-                 </div>
-              </div>
+               <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-gray-800">Antrian Hafalan</h3>
+                     <button onClick={() => setActiveTab('hafalan')} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">Review</button>
+                  </div>
+                  <div className="space-y-4">
+                     {hafalanProgress.filter(h => h.isReadyForTest).slice(0, 4).map((h) => {
+                        const s = students.find(st => st.id === h.studentId);
+                        const mat = hafalanMaterials.find(m => m.id === h.materialId);
+                        return (
+                          <div key={h.id} className="flex items-center gap-4 p-4 bg-blue-50/50 rounded-3xl border border-blue-100">
+                             <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                                <Star size={20} fill="currentColor" />
+                             </div>
+                             <div className="min-w-0 flex-1">
+                                <p className="font-bold text-gray-800 truncate">{s?.name || 'Siswa'}</p>
+                                <p className="text-[10px] text-blue-600 font-black uppercase tracking-tighter truncate">{mat?.judul || 'Materi'}</p>
+                             </div>
+                             <button onClick={() => { setEvaluateHafalan(h); setShowHafalanModal(true); }} className="p-2 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-100">
+                                <CheckCircle size={18} />
+                             </button>
+                          </div>
+                        );
+                     })}
+                     {hafalanProgress.filter(h => h.isReadyForTest).length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Tidak ada antrian setoran.</p>}
+                  </div>
+               </div>
             </div>
           </div>
         )}
@@ -1048,10 +1079,8 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <select value={filterKelasHafalan} onChange={e => setFilterKelasHafalan(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
                   <option value="">Semua Kelas</option>
-                  {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  <option value="Utsman (Semester 1)">Utsman (Semester 1)</option>
-                  <option value="Utsman (Semester 2)">Utsman (Semester 2)</option>
-                  <option value="Umar Bin Khattab">Umar Bin Khattab</option>
+                  <option value="Utsman">Utsman</option>
+                  <option value="Umar Bin Khattab">Umar</option>
                 </select>
                 <select value={filterHafalanStatus} onChange={e => setFilterHafalanStatus(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
                   <option value="Semua">Semua Status</option>
@@ -1070,7 +1099,12 @@ export default function DashboardGuru() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              {students.filter(s => filterKelasHafalan ? s.kelas === filterKelasHafalan : true).filter(student => {
+              {students.filter(s => {
+                if (!filterKelasHafalan) return true;
+                const uK = (s.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const fK = filterKelasHafalan.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return uK.includes(fK) || fK.includes(uK);
+              }).filter(student => {
                 const sp = hafalanProgress.filter(p => p.studentId === student.id);
                 
                 if (filterHafalanStatus === 'Menunggu Evaluasi') {
@@ -1295,7 +1329,19 @@ export default function DashboardGuru() {
                     <h4 className="font-bold text-gray-800">{s.name}</h4>
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Kategori Perkembangan</p>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                    <button 
+                      onClick={() => {
+                        setSelectedStudent('');
+                        setProgressTitle(`Penilaian ${s.name}`);
+                        setProgressCategory(s.name);
+                        setProgressDate(new Date().toISOString().split('T')[0]);
+                        setShowProgressModal(true);
+                      }}
+                      className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all mr-2"
+                    >
+                      Beri Nilai
+                    </button>
                     <button 
                       onClick={() => { setEditingSubject(s); setNewSubjectName(s.name); setShowSubjectModal(true); }}
                       className="p-2 text-gray-400 hover:text-blue-600"
