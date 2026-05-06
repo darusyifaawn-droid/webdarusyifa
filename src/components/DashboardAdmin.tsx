@@ -1511,9 +1511,6 @@ export default function DashboardAdmin() {
             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
           </div>
         </div>
-        <button onClick={() => auth.signOut()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-          <LogOut size={20} />
-        </button>
       </div>
 
       {/* Sidebar (Desktop) */}
@@ -1563,7 +1560,7 @@ export default function DashboardAdmin() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8 scrolling-touch">
         {showPrintRapotModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
@@ -1681,12 +1678,12 @@ export default function DashboardAdmin() {
             {/* Stats Cards Section */}
             <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
               {[
-                { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'from-purple-500 to-indigo-600', icon: Users },
-                { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, detail: 'Saldo Sekolah', color: 'from-amber-400 to-orange-500', icon: CreditCard },
-                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, detail: 'Tagihan Berjalan', color: 'from-rose-500 to-pink-600', icon: AlertCircle }
+                { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
+                { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, detail: 'Saldo Sekolah', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
+                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
               ].map((stat, i) => (
-                <div key={i} className={`relative overflow-hidden bg-gradient-to-br ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-opacity-20 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
@@ -1726,7 +1723,7 @@ export default function DashboardAdmin() {
                     onClick={() => setActiveTab(item.id)}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
-                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-opacity-20 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-black/10 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
                       <item.icon size={28} className="md:w-10 md:h-10" />
                     </div>
                     <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>

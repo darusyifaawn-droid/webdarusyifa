@@ -747,9 +747,6 @@ export default function DashboardSiswa() {
             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
           </div>
         </div>
-        <button onClick={() => auth.signOut()} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-          <LogOut size={20} />
-        </button>
       </div>
 
       {/* Desktop Sidebar */}
@@ -799,7 +796,7 @@ export default function DashboardSiswa() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch">
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
@@ -861,12 +858,12 @@ export default function DashboardSiswa() {
             {/* Stats Cards Section */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[
-                { label: 'Kehadiran', value: attendance.length, detail: 'Hadir Semester Ini', color: 'from-blue-500 to-indigo-600', icon: CheckCircle },
-                { label: 'Laporan Belajar', value: progress.length, detail: 'Hasil Evaluasi', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Hafalan Lulus', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Materi Selesai', color: 'from-amber-400 to-orange-500', icon: Star },
-                { label: 'Sisa SPP', value: 'RP 0', detail: 'Tagihan Berjalan', color: 'from-rose-500 to-pink-600', icon: CreditCard }
+                { label: 'Kehadiran', value: attendance.length, detail: 'Hadir Semester Ini', color: 'bg-gradient-to-br from-blue-500 to-indigo-600', icon: CheckCircle },
+                { label: 'Laporan Belajar', value: progress.length, detail: 'Hasil Evaluasi', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Hafalan Lulus', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Materi Selesai', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: Star },
+                { label: 'Sisa SPP', value: 'RP 0', detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: CreditCard }
               ].map((stat, i) => (
-                <div key={i} className={`relative overflow-hidden bg-gradient-to-br ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-opacity-20 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
@@ -901,7 +898,7 @@ export default function DashboardSiswa() {
                     onClick={() => setActiveTab(item.id)}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
-                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-opacity-20 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-black/10 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
                       <item.icon size={28} className="md:w-10 md:h-10" />
                     </div>
                     <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
