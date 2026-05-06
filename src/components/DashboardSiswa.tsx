@@ -51,6 +51,7 @@ export default function DashboardSiswa() {
   const [activeMaterialForSetoran, setActiveMaterialForSetoran] = useState<any>(null);
   const [setoranLink, setSetoranLink] = useState('');
   const [setoranFileBase64, setSetoranFileBase64] = useState('');
+  const [submissionMethod, setSubmissionMethod] = useState<'Google Drive' | 'Setoran Langsung' | 'Rekaman Suara'>('Google Drive');
   const [isSetoranSubmitting, setIsSetoranSubmitting] = useState(false);
   
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
@@ -58,6 +59,31 @@ export default function DashboardSiswa() {
   const [paymentProof, setPaymentProof] = useState<string>('');
   const [paymentMeetDate, setPaymentMeetDate] = useState('');
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
+  // Audio State
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const toggleAudio = (id: string, url: string | undefined) => {
+    if (!url) {
+      alert("Audio tidak tersedia untuk materi ini.");
+      return;
+    }
+    
+    if (playingAudioId === id) {
+      audioRef.current?.pause();
+      setPlayingAudioId(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play().catch(e => {
+          console.error("Audio play error:", e);
+          alert("Gagal memutar audio. Pastikan link audio benar.");
+        });
+        setPlayingAudioId(id);
+      }
+    }
+  };
 
   useEffect(() => {
     // Select a random quote on component mount
@@ -122,12 +148,13 @@ export default function DashboardSiswa() {
         materialId: activeMaterialForSetoran.material.id,
         status: currentStatus,
         isReadyForTest: true,
+        submissionMethod: submissionMethod,
         updatedAt: new Date().toISOString()
       };
       
-      if (setoranLink) {
+      if (submissionMethod === 'Google Drive' && setoranLink) {
         payload.recordingLink = setoranLink;
-      } else if (setoranFileBase64) {
+      } else if (submissionMethod === 'Rekaman Suara' && setoranFileBase64) {
         payload.recordingDataUrl = setoranFileBase64;
       }
       
@@ -765,12 +792,6 @@ export default function DashboardSiswa() {
           </div>
         </div>
         <NavItems />
-        <div className="mt-auto pt-10 border-t border-gray-50">
-          <button onClick={() => auth.signOut()} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-600 font-bold transition-all group text-sm">
-            <div className="p-2.5 bg-red-100/50 rounded-xl group-hover:bg-red-100 transition-colors"><LogOut size={18} /></div>
-            Keluar
-          </button>
-        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -800,7 +821,7 @@ export default function DashboardSiswa() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
-            <div className="md:hidden -mx-4 -mt-3 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+            <div className="md:hidden -mx-4 -mt-3 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
                 <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
@@ -864,7 +885,7 @@ export default function DashboardSiswa() {
                 { label: 'Sisa SPP', value: 'RP 0', detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: CreditCard }
               ].map((stat, i) => (
                 <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
-                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                  <div className="absolute -right-4 -bottom-4 opacity-30 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
                   <div>
@@ -1127,20 +1148,32 @@ export default function DashboardSiswa() {
                          <p className="text-sm text-gray-500 leading-relaxed">"{material.terjemahan}"</p>
                        </div>
 
-                       {/* Audio Placeholder */}
+                       {/* Audio Player */}
                        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                         <button className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 w-full sm:w-auto justify-center sm:justify-start">
-                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                             <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-blue-600 border-b-4 border-b-transparent ml-1"></div>
+                         <button 
+                           onClick={() => toggleAudio(material.id, material.audioUrl)}
+                           className={`flex items-center gap-2 text-sm font-bold w-full sm:w-auto justify-center sm:justify-start transition-colors ${playingAudioId === material.id ? 'text-red-500' : 'text-blue-600 hover:text-blue-700'}`}
+                         >
+                           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingAudioId === material.id ? 'bg-red-100 scale-110 shadow-lg shadow-red-100' : 'bg-blue-100 shadow-lg shadow-blue-50'}`}>
+                             {playingAudioId === material.id ? (
+                               <div className="flex gap-1">
+                                 <div className="w-1 h-3 bg-red-500 animate-pulse"></div>
+                                 <div className="w-1 h-4 bg-red-500 animate-pulse delay-75"></div>
+                                 <div className="w-1 h-3 bg-red-500 animate-pulse delay-150"></div>
+                               </div>
+                             ) : (
+                               <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-blue-600 border-b-[6px] border-b-transparent ml-1"></div>
+                             )}
                            </div> 
-                           Dengarkan Audio
+                           {playingAudioId === material.id ? 'Berhenti Audio' : 'Dengarkan Audio'}
                          </button>
                          <button 
                            onClick={() => {
                              setActiveMaterialForSetoran({ material, status, prog });
+                             setSubmissionMethod('Google Drive');
                              setShowSetoranModal(true);
                            }}
-                           className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors shadow-lg shadow-green-100 disabled:opacity-50"
+                           className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100 disabled:opacity-50"
                            disabled={status === 'Mumtaz (Lulus)' || prog?.isReadyForTest}
                          >
                            {status === 'Mumtaz (Lulus)' ? 'Sudah Lulus' : prog?.isReadyForTest ? 'Menunggu Guru' : 'Siap Setoran'}
@@ -1158,6 +1191,14 @@ export default function DashboardSiswa() {
                 });
               })()}
             </div>
+            <audio 
+              ref={audioRef} 
+              className="hidden" 
+              onEnded={() => setPlayingAudioId(null)}
+              onError={() => {
+                setPlayingAudioId(null);
+              }}
+            />
           </div>
         )}
 
@@ -1646,11 +1687,10 @@ export default function DashboardSiswa() {
             </div>
           </div>
         )}
-
-        {/* Setoran Modal */}
+              {/* Setoran Modal */}
         {showSetoranModal && activeMaterialForSetoran && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-lg rounded-[32px] p-6 md:p-8 shadow-2xl relative">
+            <div className="bg-white w-full max-w-lg rounded-[32px] p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200">
               <button 
                 onClick={() => { setShowSetoranModal(false); setActiveMaterialForSetoran(null); }} 
                 className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"
@@ -1659,54 +1699,76 @@ export default function DashboardSiswa() {
                 <X size={20} />
               </button>
               
-              <h3 className="font-bold text-xl md:text-2xl text-gray-800 mb-2">Kirim Setoran Hafalan</h3>
-              <p className="text-sm text-gray-500 mb-6">Materi: <span className="font-bold">{activeMaterialForSetoran.material.judul}</span></p>
+              <h3 className="font-bold text-xl md:text-2xl text-gray-800 mb-2 tracking-tight">Pilih Cara Setoran</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Materi: <span className="text-green-600 font-bold underline decoration-green-200 underline-offset-4">{activeMaterialForSetoran.material.judul}</span></p>
               
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+                {[
+                  { id: 'Google Drive', label: 'Link Drive', icon: Megaphone },
+                  { id: 'Setoran Langsung', label: 'Ke Guru', icon: GraduationCap },
+                  { id: 'Rekaman Suara', label: 'Rekaman', icon: Camera }
+                ].map((meth) => (
+                  <button
+                    key={meth.id}
+                    onClick={() => setSubmissionMethod(meth.id as any)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${submissionMethod === meth.id ? 'border-green-600 bg-green-50 text-green-700 shadow-lg shadow-green-100 scale-[1.05]' : 'border-gray-50 bg-white text-gray-400 hover:border-gray-100 hover:bg-gray-50'}`}
+                  >
+                    <meth.icon size={24} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{meth.label}</span>
+                  </button>
+                ))}
+              </div>
+
               <form onSubmit={submitSetoran} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Upload Audio / Video (Maks 800 KB)</label>
-                  <input 
-                    type="file" 
-                    accept="audio/*,video/*"
-                    onChange={handleSetoranFileUpload}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 border border-gray-200 rounded-2xl"
-                  />
-                  {setoranFileBase64 && (
-                    <div className="mt-2 text-xs text-green-600 font-bold flex items-center gap-2">
-                       <CheckCircle size={14} /> File berhasil dipilih dan siap dikirim.
+                {submissionMethod === 'Rekaman Suara' && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Upload Rekaman Suara (Maks 800 KB)</label>
+                    <input 
+                      type="file" 
+                      accept="audio/*,video/*"
+                      onChange={handleSetoranFileUpload}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-green-600 file:text-white hover:file:bg-green-700 border border-gray-100 rounded-2xl bg-gray-50 p-2"
+                      required={!setoranFileBase64}
+                    />
+                    {setoranFileBase64 && (
+                      <div className="mt-3 text-[10px] text-green-600 font-black uppercase tracking-widest flex items-center gap-2 bg-green-50 p-3 rounded-xl border border-green-100">
+                         <CheckCircle size={14} /> File rekaman siap dikirim.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {submissionMethod === 'Google Drive' && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Link Google Drive / YouTube</label>
+                    <input 
+                      type="url" 
+                      value={setoranLink}
+                      onChange={(e) => setSetoranLink(e.target.value)}
+                      placeholder="Contoh: https://drive.google.com/..."
+                      className="w-full p-5 bg-gray-50 border border-gray-100 rounded-[24px] outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 font-bold text-gray-800 placeholder-gray-300 transition-all"
+                      required
+                    />
+                    <p className="text-[10px] text-gray-400 mt-3 font-bold px-1 leading-relaxed">Gunakan opsi ini untuk file besar (video/audio). Pastikan link sudah di-set "Public/Everyone with link".</p>
+                  </div>
+                )}
+
+                {submissionMethod === 'Setoran Langsung' && (
+                  <div className="p-6 bg-amber-50 rounded-[24px] border border-amber-100 text-center animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 shadow-sm shadow-amber-100">
+                      <GraduationCap size={32} />
                     </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div className="w-full border-t border-gray-200"></div>
+                    <h4 className="font-bold text-amber-800">Siap Setoran Fisik</h4>
+                    <p className="text-xs text-amber-700/70 mt-2 leading-relaxed">Klik tombol di bawah untuk memberitahu guru bahwa Anda sudah siap menyetorkan hafalan ini secara langsung di sekolah.</p>
                   </div>
-                  <div className="relative flex justify-center">
-                    <span className="px-3 bg-white text-xs font-bold text-gray-400 uppercase tracking-widest">
-                      ATAU
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Link Google Drive / YouTube</label>
-                  <input 
-                    type="url" 
-                    value={setoranLink}
-                    onChange={(e) => setSetoranLink(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-700 placeholder-gray-400"
-                  />
-                  <p className="text-xs text-gray-400 mt-2">Gunakan opsi ini jika ukuran file video/suara Anda besar. Pastikan link bisa diakses (publik).</p>
-                </div>
+                )}
                 
                 <button 
                   type="submit" 
-                  disabled={isSetoranSubmitting || (!setoranLink && !setoranFileBase64)}
-                  className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSetoranSubmitting || (submissionMethod === 'Google Drive' && !setoranLink) || (submissionMethod === 'Rekaman Suara' && !setoranFileBase64)}
+                  className="w-full py-5 bg-green-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] hover:bg-green-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-green-100 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none"
                 >
-                  {isSetoranSubmitting ? 'Mengirim...' : 'Kirim Setoran Sekarang'}
+                  {isSetoranSubmitting ? 'Mengirim...' : 'Konfirmasi Setoran'}
                 </button>
               </form>
             </div>

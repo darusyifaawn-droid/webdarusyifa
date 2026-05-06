@@ -1529,12 +1529,6 @@ export default function DashboardAdmin() {
           </div>
         </div>
         <NavItems />
-        <div className="mt-auto pt-10 border-t border-gray-100">
-          <button onClick={() => auth.signOut()} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-600 font-medium transition-all group">
-            <div className="p-2 bg-red-100 rounded-xl group-hover:bg-red-200 transition-colors"><LogOut size={18} /></div>
-            Keluar
-          </button>
-        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -1624,7 +1618,7 @@ export default function DashboardAdmin() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header (Hidden on Desktop) */}
-            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
                 <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
@@ -1684,7 +1678,7 @@ export default function DashboardAdmin() {
                 { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
               ].map((stat, i) => (
                 <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
-                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                  <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
                   <div>

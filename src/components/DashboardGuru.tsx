@@ -667,12 +667,6 @@ export default function DashboardGuru() {
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
           <NavItems />
         </div>
-        <div className="mt-auto pt-10 border-t border-gray-50">
-          <button onClick={() => auth.signOut()} className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-600 font-bold transition-all group text-sm">
-            <div className="p-2.5 bg-red-100/50 rounded-xl group-hover:bg-red-100 transition-colors"><LogOut size={18} /></div>
-            Keluar
-          </button>
-        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -702,7 +696,7 @@ export default function DashboardGuru() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
-            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white overflow-hidden relative">
+            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
                 <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
@@ -762,7 +756,7 @@ export default function DashboardGuru() {
                   { label: 'Absensi Saya', value: attendance.filter(a => a.studentId === user?.uid).length, detail: 'Total Kehadiran', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: CheckCircle }
                 ].map((stat, i) => (
                   <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
-                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform rotate-12">
+                  <div className="absolute -right-4 -bottom-4 opacity-30 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
                   <div>
@@ -1174,10 +1168,15 @@ export default function DashboardGuru() {
                     {pendingTestsFiltered.map(p => {
                       const mat = hafalanMaterials.find(m => m.id === p.materialId);
                       return (
-                      <div key={p.id} className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl flex justify-between items-center group relative">
+                        <div key={p.id} className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl flex justify-between items-center group relative">
                         <div>
                           <p className="text-sm font-bold text-gray-800">{mat?.judul || 'Materi tidak ditemukan'}</p>
-                          <p className="text-xs text-yellow-600 font-medium">Menunggu Evaluasi</p>
+                          <div className="flex items-center gap-2">
+                             <p className="text-xs text-yellow-600 font-medium">Menunggu Evaluasi</p>
+                             {p.submissionMethod && (
+                               <span className="text-[10px] bg-yellow-200/50 text-yellow-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{p.submissionMethod}</span>
+                             )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button 
@@ -1586,9 +1585,24 @@ export default function DashboardGuru() {
                    <>
                      <p className="text-sm text-gray-500 mb-6">Siswa: <span className="font-bold text-gray-800">{st?.name}</span> • Materi: <span className="font-bold border-b border-gray-300">{mat?.judul}</span></p>
                      
+                     {evaluateHafalan.submissionMethod && (
+                       <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex items-center justify-between">
+                         <div>
+                           <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Metode Setoran Siswa</p>
+                           <p className="text-sm font-black text-gray-800 uppercase tabular-nums">{evaluateHafalan.submissionMethod}</p>
+                         </div>
+                         <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
+                            {evaluateHafalan.submissionMethod === 'Google Drive' ? <Megaphone size={18} /> : 
+                             evaluateHafalan.submissionMethod === 'Setoran Langsung' ? <GraduationCap size={18} /> : <Camera size={18} />}
+                         </div>
+                       </div>
+                     )}
+
                      {hasRecording && (
                        <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
-                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Setoran Siswa (Audio / Video)</h4>
+                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                           {evaluateHafalan.submissionMethod === 'Google Drive' ? 'Link Google Drive' : 'File Rekaman / Rekaman Langsung'}
+                         </h4>
                          
                          {evaluateHafalan.recordingDataUrl && (
                            evaluateHafalan.recordingDataUrl.startsWith('data:video/') ? (
