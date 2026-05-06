@@ -106,6 +106,18 @@ service cloud.firestore {
       allow write: if isGuru() || isAdmin();
     }
 
+    // Kaldik (Kalender Pendidikan)
+    match /kaldik/{kaldikId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Materials (Materi / Bahan Ajar)
+    match /materials/{materialId} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
+    }
+
     // Payments (Financial History)
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (

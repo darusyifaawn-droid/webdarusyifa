@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -93,6 +93,7 @@ export default function DashboardAdmin() {
   const navigate = useNavigate();
 
   // Attendance Filter States
+  const [filterUserRole, setFilterUserRole] = useState<'semua' | 'admin' | 'guru' | 'siswa'>('semua');
   const [filterRole, setFilterRole] = useState<'semua' | 'siswa' | 'guru'>('semua');
   const [filterSiswaStatus, setFilterSiswaStatus] = useState<'Aktif' | 'Alumni' | 'Tidak Aktif' | 'Pindah'>('Aktif');
   const [filterDateStart, setFilterDateStart] = useState('');
@@ -107,8 +108,16 @@ export default function DashboardAdmin() {
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
   const [progressData, setProgressData] = useState<any[]>([]);
+  const [kaldikData, setKaldikData] = useState<any[]>([]);
+  const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [showClassModal, setShowClassModal] = useState(false);
   const [newClassName, setNewClassName] = useState('');
+  
+  // Kaldik States
+  const [showAddKaldik, setShowAddKaldik] = useState(false);
+  const [editKaldikId, setEditKaldikId] = useState<string | null>(null);
+  const [newKaldik, setNewKaldik] = useState({ date: '', title: '', description: '', type: 'Libur' });
+
   const [showMutasiModal, setShowMutasiModal] = useState(false);
   const [mutasiTargetClass, setMutasiTargetClass] = useState('');
   const [selectedStudentsForMutasi, setSelectedStudentsForMutasi] = useState<string[]>([]);
@@ -263,6 +272,14 @@ export default function DashboardAdmin() {
       setProgressData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
+    const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
+      setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
+    const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
     return () => {
       unsubUsers();
       unsubAttendance();
@@ -271,8 +288,40 @@ export default function DashboardAdmin() {
       unsubSettings();
       unsubClasses();
       unsubProgress();
+      unsubKaldik();
+      unsubMaterials();
     };
   }, [user]);
+
+  const handleSaveKaldik = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKaldik.title || !newKaldik.date) return;
+    try {
+      if (editKaldikId) {
+        await updateDoc(doc(db, 'kaldik', editKaldikId), { ...newKaldik });
+        alert('Kalender Pendidikan berhasil diperbarui!');
+      } else {
+        await addDoc(collection(db, 'kaldik'), { ...newKaldik, createdAt: serverTimestamp() });
+        alert('Event Kaldik berhasil ditambahkan!');
+      }
+      setShowAddKaldik(false);
+      setNewKaldik({ date: '', title: '', description: '', type: 'Libur' });
+      setEditKaldikId(null);
+    } catch (error) {
+      handleFirestoreError(error, editKaldikId ? OperationType.UPDATE : OperationType.CREATE, 'kaldik');
+    }
+  };
+
+  const handleDeleteKaldik = async (id: string) => {
+    if (window.confirm('Hapus event Kalender Pendidikan ini?')) {
+      try {
+        await deleteDoc(doc(db, 'kaldik', id));
+        alert('Event Kaldik dihapus!');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `kaldik/${id}`);
+      }
+    }
+  };
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1711,21 +1760,21 @@ export default function DashboardAdmin() {
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
-                  { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'from-orange-400 to-orange-500' },
-                  { id: 'users', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500' },
-                  { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'from-emerald-400 to-emerald-500' },
-                  { id: 'academic', label: 'Jadwal', icon: Calendar, color: 'from-pink-400 to-pink-500' },
-                  { id: 'academic', label: 'Materi', icon: BookOpen, color: 'from-blue-400 to-blue-500' },
-                  { id: 'attendance', label: 'Jurnal', icon: FileText, color: 'from-cyan-400 to-cyan-500' },
-                  { id: 'academic', label: 'Penilaian', icon: TrendingUp, color: 'from-indigo-400 to-indigo-500' },
-                  { id: 'users', label: 'Guru', icon: Shield, color: 'from-teal-400 to-teal-500' },
-                  { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'from-amber-400 to-amber-500' },
-                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'from-blue-500 to-blue-600' },
-                  { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-400 to-gray-500' },
+                  { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'from-orange-400 to-orange-500', action: () => setActiveTab('academic') },
+                  { id: 'users', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
+                  { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'from-emerald-400 to-emerald-500', action: () => setActiveTab('attendance') },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
+                  { id: 'materials', label: 'Materi', icon: BookOpen, color: 'from-blue-400 to-blue-500', action: () => setActiveTab('materials') },
+                  { id: 'attendance', label: 'Jurnal', icon: FileText, color: 'from-cyan-400 to-cyan-500', action: () => setActiveTab('attendance') },
+                  { id: 'assessments', label: 'Penilaian', icon: TrendingUp, color: 'from-indigo-400 to-indigo-500', action: () => setActiveTab('assessments') },
+                  { id: 'users', label: 'Guru', icon: Shield, color: 'from-teal-400 to-teal-500', action: () => { setActiveTab('users'); setFilterUserRole('guru'); } },
+                  { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'from-amber-400 to-amber-500', action: () => setActiveTab('finance') },
+                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'from-blue-500 to-blue-600', action: () => setActiveTab('announcements') },
+                  { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-400 to-gray-500', action: () => setActiveTab('settings') },
                 ].map((item, idx) => (
                   <button 
                     key={idx} 
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={item.action}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
                     <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-black/10 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
@@ -1758,6 +1807,16 @@ export default function DashboardAdmin() {
                   className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
                 />
                 <select 
+                  value={filterUserRole}
+                  onChange={(e) => setFilterUserRole(e.target.value as any)}
+                  className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
+                >
+                  <option value="semua">Semua Role</option>
+                  <option value="admin">Admin</option>
+                  <option value="guru">Guru</option>
+                  <option value="siswa">Siswa</option>
+                </select>
+                <select 
                   value={filterKelas}
                   onChange={(e) => setFilterKelas(e.target.value)}
                   className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
@@ -1778,7 +1837,7 @@ export default function DashboardAdmin() {
                   <option value="Guru Bidang">Guru Bidang</option>
                 </select>
                 <button 
-                  onClick={() => { setNewUserRole('siswa'); setShowAddUser(true); }}
+                  onClick={() => { setNewUserRole(filterUserRole === 'guru' ? 'guru' : 'siswa'); setShowAddUser(true); }}
                   className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
                 >
                   <Plus size={20} /> Tambah User
@@ -1799,10 +1858,11 @@ export default function DashboardAdmin() {
                  </thead>
                 <tbody className="divide-y divide-gray-100">
                   {allUsers.filter(u => {
+                    const matchRole = filterUserRole === 'semua' || u.role === filterUserRole;
                     const matchKelas = !filterKelas || (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) || (u.assignedClass || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, ''));
                     const matchName = !filterName || u.name.toLowerCase().includes(filterName.toLowerCase());
                     const matchTeacherType = filterTeacherType === 'semua' || u.teacherType === filterTeacherType;
-                    return matchKelas && matchName && matchTeacherType;
+                    return matchRole && matchKelas && matchName && matchTeacherType;
                   }).map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
@@ -1862,10 +1922,11 @@ export default function DashboardAdmin() {
             {/* Mobile View User Management */}
             <div className="md:hidden divide-y divide-gray-100">
               {allUsers.filter(u => {
+                const matchRole = filterUserRole === 'semua' || u.role === filterUserRole;
                 const matchKelas = filterKelas ? (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) || (u.assignedClass || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
                 const matchName = filterName ? u.name.toLowerCase().includes(filterName.toLowerCase()) : true;
                 const matchTeacherType = filterTeacherType === 'semua' || u.teacherType === filterTeacherType;
-                return matchKelas && matchName && matchTeacherType;
+                return matchRole && matchKelas && matchName && matchTeacherType;
               }).map((u) => (
                 <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
@@ -2370,6 +2431,142 @@ export default function DashboardAdmin() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'kaldik' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kalender Pendidikan</h3>
+                <p className="text-gray-400 text-sm font-medium">Informasi agenda kalender pendidikan RA Darusyifa Arjawinangun.</p>
+              </div>
+              <button 
+                onClick={() => setShowAddKaldik(true)}
+                className="w-full sm:w-auto bg-pink-500 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-pink-600 transition-all text-sm shadow-sm"
+              >
+                <Plus size={18} /> Tambah Agenda Kaldik
+              </button>
+            </div>
+            <div className="grid gap-4">
+              {kaldikData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => (
+                <div key={item.id} className="bg-white p-6 rounded-3xl shadow-sm border border-orange-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-pink-50 rounded-2xl flex flex-col items-center justify-center border border-pink-100 text-pink-500 shrink-0">
+                      <span className="text-xs font-bold uppercase">{new Date(item.date).toLocaleString('id-ID', { month: 'short' })}</span>
+                      <span className="text-xl font-black">{new Date(item.date).getDate()}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
+                      <p className="text-gray-500 text-sm">{item.description}</p>
+                      <span className={`mt-2 inline-block px-3 py-1 text-[10px] uppercase font-black tracking-widest rounded-lg border ${item.type === 'Libur' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+                        {item.type}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0 justify-end">
+                    <button onClick={() => { setEditKaldikId(item.id); setNewKaldik(item); setShowAddKaldik(true); }} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteKaldik(item.id)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {kaldikData.length === 0 && (
+                <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-gray-200">
+                  <Calendar className="mx-auto text-gray-300 mb-3" size={48} />
+                  <p className="text-gray-400 font-medium">Belum ada agenda Kalender Pendidikan.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'materials' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8">
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kumpulan Materi Guru</h3>
+              <p className="text-gray-400 text-sm font-medium mt-1">Daftar Mata Pelajaran / Materi yang dimasukkan oleh Tenaga Pengajar.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {materialsData.map(mat => {
+                const teacher = allUsers.find(u => u.id === mat.teacherId);
+                return (
+                  <div key={mat.id} className="card-3d p-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                       <BookOpen size={64} className="text-blue-500" />
+                    </div>
+                    <div className="relative z-10">
+                      <h4 className="text-xl font-bold text-gray-800 mb-2">{mat.name}</h4>
+                      <p className="text-xs text-blue-500 font-bold mb-4 uppercase tracking-widest">{mat.topic || 'Umum'}</p>
+                      
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100 mt-4">
+                        <img src={teacher?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher?.name || 'G')}&background=random`} alt="Teacher" className="w-10 h-10 rounded-xl object-cover" />
+                        <div>
+                          <p className="text-xs font-bold text-gray-800">{teacher?.name || 'Guru Tidak Diketahui'}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">{new Date(mat.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString('id-ID')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {materialsData.length === 0 && (
+                <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center p-12 bg-white rounded-3xl border border-dashed border-gray-200">
+                  <BookOpen className="mx-auto text-gray-300 mb-3" size={48} />
+                  <p className="text-gray-400 font-medium">Belum ada materi atau mata pelajaran dari guru.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'assessments' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8">
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Siswa</h3>
+              <p className="text-gray-400 text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
+            </div>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+               <table className="w-full text-left whitespace-nowrap min-w-[800px]">
+                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
+                   <tr>
+                     <th className="px-6 py-4">Tanggal</th>
+                     <th className="px-6 py-4">Siswa</th>
+                     <th className="px-6 py-4">Guru Penilai</th>
+                     <th className="px-6 py-4">Materi / Kategori</th>
+                     <th className="px-6 py-4 text-center">Nilai</th>
+                   </tr>
+                 </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {progressData.map(p => {
+                    const student = allUsers.find(u => u.id === p.studentId);
+                    const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
+                    return (
+                      <tr key={p.id} className="hover:bg-gray-50 cursor-pointer transition-colors" title={p.description}>
+                        <td className="px-6 py-4 text-xs font-bold text-gray-500">{new Date(p.date).toLocaleDateString('id-ID')}</td>
+                        <td className="px-6 py-4 font-bold text-gray-800 max-w-[200px] truncate">{student?.name || 'Siswa'} <br/><span className="text-[10px] text-gray-400 font-medium">{student?.kelas || ''}</span></td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{p.teacherName || 'Guru'}</td>
+                        <td className="px-6 py-4 text-sm text-indigo-600 font-medium">{p.category || 'Penilaian Umum'}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex flex-col items-center justify-center p-2 rounded-xl bg-gray-50 border border-gray-100 w-16 h-16`}>
+                            <span className="font-black text-lg text-gray-800 leading-none">{p.score || 0}</span>
+                            <span className={`text-[10px] font-bold mt-1 ${gradeInfo.color}`}>{gradeInfo.grade}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {progressData.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center p-8 text-gray-400 font-medium italic">Belum ada penilaian siswa yang diinputkan guru.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -3681,6 +3878,73 @@ export default function DashboardAdmin() {
         )}
 
       </main>
+
+      {/* Modal Add Kaldik */}
+      {showAddKaldik && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden scale-in">
+            <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center relative overflow-hidden">
+              <div className="absolute -right-4 -top-4 w-24 h-24 bg-pink-100 rounded-full blur-2xl opacity-60"></div>
+              <h3 className="text-xl font-black text-gray-800 flex items-center gap-3 relative z-10"><Calendar className="text-pink-500" /> {editKaldikId ? 'Edit Agenda Kaldik' : 'Tambah Agenda Kaldik'}</h3>
+              <button onClick={() => { setShowAddKaldik(false); setEditKaldikId(null); setNewKaldik({ date: '', title: '', description: '', type: 'Libur' }); }} className="text-gray-400 hover:text-red-500 transition-colors relative z-10"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleSaveKaldik} className="p-6 space-y-5">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Tanggal Kegiatan</label>
+                <input 
+                  type="date" 
+                  value={newKaldik.date} 
+                  onChange={(e) => setNewKaldik({...newKaldik, date: e.target.value})} 
+                  placeholder="Pilih Tanggal Kegiatan"
+                  required
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all font-bold text-gray-700" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Nama / Judul Agenda</label>
+                <input 
+                  type="text" 
+                  value={newKaldik.title} 
+                  onChange={(e) => setNewKaldik({...newKaldik, title: e.target.value})} 
+                  required
+                  placeholder="Contoh: Maulid Nabi Muhammad SAW"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all font-bold text-gray-700 placeholder:text-gray-300" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Keterangan Tambahan</label>
+                <input 
+                  type="text" 
+                  value={newKaldik.description} 
+                  onChange={(e) => setNewKaldik({...newKaldik, description: e.target.value})} 
+                  placeholder="Opsional"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all font-medium text-gray-700 placeholder:text-gray-300" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Jenis Agenda</label>
+                <select 
+                  value={newKaldik.type} 
+                  onChange={(e) => setNewKaldik({...newKaldik, type: e.target.value})} 
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all font-bold text-gray-700" 
+                >
+                  <option value="Libur">Libur / Hari Besar</option>
+                  <option value="Kegiatan">Kegiatan Sekolah</option>
+                  <option value="Ujian">Evaluasi / Ujian</option>
+                </select>
+              </div>
+              
+              <button 
+                type="submit" 
+                className="w-full py-5 border-none bg-pink-500 text-white rounded-[1.5rem] font-bold text-lg hover:bg-pink-600 shadow-2xl flex items-center justify-center gap-2 transition-all mt-4 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Save size={20} /> Simpan Agenda
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Photo Viewer Modal */}
       {selectedPhoto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setSelectedPhoto(null)}>

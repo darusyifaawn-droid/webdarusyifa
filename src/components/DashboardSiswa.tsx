@@ -28,6 +28,8 @@ export default function DashboardSiswa() {
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  const [materialsData, setMaterialsData] = useState<any[]>([]);
+  const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
   const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
   const [loading, setLoading] = useState(true);
@@ -563,6 +565,14 @@ export default function DashboardSiswa() {
       }
     });
 
+    const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
+      setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubAttendance();
       unsubProgress();
@@ -570,6 +580,8 @@ export default function DashboardSiswa() {
       unsubAnnounce();
       unsubPayments();
       unsubSettings();
+      unsubKaldik();
+      unsubMaterials();
     };
   }, [user]);
 
@@ -717,6 +729,12 @@ export default function DashboardSiswa() {
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'overview' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
         <Calendar size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-400'} /> Beranda
+      </button>
+      <button 
+        onClick={() => { setActiveTab('kaldik'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'kaldik' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Calendar size={20} className={activeTab === 'kaldik' ? 'text-white' : 'text-gray-400'} /> Kaldik & Materi
       </button>
       <button 
         onClick={() => { setActiveTab('progress'); setIsSidebarOpen(false); }}
@@ -971,6 +989,70 @@ export default function DashboardSiswa() {
                      {attendance.length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Belum ada riwayat absen.</p>}
                   </div>
                </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'kaldik' && (
+          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+            <div className="card-3d p-6 md:p-8">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Kaldik & Materi Belajar</h3>
+              <p className="text-sm text-gray-400 mt-1 font-medium">Kalender Pendidikan dan kumpulan materi / mata pelajaran dari guru.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Kalender Pendidikan */}
+              <div>
+                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
+                <div className="space-y-4">
+                  {kaldikData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => (
+                    <div key={item.id} className="bg-white p-5 rounded-3xl shadow-sm border border-orange-100 flex items-center gap-4">
+                      <div className="w-14 h-14 bg-pink-50 rounded-[1rem] flex flex-col items-center justify-center border border-pink-100 text-pink-500 shrink-0">
+                        <span className="text-[10px] font-bold uppercase">{new Date(item.date).toLocaleString('id-ID', { month: 'short' })}</span>
+                        <span className="text-lg font-black leading-none mt-0.5">{new Date(item.date).getDate()}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-800 text-base">{item.title}</h4>
+                        <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
+                        <span className={`mt-2 inline-block px-2 py-0.5 text-[8px] uppercase font-black tracking-widest rounded-md border ${item.type === 'Libur' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+                          {item.type}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {kaldikData.length === 0 && (
+                    <div className="text-center p-8 bg-white border border-dashed border-gray-200 rounded-3xl">
+                      <Calendar className="mx-auto text-gray-300 mb-2" size={32} />
+                      <p className="text-xs text-gray-400 font-medium">Belum ada agenda sekolah.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Materi */}
+              <div>
+                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><BookOpen className="text-blue-500" /> Kumpulan Materi</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {materialsData.map(mat => (
+                    <div key={mat.id} className="card-3d p-5 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-3 opacity-10">
+                        <BookOpen size={48} className="text-blue-500" />
+                      </div>
+                      <div className="relative z-10">
+                        <h5 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2">{mat.name}</h5>
+                        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">{mat.topic || 'Umum'}</p>
+                        <p className="text-[9px] text-gray-400 font-medium mt-3">📅 {new Date(mat.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString('id-ID')}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {materialsData.length === 0 && (
+                    <div className="col-span-1 sm:col-span-2 text-center p-8 bg-white border border-dashed border-gray-200 rounded-3xl">
+                      <BookOpen className="mx-auto text-gray-300 mb-2" size={32} />
+                      <p className="text-xs text-gray-400 font-medium">Belum ada materi dari guru.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -15,6 +15,8 @@ export default function DashboardGuru() {
   const [userData, setUserData] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
+  const [kaldikData, setKaldikData] = useState<any[]>([]);
+  const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
@@ -45,6 +47,12 @@ export default function DashboardGuru() {
   const [hafalanEvalNotes, setHafalanEvalNotes] = useState('');
   const [hafalanEvalStatus, setHafalanEvalStatus] = useState<HafalanStatus>('Sedang Menghafal');
   const [editingSubject, setEditingSubject] = useState<any>(null);
+  
+  // Materials States
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [newMaterial, setNewMaterial] = useState({ name: '', topic: '' });
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
@@ -174,6 +182,14 @@ export default function DashboardGuru() {
       }
     });
 
+    const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
+      setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
+    const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
     return () => {
       unsubStudents();
       unsubProgress();
@@ -183,6 +199,8 @@ export default function DashboardGuru() {
       unsubSubjects();
       unsubClasses();
       unsubSettings();
+      unsubKaldik();
+      unsubMaterials();
     };
   }, [user, userData?.kelas]);
 
@@ -191,6 +209,40 @@ export default function DashboardGuru() {
     if (score >= 80) return { grade: 'B', text: 'Baik', color: 'text-blue-600' };
     if (score >= 70) return { grade: 'C', text: 'Cukup', color: 'text-orange-600' };
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
+  };
+
+  const handleSaveMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMaterial.name) return;
+    try {
+      if (editingMaterialId) {
+        await updateDoc(doc(db, 'materials', editingMaterialId), { ...newMaterial });
+        alert('Materi / Mata Pelajaran berhasil diperbarui!');
+      } else {
+        await addDoc(collection(db, 'materials'), { 
+          ...newMaterial, 
+          teacherId: user.uid,
+          createdAt: serverTimestamp() 
+        });
+        alert('Materi / Mata Pelajaran berhasil ditambahkan!');
+      }
+      setShowMaterialModal(false);
+      setNewMaterial({ name: '', topic: '' });
+      setEditingMaterialId(null);
+    } catch (error) {
+      handleFirestoreError(error, editingMaterialId ? OperationType.UPDATE : OperationType.CREATE, 'materials');
+    }
+  };
+
+  const handleDeleteMaterial = async (id: string) => {
+    if (window.confirm('Hapus materi / mata pelajaran ini?')) {
+      try {
+        await deleteDoc(doc(db, 'materials', id));
+        alert('Berhasil dihapus!');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `materials/${id}`);
+      }
+    }
   };
 
   const handleExecutePrintRapotHafalan = (student: any) => {
@@ -592,10 +644,16 @@ export default function DashboardGuru() {
         <Users size={20} className={activeTab === 'students' ? 'text-white' : 'text-gray-400'} /> Daftar Siswa
       </button>
       <button 
+        onClick={() => { setActiveTab('kaldik'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'kaldik' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <BookOpen size={20} className={activeTab === 'kaldik' ? 'text-white' : 'text-gray-400'} /> Kaldik & Materi
+      </button>
+      <button 
         onClick={() => { setActiveTab('progress'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'progress' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
+        <TrendingUp size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
       </button>
       <button 
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
@@ -1000,6 +1058,86 @@ export default function DashboardGuru() {
                 >
                   <Printer size={18} /> Cetak Dokumen
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'kaldik' && (
+          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+            <div className="card-3d p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Kaldik & Materi Belajar</h3>
+                <p className="text-sm text-gray-400 mt-1 font-medium">Kalender Pendidikan dari Admin dan kumpulan materi pembelajaran Anda.</p>
+              </div>
+              <button 
+                onClick={() => setShowMaterialModal(true)}
+                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-md shadow-blue-200"
+              >
+                <Plus size={18} /> Tambah Materi
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {/* Kalender Pendidikan */}
+              <div>
+                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
+                <div className="space-y-4">
+                  {kaldikData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => (
+                    <div key={item.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-orange-100 flex items-center gap-4">
+                      <div className="w-14 h-14 bg-pink-50 rounded-[1rem] flex flex-col items-center justify-center border border-pink-100 text-pink-500 shrink-0">
+                        <span className="text-[10px] font-bold uppercase">{new Date(item.date).toLocaleString('id-ID', { month: 'short' })}</span>
+                        <span className="text-lg font-black leading-none mt-0.5">{new Date(item.date).getDate()}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-800 text-base">{item.title}</h4>
+                        <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
+                        <span className={`mt-2 inline-block px-2 py-0.5 text-[8px] uppercase font-black tracking-widest rounded-md border ${item.type === 'Libur' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+                          {item.type}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {kaldikData.length === 0 && (
+                    <div className="text-center p-8 bg-white border border-dashed border-gray-200 rounded-[2rem]">
+                      <Calendar className="mx-auto text-gray-300 mb-2" size={32} />
+                      <p className="text-xs text-gray-400 font-medium">Belum ada agenda sekolah dari Admin.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Materi */}
+              <div>
+                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><BookOpen className="text-blue-500" /> Materi Pembelajaran Saya</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {materialsData.filter(m => m.teacherId === user.uid).map(mat => (
+                    <div key={mat.id} className="card-3d p-6 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <BookOpen size={48} className="text-blue-500" />
+                      </div>
+                      <div className="relative z-10">
+                        <h5 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2">{mat.name}</h5>
+                        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">{mat.topic || 'Umum'}</p>
+                        
+                        <div className="flex gap-2 mt-4">
+                          <button onClick={() => { setEditingMaterialId(mat.id); setNewMaterial(mat); setShowMaterialModal(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex-1 flex justify-center items-center">
+                            <Edit size={14} />
+                          </button>
+                          <button onClick={() => handleDeleteMaterial(mat.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all flex-1 flex justify-center items-center">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {materialsData.filter(m => m.teacherId === user.uid).length === 0 && (
+                    <div className="col-span-1 sm:col-span-2 text-center p-8 bg-white border border-dashed border-gray-200 rounded-[2rem]">
+                      <BookOpen className="mx-auto text-gray-300 mb-2" size={32} />
+                      <p className="text-xs text-gray-400 font-medium">Belum ada materi yang Anda tambahkan.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1837,6 +1975,44 @@ export default function DashboardGuru() {
                 </div>
                 <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">
                   {editingSubject ? 'Simpan Perubahan' : 'Tambah Mata Pelajaran'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showMaterialModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative overflow-hidden scale-in">
+              <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center relative overflow-hidden">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-100 rounded-full blur-2xl opacity-60"></div>
+                <h3 className="text-xl font-black text-gray-800 flex items-center gap-3 relative z-10"><BookOpen className="text-blue-500" /> {editingMaterialId ? 'Edit Materi' : 'Tambah Materi'}</h3>
+                <button onClick={() => { setShowMaterialModal(false); setEditingMaterialId(null); setNewMaterial({ name: '', topic: '' }); }} className="text-gray-400 hover:text-red-500 transition-colors relative z-10"><X size={24} /></button>
+              </div>
+              <form onSubmit={handleSaveMaterial} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Judul Materi / Mata Pelajaran</label>
+                  <input 
+                    type="text" 
+                    value={newMaterial.name} 
+                    onChange={(e) => setNewMaterial({...newMaterial, name: e.target.value})} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-gray-700" 
+                    placeholder="Masukkan judul..." 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Topik Kategori</label>
+                  <input 
+                    type="text" 
+                    value={newMaterial.topic} 
+                    onChange={(e) => setNewMaterial({...newMaterial, topic: e.target.value})} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-gray-700" 
+                    placeholder="Contoh: Matematika Dasar" 
+                  />
+                </div>
+                <button type="submit" className="w-full px-6 py-5 bg-blue-600 text-white rounded-[1.5rem] font-bold text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-6 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                  <Save size={20} /> {editingMaterialId ? 'Simpan Perubahan' : 'Tambah Materi'}
                 </button>
               </form>
             </div>
