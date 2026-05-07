@@ -694,7 +694,7 @@ export default function DashboardGuru() {
       <div className="md:hidden glass-3d p-4 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
           {settings?.logoUrl ? (
-            <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-white">
+            <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-blue-50/50 backdrop-blur-sm p-0.5">
               <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           ) : (
@@ -757,7 +757,7 @@ export default function DashboardGuru() {
             <div className="flex items-center justify-between mb-10">
               <div className="flex items-center gap-3">
                 {settings?.logoUrl ? (
-                  <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-white p-0.5">
+                  <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-blue-50/50 backdrop-blur-sm p-0.5">
                     <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   </div>
                 ) : (
@@ -780,34 +780,41 @@ export default function DashboardGuru() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch scroll-smooth overscroll-behavior-y-contain">
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
             <div className="md:hidden -mx-4 -mt-12 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
-                <button onClick={() => setIsSidebarOpen(true)} className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg cursor-pointer hover:bg-white/30 transition-all">
-                   <Menu size={20} />
-                </button>
-                <div className="text-center">
+                <div className="text-center flex-1 ml-10">
                   <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md">SIMANDU</h1>
                   <p className="text-[8px] font-black tracking-[0.2em] opacity-80 uppercase -mt-1">Sistem Manajemen Terpadu</p>
                 </div>
-                <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative">
+                <button 
+                  onClick={() => setActiveTab('announcements')}
+                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                >
                   <Bell size={20} />
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
-                </div>
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
+                </button>
               </div>
               
-              <div className="flex items-center gap-4 bg-white/10 p-5 rounded-[2.5rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl">
-                <div className="w-16 h-16 rounded-full border-4 border-white/30 overflow-hidden bg-white shadow-inner flex items-center justify-center p-2">
-                   <img src={settings?.logoUrl || '/logo.png'} className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+              <div className="flex items-center gap-5 bg-white/15 p-6 rounded-[3rem] backdrop-blur-xl border border-white/30 relative z-10 shadow-2xl overflow-hidden">
+                <div className="w-20 h-20 rounded-[2.2rem] border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center p-2.5 shadow-xl shrink-0">
+                   <img src={settings?.logoUrl || '/logo.png'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] opacity-80 font-black uppercase tracking-widest mb-0.5">Selamat Datang, Guru</p>
-                  <h2 className="text-xl font-black tracking-tight leading-tight truncate">{userData?.name || 'Guru Pengajar'}</h2>
-                  <p className="text-[9px] opacity-70 font-bold uppercase tracking-tighter truncate">{userData?.role} • {settings?.schoolName || 'RA Darusyifa'}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                    <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Teacher Portal</p>
+                  </div>
+                  <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
+                    {userData?.name || 'Guru Pengajar'}
+                  </h2>
+                  <p className="text-[10px] opacity-90 font-black text-blue-50 leading-tight uppercase tracking-tighter">
+                    {userData?.role} • {settings?.schoolName || 'RA Darusyifa'}
+                  </p>
                 </div>
               </div>
             </div>
