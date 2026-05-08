@@ -1558,23 +1558,6 @@ export default function DashboardAdmin() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
-      {/* Mobile Header */}
-      <div className="md:hidden glass-3d p-4 flex justify-between items-center sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          {settings?.logoUrl ? (
-            <div className="w-10 h-10 overflow-hidden rounded-xl border border-green-600 bg-emerald-50/50 backdrop-blur-sm p-0.5">
-              <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-          ) : (
-            <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-md shadow-green-200">RA</div>
-          )}
-          <div>
-            <span className="font-bold text-gray-800 block leading-tight">Portal Admin</span>
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">RA Darusyifa Arjawinangun</span>
-          </div>
-        </div>
-      </div>
-
       {/* Sidebar (Desktop) */}
       <aside className="w-72 bg-white border-r border-gray-100 p-6 hidden md:flex flex-col shadow-sm z-10">
         <div className="flex items-center gap-4 mb-12">
@@ -1616,7 +1599,7 @@ export default function DashboardAdmin() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8 scrolling-touch scroll-smooth overscroll-behavior-y-contain">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto pt-6 md:pt-8 scrolling-touch">
         {showPrintRapotModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
@@ -1682,23 +1665,25 @@ export default function DashboardAdmin() {
             {/* Mobile Header (Hidden on Desktop) */}
             <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-10 relative z-10 pt-2">
-                <div className="text-center flex-1 ml-10">
-                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md">SIMANDU</h1>
-                  <p className="text-[8px] font-black tracking-[0.2em] opacity-80 uppercase -mt-1">Sistem Manajemen Terpadu</p>
-                </div>
+              <div className="flex justify-end items-center mb-6 relative z-10 pt-2">
                 <button 
                   onClick={() => setActiveTab('announcements')}
-                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md border border-white/30 shadow-lg relative active:scale-95 transition-all"
+                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
                 >
                   <Bell size={20} />
                   <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
                 </button>
               </div>
               
-              <div className="flex items-center gap-5 bg-white/15 p-6 rounded-[3rem] backdrop-blur-xl border border-white/30 relative z-10 shadow-2xl overflow-hidden">
-                <div className="w-20 h-20 rounded-[2.2rem] border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center p-2.5 shadow-xl shrink-0">
-                  <img src={settings?.logoUrl || '/logo.png'} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden">
+                <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
+                  {userData?.photoURL ? (
+                    <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <User size={32} />
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
@@ -1708,9 +1693,14 @@ export default function DashboardAdmin() {
                   <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
                     {userData?.name || 'Administrator'}
                   </h2>
-                  <p className="text-[10px] opacity-90 font-black text-blue-50 leading-tight uppercase tracking-tighter">
-                    {settings?.schoolName || 'RA Darusyifa'}
-                  </p>
+                  <div className="flex flex-col mt-1">
+                    <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
+                      Admin Utama
+                    </p>
+                    <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
+                      {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
