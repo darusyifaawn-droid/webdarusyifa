@@ -46,6 +46,7 @@ export default function DashboardGuru() {
   const [hafalanEvalStars, setHafalanEvalStars] = useState<number>(0);
   const [hafalanEvalNotes, setHafalanEvalNotes] = useState('');
   const [hafalanEvalStatus, setHafalanEvalStatus] = useState<HafalanStatus>('Sedang Menghafal');
+  const [hafalanEvalSemester, setHafalanEvalSemester] = useState<'Semester 1' | 'Semester 2'>('Semester 1');
   const [editingSubject, setEditingSubject] = useState<any>(null);
   
   // Materials States
@@ -57,7 +58,9 @@ export default function DashboardGuru() {
   const [editPhoto, setEditPhoto] = useState('');
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
+  const [showPrintRapotHafalanModal, setShowPrintRapotHafalanModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
+  const [printRapotHafalanSemester, setPrintRapotHafalanSemester] = useState('Semua');
 
   // Camera States
   const [showCamera, setShowCamera] = useState(false);
@@ -245,7 +248,14 @@ export default function DashboardGuru() {
     }
   };
 
-  const handleExecutePrintRapotHafalan = (student: any) => {
+  const promptPrintRapotHafalan = (student: any) => {
+    setSelectedStudentForRapot(student);
+    setPrintRapotHafalanSemester('Semua');
+    setShowPrintRapotHafalanModal(true);
+  };
+
+  const handleExecutePrintRapotHafalanConfirm = () => {
+    const student = selectedStudentForRapot;
     if (!student) return;
     
     // Get student's progress data
@@ -253,6 +263,7 @@ export default function DashboardGuru() {
       .filter(p => p.studentId === student.id)
       // Only include already evaluated items
       .filter(p => !p.isReadyForTest)
+      .filter(p => printRapotHafalanSemester === 'Semua' || p.evaluationSemester === printRapotHafalanSemester)
       .sort((a,b) => new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime());
     
     const printWindow = window.open('', '_blank');
@@ -269,6 +280,7 @@ export default function DashboardGuru() {
            <td style="padding: 12px; border-bottom: 1px solid #eee;">
              <strong style="display:block;">${mat?.judul || 'Materi tidak ditemukan'}</strong>
              <small style="color: #666;">${mat?.kategori || ''}</small>
+             ${p.evaluationSemester ? `<br/><span style="font-size:10px; background:#eef2ff; color:#4f46e5; padding:2px 6px; border-radius:10px; margin-top:4px; display:inline-block;">${p.evaluationSemester}</span>` : ''}
            </td>
            <td style="padding: 12px; border-bottom: 1px solid #eee;">
              <strong style="color: #2563eb;">${p.status}</strong>
@@ -280,10 +292,13 @@ export default function DashboardGuru() {
     });
 
     if (studentHafalanProgressList.length === 0) {
-      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi hafalan.</td></tr>`;
+      itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi hafalan pada semester ini.</td></tr>`;
     }
 
     let reportTitle = `Rapot Hafalan - ${student.name}`;
+    if (printRapotHafalanSemester !== 'Semua') {
+      reportTitle = `Rapot Hafalan ${printRapotHafalanSemester} - ${student.name}`;
+    }
 
     const html = `
       <html>
@@ -300,6 +315,7 @@ export default function DashboardGuru() {
             <div>Nama Siswa</div><div>: ${student.name}</div>
             <div>NIS/NISN</div><div>: ${student.email?.split('@')[0] || '-'}</div>
             <div>Kelas</div><div>: ${student.kelas || 'Belum Ditentukan'}</div>
+            <div>Semester</div><div>: ${printRapotHafalanSemester}</div>
             <div>Tahun Ajaran</div><div>: ${new Date().getFullYear()}/${new Date().getFullYear()+1}</div>
           </div>
           
@@ -1100,6 +1116,48 @@ export default function DashboardGuru() {
           </div>
         )}
 
+        {showPrintRapotHafalanModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
+              <button 
+                onClick={() => {
+                  setShowPrintRapotHafalanModal(false);
+                  setSelectedStudentForRapot(null);
+                }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+              >
+                <X />
+              </button>
+              <h3 className="text-xl font-black text-gray-800 mb-2">Cetak Rapot Hafalan</h3>
+              <p className="text-xs font-bold text-gray-500 mb-6 uppercase tracking-widest">{selectedStudentForRapot?.name}</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pilih Semester</label>
+                  <select 
+                    value={printRapotHafalanSemester} 
+                    onChange={(e) => setPrintRapotHafalanSemester(e.target.value)} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
+                  >
+                    <option value="Semua">Cetak Semua Semester</option>
+                    <option value="Semester 1">Semester 1</option>
+                    <option value="Semester 2">Semester 2</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={() => {
+                    handleExecutePrintRapotHafalanConfirm();
+                    setShowPrintRapotHafalanModal(false);
+                  }}
+                  className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold hover:bg-gray-900 transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} /> Cetak Dokumen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'kaldik' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             <div className="card-3d p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1330,7 +1388,7 @@ export default function DashboardGuru() {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleExecutePrintRapotHafalan(student)}
+                      onClick={() => promptPrintRapotHafalan(student)}
                       className="text-gray-400 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 p-2 rounded-xl transition-colors"
                       title="Cetak Rapot Hafalan"
                     >
@@ -1375,6 +1433,7 @@ export default function DashboardGuru() {
                               setHafalanEvalStars(p.stars || 0);
                               setHafalanEvalNotes(p.catatanGuru || '');
                               setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setHafalanEvalSemester(p.evaluationSemester || 'Semester 1');
                               setShowHafalanModal(true);
                             }} 
                             className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
@@ -1415,6 +1474,7 @@ export default function DashboardGuru() {
                               setHafalanEvalStars(p.stars || 0);
                               setHafalanEvalNotes(p.catatanGuru || '');
                               setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setHafalanEvalSemester(p.evaluationSemester || 'Semester 1');
                               setShowHafalanModal(true);
                             }} 
                             className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50"
@@ -1458,6 +1518,7 @@ export default function DashboardGuru() {
                               setHafalanEvalStars(p.stars || 0);
                               setHafalanEvalNotes(p.catatanGuru || '');
                               setHafalanEvalStatus(p.status || 'Sedang Menghafal');
+                              setHafalanEvalSemester(p.evaluationSemester || 'Semester 1');
                               setShowHafalanModal(true);
                             }} 
                             className="bg-white border border-green-200 text-green-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-50"
@@ -1840,6 +1901,18 @@ export default function DashboardGuru() {
                             className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
                           />
                         </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Semester (Untuk Rapot)</label>
+                          <select
+                            value={hafalanEvalSemester}
+                            onChange={(e) => setHafalanEvalSemester(e.target.value as 'Semester 1' | 'Semester 2')}
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-gray-700"
+                          >
+                            <option value="Semester 1">Semester 1</option>
+                            <option value="Semester 2">Semester 2</option>
+                          </select>
+                        </div>
                         
                         <div className="pt-4 flex gap-4">
                           <button onClick={() => setShowHafalanModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 flex-1 transition-colors">Batal</button>
@@ -1851,6 +1924,7 @@ export default function DashboardGuru() {
                                   status: hafalanEvalStatus,
                                   stars: hafalanEvalStars,
                                   catatanGuru: hafalanEvalNotes,
+                                  evaluationSemester: hafalanEvalSemester,
                                   isReadyForTest: false,
                                   updatedAt: new Date().toISOString()
                                 });

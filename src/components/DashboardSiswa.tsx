@@ -32,6 +32,7 @@ export default function DashboardSiswa() {
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
   const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
+  const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -1170,13 +1171,20 @@ export default function DashboardSiswa() {
                   <Printer size={20} /> Cetak Rapot Hafalan
                 </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select value={filterHafalanStatusSiswa} onChange={e => setFilterHafalanStatusSiswa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {userData?.kelas?.toLowerCase().includes('utsman') && (
+                  <select value={filterHafalanKelasSiswa} onChange={e => setFilterHafalanKelasSiswa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none">
+                    <option value="Semua">Semua Kelas</option>
+                    <option value="Utsman">Kelas Utsman</option>
+                    <option value="Umar Bin Khattab">Kelas Umar Bin Khattab</option>
+                  </select>
+                )}
+                <select value={filterHafalanStatusSiswa} onChange={e => setFilterHafalanStatusSiswa(e.target.value)} className={`w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none ${!userData?.kelas?.toLowerCase().includes('utsman') ? 'lg:col-span-1 md:col-span-1' : ''}`}>
                   <option value="Semua">Semua Status</option>
                   <option value="Sudah Setor">Sudah Ada Setoran (Menunggu / Selesai)</option>
                   <option value="Belum Setor">Belum Disetor (Sedang Menghafal / Belum Mulai)</option>
                 </select>
-                <select value={filterHafalanCategorySiswa} onChange={e => setFilterHafalanCategorySiswa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none">
+                <select value={filterHafalanCategorySiswa} onChange={e => setFilterHafalanCategorySiswa(e.target.value)} className={`w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-600 appearance-none ${!userData?.kelas?.toLowerCase().includes('utsman') ? 'lg:col-span-1 md:col-span-1' : ''}`}>
                   <option value="Semua Kategori">Semua Kategori</option>
                   <option value="Surat Pendek">Surat Pendek</option>
                   <option value="Hadist">Hadist</option>
@@ -1206,6 +1214,16 @@ export default function DashboardSiswa() {
                      if (!userData?.kelas || userData.kelas.trim() === "") return true; // show all if class is not set
                      const uKelas = userData.kelas.toLowerCase().replace(/[^a-z0-9]/g, '');
                      const mKelas = m.kelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+                     const isUtsman = uKelas.includes("utsman");
+                     
+                     // If student is Utsman, allow them to see Umar's materials as well (for unfinished ones)
+                     if (isUtsman) {
+                       if (filterHafalanKelasSiswa !== 'Semua' && m.kelas !== filterHafalanKelasSiswa) {
+                         return false;
+                       }
+                       if (mKelas.includes("umar") || mKelas.includes("utsman")) return true;
+                     }
+                     
                      // More robust match: checks if standardized strings contain each other
                      return mKelas.includes(uKelas) || uKelas.includes(mKelas);
                   })
@@ -1259,10 +1277,19 @@ export default function DashboardSiswa() {
                          </div>
                        </div>
                        
-                       <div className="bg-gray-50 rounded-2xl p-6 mt-4 space-y-4">
-                         <p className="text-2xl text-right font-arab text-gray-800 leading-loose" dir="rtl">{material.arab}</p>
-                         <p className="text-sm text-gray-600 font-medium italic">{material.latin}</p>
-                         <p className="text-sm text-gray-500 leading-relaxed">"{material.terjemahan}"</p>
+                       <div className="bg-gray-50 rounded-2xl p-6 mt-4 space-y-4 text-center">
+                         {material.arab ? (
+                           <>
+                             <p className="text-2xl font-arab text-gray-800 leading-loose" dir="rtl">{material.arab}</p>
+                             <p className="text-sm text-gray-600 font-medium italic">{material.latin}</p>
+                             <p className="text-sm text-gray-500 leading-relaxed">"{material.terjemahan}"</p>
+                           </>
+                         ) : (
+                           <div className="py-6 space-y-2">
+                             <p className="text-lg font-bold text-gray-700">Setorkan hafalan {material.judul} secara langsung.</p>
+                             <p className="text-xs text-gray-500 uppercase tracking-widest">Teks materi tidak tersedia di sistem.</p>
+                           </div>
+                         )}
                        </div>
 
                        {/* Audio Player */}
