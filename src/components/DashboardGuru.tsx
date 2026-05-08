@@ -1423,9 +1423,9 @@ export default function DashboardGuru() {
                                 }
                               }
                             }}
-                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} /> Hapus
                           </button>
                           <button 
                             onClick={() => {
@@ -1464,9 +1464,9 @@ export default function DashboardGuru() {
                                 }
                               }
                             }}
-                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} /> Hapus
                           </button>
                           <button 
                             onClick={() => {
@@ -1508,9 +1508,9 @@ export default function DashboardGuru() {
                                 }
                               }
                             }}
-                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 hidden md:group-hover:block transition-all"
+                            className="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-1"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} /> Hapus
                           </button>
                           <button 
                             onClick={() => {
