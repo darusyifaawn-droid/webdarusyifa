@@ -1742,18 +1742,20 @@ export default function DashboardAdmin() {
               {[
                 { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
                 { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}`, detail: 'Saldo Sekolah', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
-                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}`, detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
+                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}`, detail: 'Saldo Sekolah', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
+                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}`, detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
               ].map((stat, i) => (
-                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
-                    <h4 className="text-4xl font-black tracking-tighter">{stat.value}</h4>
+                    <h4 className={`font-black tracking-tighter ${String(stat.value).length > 12 ? 'text-xl' : String(stat.value).length > 8 ? 'text-2xl' : 'text-3xl sm:text-4xl'}`}>
+                      {stat.value}
+                    </h4>
                   </div>
-                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase mt-2">
                     {stat.detail}
                   </div>
                 </div>
@@ -1762,9 +1764,20 @@ export default function DashboardAdmin() {
 
             {/* Menu Utama Section */}
             <div className="mt-10">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-1.5 h-8 bg-blue-600 rounded-full"></div>
-                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Menu Utama</h3>
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 bg-blue-600 rounded-full"></div>
+                  <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Menu Utama</h3>
+                </div>
+                {payments.filter(p => p.status === 'pending').length > 0 && (
+                  <button 
+                    onClick={() => setActiveTab('finance')}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl animate-pulse cursor-pointer hover:bg-amber-100 transition-all"
+                  >
+                    <AlertCircle size={14} className="animate-bounce" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Ada {payments.filter(p => p.status === 'pending').length} Pembayaran Perlu Validasi</span>
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
@@ -2733,7 +2746,7 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
-                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString()}</h4>
+                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}</h4>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
