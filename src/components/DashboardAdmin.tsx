@@ -1665,7 +1665,16 @@ export default function DashboardAdmin() {
             {/* Mobile Header (Hidden on Desktop) */}
             <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-end items-center mb-6 relative z-10 pt-2">
+              <div className="flex justify-between items-center mb-6 relative z-10 pt-2">
+                <div className="text-center flex-1 ml-10">
+                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
+                    SAKINAH
+                  </h1>
+                  <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
+                  <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
+                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
+                  </div>
+                </div>
                 <button 
                   onClick={() => setActiveTab('announcements')}
                   className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
