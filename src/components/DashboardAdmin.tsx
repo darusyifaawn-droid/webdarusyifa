@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -105,9 +105,15 @@ export default function DashboardAdmin() {
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
   const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
 
+  // Achievement Filters
+  const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
+  const [filterAchievementCategory, setFilterAchievementCategory] = useState('Semua');
+  const [filterAchievementSearch, setFilterAchievementSearch] = useState('');
+
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
   const [progressData, setProgressData] = useState<any[]>([]);
+  const [hafalanData, setHafalanData] = useState<any[]>([]);
   const [filterAssessmentName, setFilterAssessmentName] = useState('');
   const [filterAssessmentKelas, setFilterAssessmentKelas] = useState('');
   const [kaldikData, setKaldikData] = useState<any[]>([]);
@@ -282,6 +288,10 @@ export default function DashboardAdmin() {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
+    const unsubHafalan = onSnapshot(query(collection(db, 'hafalan'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setHafalanData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
     return () => {
       unsubUsers();
       unsubAttendance();
@@ -292,6 +302,7 @@ export default function DashboardAdmin() {
       unsubProgress();
       unsubKaldik();
       unsubMaterials();
+      unsubHafalan();
     };
   }, [user]);
 
@@ -1542,6 +1553,12 @@ export default function DashboardAdmin() {
         <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-500'} /> Absensi
       </button>
       <button 
+        onClick={() => { setActiveTab('achievements'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'achievements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Trophy size={20} className={activeTab === 'achievements' ? 'text-white' : 'text-gray-500'} /> Siswa Berprestasi
+      </button>
+      <button 
         onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
@@ -1787,7 +1804,7 @@ export default function DashboardAdmin() {
                   { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'from-emerald-400 to-emerald-500', action: () => setActiveTab('attendance') },
                   { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
                   { id: 'materials', label: 'Materi', icon: BookOpen, color: 'from-blue-400 to-blue-500', action: () => setActiveTab('materials') },
-                  { id: 'attendance', label: 'Jurnal', icon: FileText, color: 'from-cyan-400 to-cyan-500', action: () => setActiveTab('attendance') },
+                  { id: 'achievements', label: 'Prestasi', icon: Trophy, color: 'from-yellow-400 to-yellow-500', action: () => setActiveTab('achievements') },
                   { id: 'assessments', label: 'Penilaian', icon: TrendingUp, color: 'from-indigo-400 to-indigo-500', action: () => setActiveTab('assessments') },
                   { id: 'users', label: 'Guru', icon: Shield, color: 'from-teal-400 to-teal-500', action: () => { setActiveTab('users'); setFilterUserRole('guru'); } },
                   { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'from-amber-400 to-amber-500', action: () => setActiveTab('finance') },
@@ -2232,6 +2249,207 @@ export default function DashboardAdmin() {
                 {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus).length === 0 && (
                   <div className="p-6 text-center text-gray-400 italic text-sm">Data siswa dengan status tersebut belum tersedia.</div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'achievements' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg">
+                    <Trophy size={24} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Siswa Berprestasi</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Monitoring capaian terbaik siswa untuk acuan beasiswa & apresiasi.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div className="flex-1 md:flex-none relative">
+                  <input 
+                    type="text" 
+                    placeholder="Cari nama siswa..." 
+                    value={filterAchievementSearch}
+                    onChange={(e) => setFilterAchievementSearch(e.target.value)}
+                    className="w-full md:w-64 pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-yellow-500"
+                  />
+                  <Users className="absolute left-3 top-2.5 text-gray-400" size={14} />
+                </div>
+                <select 
+                  value={filterAchievementKelas}
+                  onChange={(e) => setFilterAchievementKelas(e.target.value)}
+                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-gray-600"
+                >
+                  <option value="Semua">Semua Kelas</option>
+                  {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+                <select 
+                  value={filterAchievementCategory}
+                  onChange={(e) => setFilterAchievementCategory(e.target.value)}
+                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-gray-600"
+                >
+                  <option value="Semua">Semua Kategori</option>
+                  <option value="Akademik">Akademik (Mapel)</option>
+                  <option value="Hafalan">Hafalan (Tahfidz)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Top Hafalan Section */}
+              {(filterAchievementCategory === 'Semua' || filterAchievementCategory === 'Hafalan') && (
+                <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-8 border-b border-gray-50 bg-yellow-50/30 flex items-center justify-between">
+                    <h4 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                      <Star className="text-yellow-500" size={20} fill="currentColor" /> Ranking Hafalan
+                    </h4>
+                    <span className="text-[10px] font-black text-yellow-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-yellow-100 shadow-sm">Berdasarkan Total Bintang</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50">
+                        <tr>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Rank</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Siswa</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kelas</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-center text-gray-400 uppercase tracking-widest">Tuntas</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-right text-gray-400 uppercase tracking-widest">Total Bintang</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {allUsers
+                          .filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif')
+                          .filter(u => filterAchievementKelas === 'Semua' || (u.kelas || '').toLowerCase() === filterAchievementKelas.toLowerCase())
+                          .filter(u => !filterAchievementSearch || u.name.toLowerCase().includes(filterAchievementSearch.toLowerCase()))
+                          .map(student => {
+                            const studentHafalan = hafalanData.filter(h => h.studentId === student.id);
+                            const totalStars = studentHafalan.reduce((sum, h) => sum + (h.stars || 0), 0);
+                            const completedCount = studentHafalan.filter(h => h.status === 'Lulus' || h.status === 'Sudah Setor').length;
+                            return { ...student, totalStars, completedCount };
+                          })
+                          .sort((a, b) => b.totalStars - a.totalStars)
+                          .slice(0, 10)
+                          .map((s, idx) => (
+                            <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                                  idx === 0 ? 'bg-yellow-400 text-white' : 
+                                  idx === 1 ? 'bg-gray-300 text-white' : 
+                                  idx === 2 ? 'bg-orange-300 text-white' : 
+                                  'bg-gray-100 text-gray-400'
+                                }`}>
+                                  {idx + 1}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-bold text-gray-800 text-sm">{s.name}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">{s.kelas || '-'}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="bg-green-50 text-green-600 px-2.5 py-1 rounded-lg text-[10px] font-black">{s.completedCount} Materi</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-1 text-yellow-500 font-black">
+                                  <span>{s.totalStars}</span>
+                                  <Star size={14} fill="currentColor" />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Top Academic Section */}
+              {(filterAchievementCategory === 'Semua' || filterAchievementCategory === 'Akademik') && (
+                <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-8 border-b border-gray-50 bg-blue-50/30 flex items-center justify-between">
+                    <h4 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                      <BookOpen className="text-blue-500" size={20} /> Juara Kelas Akademik
+                    </h4>
+                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-blue-100 shadow-sm">Berdasarkan Rata-rata Nilai</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50">
+                        <tr>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Rank</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Siswa</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kelas</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-center text-gray-400 uppercase tracking-widest">Mapel Dilalui</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-right text-gray-400 uppercase tracking-widest">Rata-rata</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {allUsers
+                          .filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif')
+                          .filter(u => filterAchievementKelas === 'Semua' || (u.kelas || '').toLowerCase() === filterAchievementKelas.toLowerCase())
+                          .filter(u => !filterAchievementSearch || u.name.toLowerCase().includes(filterAchievementSearch.toLowerCase()))
+                          .map(student => {
+                            const studentProgress = progressData.filter(p => p.studentId === student.id && (p.score !== undefined));
+                            const totalScore = studentProgress.reduce((sum, p) => sum + (Number(p.score) || 0), 0);
+                            const avgScore = studentProgress.length > 0 ? (totalScore / studentProgress.length) : 0;
+                            return { ...student, avgScore, subjectCount: studentProgress.length };
+                          })
+                          .filter(s => s.subjectCount > 0)
+                          .sort((a, b) => b.avgScore - a.avgScore)
+                          .slice(0, 10)
+                          .map((s, idx) => (
+                            <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                                  idx === 0 ? 'bg-blue-600 text-white' : 
+                                  idx === 1 ? 'bg-blue-400 text-white' : 
+                                  idx === 2 ? 'bg-blue-300 text-white' : 
+                                  'bg-gray-100 text-gray-400'
+                                }`}>
+                                  {idx + 1}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-bold text-gray-800 text-sm">{s.name}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">{s.kelas || '-'}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-[10px] font-black">{s.subjectCount} Mapel</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className={`font-black text-base ${s.avgScore >= 85 ? 'text-emerald-600' : s.avgScore >= 75 ? 'text-blue-600' : 'text-gray-600'}`}>
+                                  {s.avgScore.toFixed(1)}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Insight Beasiswa Card */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 overflow-hidden relative">
+              <div className="absolute -right-10 -bottom-10 opacity-20 rotate-12">
+                <Trophy size={200} />
+              </div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                <div className="p-6 bg-white/20 backdrop-blur-md rounded-[2rem] border border-white/30 hidden sm:block">
+                  <GraduationCap size={64} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black mb-2 tracking-tight">Rekomendasi Penerima Beasiswa</h4>
+                  <p className="text-emerald-50 mb-6 font-medium max-w-xl">
+                    Data di atas dikalkulasi secara otomatis berdasarkan akumulasi nilai akademik dan hafalan (tahfidz) periode berjalan. Gunakan data ini sebagai referensi utama penentuan bantuan beasiswa atau apresiasi siswa teladan.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <button className="px-6 py-3 bg-white text-emerald-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg hover:scale-105 transition-transform">
+                      Cetak Laporan Prestasi
+                    </button>
+                    <button className="px-6 py-3 bg-emerald-700/30 backdrop-blur-sm border border-white/30 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-700/50 transition-all">
+                      Log Beasiswa Terakhir
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
