@@ -1577,7 +1577,7 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
         <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
             <BarChart size={24} />
@@ -1585,7 +1585,7 @@ export default function DashboardAdmin() {
           <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
         <button onClick={() => { /* Open personal profile tab or modal */ setActiveTab('profile') }} className="flex flex-col items-center gap-1 flex-1 text-gray-400">
-           <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white">
+           <div className="w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white">
             <User size={28} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
@@ -1663,9 +1663,9 @@ export default function DashboardAdmin() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header (Hidden on Desktop) */}
-            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
+            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 pt-10 rounded-b-[40px] text-white relative shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-6 relative z-10 pt-2">
+              <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
                 <div className="text-center flex-1 ml-10">
                   <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
                     SAKINAH
@@ -1678,13 +1678,14 @@ export default function DashboardAdmin() {
                 <button 
                   onClick={() => setActiveTab('announcements')}
                   className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
                 >
                   <Bell size={20} />
                   <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
                 </button>
               </div>
               
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden">
+              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
                 <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
                   {userData?.photoURL ? (
                     <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -1740,22 +1741,22 @@ export default function DashboardAdmin() {
             {/* Stats Cards Section */}
             <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
               {[
-                { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
-                { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}`, detail: 'Saldo Sekolah', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
-                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}`, detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
+                { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'bg-indigo-600 bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
+                { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'bg-teal-500 bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}`, detail: 'Saldo Sekolah', color: 'bg-orange-500 bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
+                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}`, detail: 'Tagihan Berjalan', color: 'bg-pink-600 bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
               ].map((stat, i) => (
-                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
+                <div key={i} className={`relative overflow-hidden ${stat.color} p-5 md:p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
-                  <div>
+                  <div className="relative z-10">
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
-                    <h4 className={`font-black tracking-tighter ${String(stat.value).length > 12 ? 'text-xl' : String(stat.value).length > 8 ? 'text-2xl' : 'text-3xl sm:text-4xl'}`}>
+                    <h4 className={`font-black tracking-tighter leading-none break-all ${String(stat.value).length > 15 ? 'text-lg' : String(stat.value).length > 12 ? 'text-xl' : String(stat.value).length > 8 ? 'text-2xl' : 'text-3xl sm:text-4xl'}`}>
                       {stat.value}
                     </h4>
                   </div>
-                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase mt-2">
+                  <div className="relative z-10 inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase mt-2" style={{ WebkitBackdropFilter: 'blur(8px)' }}>
                     {stat.detail}
                   </div>
                 </div>
@@ -2524,6 +2525,13 @@ export default function DashboardAdmin() {
                       <h4 className="text-xl font-bold text-gray-800 mb-2">{mat.name}</h4>
                       <p className="text-xs text-blue-500 font-bold mb-4 uppercase tracking-widest">{mat.topic || 'Umum'}</p>
                       
+                      {mat.tulisanArab && (
+                        <div className="mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                           <p className="text-xl font-arab text-gray-800 leading-loose" dir="rtl">{mat.tulisanArab}</p>
+                           {mat.terjemahan && <p className="text-[10px] text-gray-500 mt-2 font-medium">"{mat.terjemahan}"</p>}
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100 mt-4">
                         <img src={teacher?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher?.name || 'G')}&background=random`} alt="Teacher" className="w-10 h-10 rounded-xl object-cover" />
                         <div>
@@ -2547,11 +2555,11 @@ export default function DashboardAdmin() {
 
         {activeTab === 'assessments' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="card-3d p-8">
-              <h3 className="text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Detail Siswa</h3>
-              <p className="text-gray-400 text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
+            <div className="card-3d p-5 sm:p-8">
+              <h3 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Detail Siswa</h3>
+              <p className="text-gray-400 text-[10px] sm:text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
               
-              <div className="mt-8 flex flex-col md:flex-row gap-4">
+              <div className="mt-6 sm:mt-8 flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Users size={16} className="text-gray-400" />
@@ -2579,16 +2587,17 @@ export default function DashboardAdmin() {
               </div>
             </div>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-               <table className="w-full text-left whitespace-nowrap min-w-[800px]">
-                 <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
-                   <tr>
-                     <th className="px-6 py-4">Tanggal</th>
-                     <th className="px-6 py-4">Siswa</th>
-                     <th className="px-6 py-4 text-indigo-600">Guru Penilai</th>
-                     <th className="px-6 py-4 font-black">Detail Penilaian</th>
-                     <th className="px-6 py-4 text-center">Hasil & Skor</th>
-                   </tr>
-                 </thead>
+               <div className="overflow-x-auto scrolling-touch custom-scrollbar">
+                  <table className="w-full text-left whitespace-nowrap min-w-[700px] sm:min-w-[800px]">
+                    <thead className="bg-gray-50/50 text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                      <tr>
+                        <th className="px-6 py-5">Tanggal</th>
+                        <th className="px-6 py-5">Siswa</th>
+                        <th className="px-6 py-5 text-indigo-600">Guru Penilai</th>
+                        <th className="px-6 py-5">Detail Penilaian</th>
+                        <th className="px-6 py-5 text-center">Hasil & Skor</th>
+                      </tr>
+                    </thead>
                 <tbody className="divide-y divide-gray-100">
                    {progressData
                     .filter(p => {
@@ -2619,12 +2628,18 @@ export default function DashboardAdmin() {
                          </td>
                          <td className="px-6 py-4">
                            <div className="flex items-center gap-3">
-                             <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-sm border border-indigo-200">
-                               <User size={16} />
+                             <div className="relative">
+                               <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border-2 border-white shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                                 <User size={18} />
+                               </div>
+                               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                              </div>
                              <div>
-                               <p className="text-xs font-black text-gray-800 leading-tight">{p.teacherName || teacher?.name || 'Guru'}</p>
-                               <p className="text-[9px] text-gray-400 font-bold mt-0.5">Penilai Utama</p>
+                               <p className="text-sm font-black text-gray-800 leading-tight group-hover:text-indigo-600 transition-colors">{p.teacherName || teacher?.name || 'Guru'}</p>
+                               <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
+                                  <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest">Penilai Utama</p>
+                               </div>
                              </div>
                            </div>
                          </td>
@@ -2663,7 +2678,8 @@ export default function DashboardAdmin() {
               </table>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {activeTab === 'finance' && (
           <div className="space-y-6">
@@ -2746,7 +2762,7 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
-                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}</h4>
+                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}</h4>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
@@ -2756,7 +2772,7 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan Siswa</p>
-                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">Rp {allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString()}</h4>
+                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}</h4>
                 </div>
               </div>
             </div>

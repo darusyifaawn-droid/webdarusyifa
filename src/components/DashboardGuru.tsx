@@ -51,7 +51,7 @@ export default function DashboardGuru() {
   
   // Materials States
   const [showMaterialModal, setShowMaterialModal] = useState(false);
-  const [newMaterial, setNewMaterial] = useState({ name: '', topic: '' });
+  const [newMaterial, setNewMaterial] = useState({ name: '', topic: '', tulisanArab: '', terjemahan: '' });
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
 
   const [editName, setEditName] = useState('');
@@ -230,7 +230,7 @@ export default function DashboardGuru() {
         alert('Materi / Mata Pelajaran berhasil ditambahkan!');
       }
       setShowMaterialModal(false);
-      setNewMaterial({ name: '', topic: '' });
+      setNewMaterial({ name: '', topic: '', tulisanArab: '', terjemahan: '' });
       setEditingMaterialId(null);
     } catch (error) {
       handleFirestoreError(error, editingMaterialId ? OperationType.UPDATE : OperationType.CREATE, 'materials');
@@ -726,8 +726,7 @@ export default function DashboardGuru() {
         </div>
       </aside>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
         <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
             <BarChartIcon size={24} />
@@ -735,7 +734,7 @@ export default function DashboardGuru() {
           <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
-           <div className={`w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
+           <div className={`w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
             <User size={28} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
@@ -783,9 +782,9 @@ export default function DashboardGuru() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
-            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
+            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 pt-12 rounded-b-[40px] text-white relative shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-6 relative z-10 pt-2">
+              <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
                 <div className="text-center flex-1 ml-10">
                   <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
                     SAKINAH
@@ -798,13 +797,14 @@ export default function DashboardGuru() {
                 <button 
                   onClick={() => setActiveTab('announcements')}
                   className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
                 >
                   <Bell size={20} />
                   <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
                 </button>
               </div>
               
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden">
+              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
                 <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
                   {userData?.photoURL ? (
                     <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -860,20 +860,20 @@ export default function DashboardGuru() {
             {/* Stats Section */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {[
-                  { label: 'Jumlah Siswa', value: students.length, detail: 'Aktif Tahun Ini', color: 'bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
-                  { label: 'Laporan Belajar', value: progress.length, detail: 'Telah Dibuat', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
-                  { label: 'Hafalan Siswa', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Lulus Materi', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: Star },
-                  { label: 'Absensi Saya', value: attendance.filter(a => a.studentId === user?.uid).length, detail: 'Total Kehadiran', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: CheckCircle }
+                  { label: 'Jumlah Siswa', value: students.length, detail: 'Aktif Tahun Ini', color: 'bg-indigo-600 bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
+                  { label: 'Laporan Belajar', value: progress.length, detail: 'Telah Dibuat', color: 'bg-teal-500 bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
+                  { label: 'Hafalan Siswa', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Lulus Materi', color: 'bg-orange-500 bg-gradient-to-br from-amber-400 to-orange-500', icon: Star },
+                  { label: 'Absensi Saya', value: attendance.filter(a => a.studentId === user?.uid).length, detail: 'Total Kehadiran', color: 'bg-pink-600 bg-gradient-to-br from-rose-500 to-pink-600', icon: CheckCircle }
                 ].map((stat, i) => (
-                  <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                  <div key={i} className={`relative overflow-hidden ${stat.color} p-5 md:p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-30 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
-                  <div>
+                  <div className="relative z-10">
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
-                    <h4 className="text-4xl font-black tracking-tighter">{stat.value}</h4>
+                    <h4 className={`font-black tracking-tighter leading-none ${String(stat.value).length > 8 ? 'text-2xl' : 'text-3xl sm:text-4xl'}`}>{stat.value}</h4>
                   </div>
-                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                  <div className="relative z-10 inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase" style={{ WebkitBackdropFilter: 'blur(8px)' }}>
                     {stat.detail}
                   </div>
                 </div>
@@ -1821,6 +1821,14 @@ export default function DashboardGuru() {
                    <>
                      <p className="text-sm text-gray-500 mb-6">Siswa: <span className="font-bold text-gray-800">{st?.name}</span> • Materi: <span className="font-bold border-b border-gray-300">{mat?.judul}</span></p>
                      
+                     {mat?.arab && (
+                        <div className="mb-6 p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center space-y-4">
+                           <p className="text-2xl font-arab text-gray-800 leading-loose" dir="rtl">{mat.arab}</p>
+                           <p className="text-sm text-gray-600 font-medium italic">{mat.latin}</p>
+                           <p className="text-sm text-gray-500 leading-relaxed font-medium">"{mat.terjemahan}"</p>
+                        </div>
+                     )}
+                     
                      {evaluateHafalan.submissionMethod && (
                        <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex items-center justify-between">
                          <div>
@@ -2098,7 +2106,7 @@ export default function DashboardGuru() {
               <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center relative overflow-hidden">
                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-100 rounded-full blur-2xl opacity-60"></div>
                 <h3 className="text-xl font-black text-gray-800 flex items-center gap-3 relative z-10"><BookOpen className="text-blue-500" /> {editingMaterialId ? 'Edit Materi' : 'Tambah Materi'}</h3>
-                <button onClick={() => { setShowMaterialModal(false); setEditingMaterialId(null); setNewMaterial({ name: '', topic: '' }); }} className="text-gray-400 hover:text-red-500 transition-colors relative z-10"><X size={24} /></button>
+                <button onClick={() => { setShowMaterialModal(false); setEditingMaterialId(null); setNewMaterial({ name: '', topic: '', tulisanArab: '', terjemahan: '' }); }} className="text-gray-400 hover:text-red-500 transition-colors relative z-10"><X size={24} /></button>
               </div>
               <form onSubmit={handleSaveMaterial} className="p-6 space-y-4">
                 <div>
@@ -2120,6 +2128,25 @@ export default function DashboardGuru() {
                     onChange={(e) => setNewMaterial({...newMaterial, topic: e.target.value})} 
                     className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold text-gray-700" 
                     placeholder="Contoh: Matematika Dasar" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Tulisan Arab (Opsional)</label>
+                  <textarea 
+                    value={newMaterial.tulisanArab} 
+                    onChange={(e) => setNewMaterial({...newMaterial, tulisanArab: e.target.value})} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-arab text-xl text-gray-700 h-24 resize-none" 
+                    placeholder="Tulis teks arab di sini..." 
+                    dir="rtl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Terjemahan / Arti</label>
+                  <textarea 
+                    value={newMaterial.terjemahan} 
+                    onChange={(e) => setNewMaterial({...newMaterial, terjemahan: e.target.value})} 
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium text-gray-700 h-24 resize-none" 
+                    placeholder="Masukkan terjemahan materi..." 
                   />
                 </div>
                 <button type="submit" className="w-full px-6 py-5 bg-blue-600 text-white rounded-[1.5rem] font-bold text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-6 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">

@@ -797,15 +797,15 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
         <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
-            <BarChartIcon size={24} />
+             <BarChartIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
-           <div className={`w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
+           <div className={`w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
             <User size={28} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
@@ -851,9 +851,9 @@ export default function DashboardSiswa() {
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
-            <div className="md:hidden -mx-4 -mt-3 mb-6 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative">
+            <div className="md:hidden -mx-4 -mt-3 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-6 relative z-10 pt-2">
+              <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
                 <div className="text-center flex-1 ml-10">
                   <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
                     SAKINAH
@@ -866,13 +866,14 @@ export default function DashboardSiswa() {
                 <button 
                   onClick={() => setActiveTab('announcements')}
                   className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
                 >
                   <Bell size={20} />
                   <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
                 </button>
               </div>
               
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden">
+              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
                 <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
                   {userData?.photoURL ? (
                     <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -932,20 +933,20 @@ export default function DashboardSiswa() {
             {/* Stats Cards Section */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[
-                { label: 'Kehadiran', value: attendance.length, detail: 'Hadir Semester Ini', color: 'bg-gradient-to-br from-blue-500 to-indigo-600', icon: CheckCircle },
-                { label: 'Laporan Belajar', value: progress.length, detail: 'Hasil Evaluasi', color: 'bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Hafalan Lulus', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Materi Selesai', color: 'bg-gradient-to-br from-amber-400 to-orange-500', icon: Star },
-                { label: 'Sisa SPP', value: 'RP 0', detail: 'Tagihan Berjalan', color: 'bg-gradient-to-br from-rose-500 to-pink-600', icon: CreditCard }
+                { label: 'Kehadiran', value: attendance.length, detail: 'Hadir Semester Ini', color: 'bg-indigo-600 bg-gradient-to-br from-blue-500 to-indigo-600', icon: CheckCircle },
+                { label: 'Laporan Belajar', value: progress.length, detail: 'Hasil Evaluasi', color: 'bg-teal-500 bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
+                { label: 'Hafalan Lulus', value: hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length, detail: 'Materi Selesai', color: 'bg-orange-500 bg-gradient-to-br from-amber-400 to-orange-500', icon: Star },
+                { label: 'Sisa SPP', value: (userData?.arrears || 0) > 0 ? `Rp ${(userData.arrears).toLocaleString('id-ID')}` : 'Rp 0', detail: 'Tagihan Berjalan', color: 'bg-pink-600 bg-gradient-to-br from-rose-500 to-pink-600', icon: CreditCard }
               ].map((stat, i) => (
-                <div key={i} className={`relative overflow-hidden ${stat.color} p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-44`}>
+                <div key={i} className={`relative overflow-hidden ${stat.color} p-5 md:p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-30 group-hover:scale-110 transition-transform rotate-12">
                     <stat.icon size={100} />
                   </div>
-                  <div>
+                  <div className="relative z-10">
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] opacity-80 mb-1">{stat.label}</p>
-                    <h4 className="text-3xl font-black tracking-tighter truncate">{stat.value}</h4>
+                    <h4 className={`font-black tracking-tighter leading-none ${String(stat.value).length > 8 ? 'text-2xl' : 'text-3xl sm:text-4xl'}`}>{stat.value}</h4>
                   </div>
-                  <div className="inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase">
+                  <div className="relative z-10 inline-flex items-center self-start px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-wide uppercase" style={{ WebkitBackdropFilter: 'blur(8px)' }}>
                     {stat.detail}
                   </div>
                 </div>
@@ -1077,6 +1078,14 @@ export default function DashboardSiswa() {
                       <div className="relative z-10">
                         <h5 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2">{mat.name}</h5>
                         <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">{mat.topic || 'Umum'}</p>
+                        
+                        {mat.tulisanArab && (
+                          <div className="mt-4 p-3 bg-blue-50/30 rounded-xl border border-blue-100/30">
+                            <p className="text-xl font-arab text-gray-800 leading-loose text-right" dir="rtl">{mat.tulisanArab}</p>
+                            {mat.terjemahan && <p className="text-[9px] text-gray-500 mt-2 font-medium italic">"{mat.terjemahan}"</p>}
+                          </div>
+                        )}
+
                         <p className="text-[9px] text-gray-400 font-medium mt-3">📅 {new Date(mat.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString('id-ID')}</p>
                       </div>
                     </div>
@@ -1133,8 +1142,9 @@ export default function DashboardSiswa() {
                             {p.status}
                           </span>
                         )}
-                        <div className="flex items-center gap-2 text-xs text-gray-400 font-bold bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                          <User size={14} /> Guru: {p.teacherName || 'Wali Kelas'}
+                        <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100 mt-2 w-fit">
+                          <User size={12} className="shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-wider">{p.teacherName || 'Guru Penilai'}</span>
                         </div>
                       </div>
                     </div>
