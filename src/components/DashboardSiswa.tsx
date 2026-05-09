@@ -797,20 +797,20 @@ export default function DashboardSiswa() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500'}`}>
           <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
              <BarChartIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500'}`}>
            <div className={`w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
             <User size={28} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
         </button>
-        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-400">
+        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-500">
           <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
             <LogOut size={24} />
           </div>
@@ -1461,12 +1461,12 @@ export default function DashboardSiswa() {
               </div>
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left whitespace-nowrap">
-                <thead className="bg-gray-50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                <thead className="bg-gray-100/50 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
                   <tr>
-                    <th className="px-6 py-4 md:px-8 md:py-5">Tanggal</th>
-                    <th className="px-6 py-4 md:px-8 md:py-5">Waktu</th>
-                    <th className="px-6 py-4 md:px-8 md:py-5">Foto</th>
-                    <th className="px-6 py-4 md:px-8 md:py-5">Status</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5 text-gray-600">Tanggal</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5 text-gray-600">Waktu</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5 text-gray-600">Foto</th>
+                    <th className="px-6 py-4 md:px-8 md:py-5 text-gray-600">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">

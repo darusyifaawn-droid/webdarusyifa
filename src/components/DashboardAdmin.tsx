@@ -1515,43 +1515,43 @@ export default function DashboardAdmin() {
         onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'overview' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <BarChart size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-400'} /> Dashboard
+        <BarChart size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-500'} /> Dashboard
       </button>
       <button 
         onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'users' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <Users size={20} className={activeTab === 'users' ? 'text-white' : 'text-gray-400'} /> User Management
+        <Users size={20} className={activeTab === 'users' ? 'text-white' : 'text-gray-500'} /> User Management
       </button>
       <button 
         onClick={() => { setActiveTab('academic'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'academic' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <BookOpen size={20} className={activeTab === 'academic' ? 'text-white' : 'text-gray-400'} /> Akademik & Rapot
+        <BookOpen size={20} className={activeTab === 'academic' ? 'text-white' : 'text-gray-500'} /> Akademik & Rapot
       </button>
       <button 
         onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'finance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <CreditCard size={20} className={activeTab === 'finance' ? 'text-white' : 'text-gray-400'} /> Administrasi
+        <CreditCard size={20} className={activeTab === 'finance' ? 'text-white' : 'text-gray-500'} /> Administrasi
       </button>
       <button 
         onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'attendance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-400'} /> Absensi
+        <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-500'} /> Absensi
       </button>
       <button 
         onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <Megaphone size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-400'} /> Pengumuman
+        <Megaphone size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-500'} /> Pengumuman
       </button>
       <button 
         onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-400'} /> Profil Admin
+        <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-500'} /> Profil Admin
       </button>
     </nav>
   );
@@ -1577,20 +1577,20 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center px-4 py-2 z-50 pb-safe" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-400'}`}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex justify-around items-center px-4 py-2 z-50 pb-safe" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
+        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500'}`}>
           <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
             <BarChart size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
         </button>
-        <button onClick={() => { /* Open personal profile tab or modal */ setActiveTab('profile') }} className="flex flex-col items-center gap-1 flex-1 text-gray-400">
+        <button onClick={() => { setActiveTab('profile') }} className="flex flex-col items-center gap-1 flex-1 text-gray-500">
            <div className="w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white">
             <User size={28} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
         </button>
-        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-400">
+        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-500">
           <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
             <LogOut size={24} />
           </div>
@@ -1677,16 +1677,16 @@ export default function DashboardAdmin() {
                 </div>
                 <button 
                   onClick={() => setActiveTab('announcements')}
-                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                  className="bg-white/25 p-2.5 rounded-2xl backdrop-blur-md border border-white/40 shadow-lg relative active:scale-95 transition-all text-white"
                   style={{ WebkitBackdropFilter: 'blur(8px)' }}
                 >
                   <Bell size={20} />
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in shadow-sm"></span>
                 </button>
               </div>
               
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
-                <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
+              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/40 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
+                <div className="w-20 h-20 rounded-full border-4 border-white/50 overflow-hidden bg-white/98 flex items-center justify-center shadow-xl shrink-0">
                   {userData?.photoURL ? (
                     <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
@@ -2368,14 +2368,14 @@ export default function DashboardAdmin() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead className="bg-gray-50/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <thead className="bg-gray-100/50 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
                     <tr>
-                      <th className="px-8 py-5">Subjek</th>
-                      <th className="px-8 py-5">Waktu Presensi</th>
-                      <th className="px-8 py-5">Status</th>
-                      <th className="px-8 py-5">Dokumentasi</th>
-                      <th className="px-8 py-5">Lokasi</th>
-                      <th className="px-8 py-5 text-right">Aksi</th>
+                      <th className="px-8 py-5 text-gray-600">Subjek</th>
+                      <th className="px-8 py-5 text-gray-600">Waktu Presensi</th>
+                      <th className="px-8 py-5 text-gray-600">Status</th>
+                      <th className="px-8 py-5 text-gray-600">Dokumentasi</th>
+                      <th className="px-8 py-5 text-gray-600">Lokasi</th>
+                      <th className="px-8 py-5 text-right text-gray-600">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -2562,14 +2562,14 @@ export default function DashboardAdmin() {
               <div className="mt-6 sm:mt-8 flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Users size={16} className="text-gray-400" />
+                    <Users size={16} className="text-gray-500" />
                   </div>
                   <input 
                     type="text" 
                     placeholder="Cari Nama Siswa / Guru..." 
                     value={filterAssessmentName}
                     onChange={(e) => setFilterAssessmentName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
                   />
                 </div>
                 <div className="w-full md:w-64">
@@ -2902,7 +2902,7 @@ export default function DashboardAdmin() {
                       onChange={(e) => setSearchFinanceList(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-medium"
                     />
-                    <Users className="absolute left-3 top-2 text-gray-400" size={16} />
+                    <Users className="absolute left-3 top-2 text-gray-500" size={16} />
                   </div>
                   <select 
                     value={filterKeuanganStatus}
