@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -80,6 +80,18 @@ export default function DashboardGuru() {
   const [filterKelasHafalan, setFilterKelasHafalan] = useState('');
   const [filterHafalanStatus, setFilterHafalanStatus] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
   const [filterHafalanCategory, setFilterHafalanCategory] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
+
+  // Penilaian Kelas States
+  const [pkType, setPkType] = useState<'Hafalan'|'Mapel'>('Hafalan');
+  const [pkClass, setPkClass] = useState('');
+  const [pkMaterialId, setPkMaterialId] = useState('');
+  const [pkCategory, setPkCategory] = useState('');
+  const [pkDate, setPkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pkSemester, setPkSemester] = useState<'Semester 1' | 'Semester 2'>('Semester 1');
+  const [pkStudentData, setPkStudentData] = useState<Record<string, any>>({});
+  const [pkIsSaving, setPkIsSaving] = useState(false);
+  const [pkSearch, setPkSearch] = useState('');
+  const [pkFilterUnfinished, setPkFilterUnfinished] = useState(false);
 
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
 
@@ -206,6 +218,147 @@ export default function DashboardGuru() {
       unsubMaterials();
     };
   }, [user, userData?.kelas]);
+
+  useEffect(() => {
+    if (activeTab !== 'penilaian-kelas') return;
+    
+    // Auto set class to teacher's class if available and not yet set
+    if (!pkClass && userData?.kelas) {
+      setPkClass(userData.kelas);
+    }
+    
+    // Default class if none text
+    const clsFilter = pkClass || userData?.kelas || '';
+
+    // Reset material if class changes and it doesn't match
+    if (pkType === 'Hafalan' && pkMaterialId && clsFilter && clsFilter !== 'Semua') {
+      const material = hafalanMaterials.find(m => m.id === pkMaterialId);
+      const isMatch = (mK: string, tK: string) => {
+        const k1 = mK.toLowerCase().trim();
+        const k2 = tK.toLowerCase().trim();
+        return k1.includes(k2) || k2.includes(k1);
+      };
+      if (material && !isMatch(material.kelas, clsFilter)) {
+        setPkMaterialId('');
+      }
+    }
+
+    if (!clsFilter) return;
+
+    if (pkType === 'Hafalan' && pkMaterialId) {
+      const clsStudents = students.filter(s => s.kelas === clsFilter || clsFilter === 'Semua');
+      const newData: Record<string, any> = {};
+      clsStudents.forEach(s => {
+        // Find existing record for this student & material
+        const existingList = hafalanProgress.filter(p => p.studentId === s.id && p.materialId === pkMaterialId);
+        // Find the one that's not readyForTest or the primary one
+        const existing = existingList.sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
+
+        if (existing) {
+          newData[s.id] = {
+            id: existing.id,
+            status: existing.status || 'Sedang Menghafal',
+            stars: existing.stars || 0,
+            notes: existing.catatanGuru || ''
+          };
+        } else {
+          newData[s.id] = {
+            id: null,
+            status: 'Sedang Menghafal',
+            stars: 0,
+            notes: ''
+          };
+        }
+      });
+      setPkStudentData(newData);
+    } else if (pkType === 'Mapel' && pkCategory) {
+      const clsStudents = students.filter(s => s.kelas === clsFilter || clsFilter === 'Semua');
+      const newData: Record<string, any> = {};
+      clsStudents.forEach(s => {
+        newData[s.id] = {
+          score: '',
+          status: 'Lulus',
+          notes: ''
+        };
+      });
+      setPkStudentData(newData);
+    }
+  }, [pkType, pkClass, pkMaterialId, pkCategory, pkSemester, students, hafalanProgress, activeTab, userData]);
+
+  const handleSavePk = async () => {
+    if (pkIsSaving) return;
+    setPkIsSaving(true);
+    try {
+      const clsFilter = pkClass || userData?.kelas || '';
+      const clsStudents = students.filter(s => s.kelas === clsFilter || clsFilter === 'Semua');
+      
+      let savedCount = 0;
+
+      for (const s of clsStudents) {
+        const data = pkStudentData[s.id];
+        if (!data) continue;
+        
+        if (pkType === 'Hafalan') {
+          // If status isn't Belum Mulai (which we skip if no existing ID)
+          if (data.status !== 'Belum Mulai' || data.id) {
+            const payload = {
+                studentId: s.id,
+                materialId: pkMaterialId,
+                status: data.status,
+                stars: Number(data.stars),
+                catatanGuru: data.notes,
+                evaluationSemester: pkSemester,
+                isReadyForTest: false,
+                updatedAt: new Date().toISOString()
+            };
+            
+            // Use fixed ID pattern to match student dashboard and ensure synchronization
+            const docRef = doc(db, 'hafalan_progress', `${s.id}_${pkMaterialId}`);
+            await setDoc(docRef, {
+                ...payload,
+                createdAt: serverTimestamp()
+            }, { merge: true });
+            
+            savedCount++;
+          }
+        } else if (pkType === 'Mapel') {
+          // For mapel, append if score is valid
+          if (data.score !== '' || data.notes) {
+            await addDoc(collection(db, 'progress'), {
+                studentId: s.id,
+                title: pkCategory,
+                category: pkCategory,
+                evaluationPeriod: pkSemester,
+                description: data.notes,
+                target: '',
+                status: data.status,
+                score: Number(data.score) || 0,
+                date: pkDate,
+                teacherId: user.uid,
+                teacherName: editName || 'Guru',
+                createdAt: serverTimestamp()
+            });
+            savedCount++;
+          }
+        }
+      }
+      alert(`Selamat! Berhasil menyimpan penilaian untuk ${savedCount} siswa.`);
+      
+      if (pkType === 'Mapel') {
+        // clear mapel data
+        const newData = {...pkStudentData};
+        Object.keys(newData).forEach(k => {
+          newData[k] = { score: '', status: 'Lulus', notes: '' };
+        });
+        setPkStudentData(newData);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Gagal menyimpan penilaian');
+    } finally {
+      setPkIsSaving(false);
+    }
+  };
 
   const getScoreGradeInfo = (score: number) => {
     if (score >= 90) return { grade: 'A', text: 'Sangat Baik', color: 'text-green-600' };
@@ -678,6 +831,12 @@ export default function DashboardGuru() {
         <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Modul Hafalan
       </button>
       <button 
+        onClick={() => { setActiveTab('penilaian-kelas'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'penilaian-kelas' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Edit size={20} className={activeTab === 'penilaian-kelas' ? 'text-white' : 'text-gray-400'} /> Penilaian Kelas
+      </button>
+      <button 
         onClick={() => { setActiveTab('subjects'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'subjects' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
@@ -785,7 +944,14 @@ export default function DashboardGuru() {
             <div className="md:hidden -mx-4 -mt-12 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 pt-12 rounded-b-[40px] text-white relative shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
               <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
-                <div className="text-center flex-1 ml-10">
+                <button 
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg active:scale-95 transition-all text-white"
+                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
+                >
+                  <Menu size={20} />
+                </button>
+                <div className="text-center flex-1">
                   <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
                     SAKINAH
                   </h1>
@@ -890,6 +1056,7 @@ export default function DashboardGuru() {
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500' },
                   { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'from-pink-400 to-pink-500' },
+                  { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'from-blue-600 to-indigo-700' },
                   { id: 'subjects', label: 'Penilaian', icon: TrendingUp, color: 'from-orange-400 to-orange-500' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'from-blue-400 to-blue-500' },
                   { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'from-amber-400 to-amber-500' },
@@ -1604,6 +1771,315 @@ export default function DashboardGuru() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'penilaian-kelas' && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-gray-800">Penilaian Kelas Terpadu</h3>
+            <p className="text-gray-500 mb-6">Penilaian masal untuk seluruh siswa dalam satu kelas.</p>
+
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Jenis Penilaian</label>
+                  <select value={pkType} onChange={e => setPkType(e.target.value as 'Hafalan'|'Mapel')} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-500 text-gray-700 font-bold transition-all">
+                    <option value="Hafalan">Hafalan (Modul)</option>
+                    <option value="Mapel">Perkembangan / Akademik</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Pilih Kelas</label>
+                  <select value={pkClass} onChange={e => setPkClass(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-500 text-gray-700 font-bold transition-all">
+                    <option value="">-- Pilih Kelas --</option>
+                    <option value="Semua">Semua Kelas</option>
+                    {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {schoolClasses.length === 0 && userData?.kelas && <option value={userData.kelas}>{userData.kelas}</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Semester/Periode</label>
+                  <select value={pkSemester} onChange={e => setPkSemester(e.target.value as 'Semester 1'|'Semester 2')} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-500 text-gray-700 font-bold transition-all">
+                    <option value="Semester 1">Semester 1</option>
+                    <option value="Semester 2">Semester 2</option>
+                  </select>
+                </div>
+              </div>
+
+              {pkType === 'Hafalan' && (
+                <div className="animate-in slide-in-from-top duration-300">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Mata Pelajaran / Topik Hafalan</label>
+                  <select value={pkMaterialId} onChange={e => setPkMaterialId(e.target.value)} className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-blue-900 font-black transition-all">
+                    <option value="">-- Pilih Modul / Surat --</option>
+                    {hafalanMaterials
+                      .filter(m => {
+                        if (!pkClass || pkClass === 'Semua') return true;
+                        const k1 = m.kelas.toLowerCase().trim();
+                        const k2 = pkClass.toLowerCase().trim();
+                        return k1.includes(k2) || k2.includes(k1);
+                      })
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.judul} ({m.kategori})</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              )}
+
+              {pkType === 'Mapel' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top duration-300">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Mata Pelajaran</label>
+                    <select value={pkCategory} onChange={e => setPkCategory(e.target.value)} className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-blue-900 font-black transition-all">
+                      <option value="">-- Pilih Mata Pelajaran --</option>
+                      {subjects.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Tanggal Penilaian</label>
+                    <input type="date" value={pkDate} onChange={e => setPkDate(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-500 text-gray-700 font-bold transition-all" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {((pkType === 'Hafalan' && pkMaterialId && pkClass) || (pkType === 'Mapel' && pkCategory && pkClass)) ? (() => {
+              const filteredPkStudents = students.filter(s => {
+                // Class filter
+                if (pkClass !== 'Semua' && s.kelas !== pkClass) return false;
+                
+                // Search filter
+                if (pkSearch && !s.name.toLowerCase().includes(pkSearch.toLowerCase())) return false;
+                
+                // Unfinished filter (Hafalan only)
+                if (pkType === 'Hafalan' && pkFilterUnfinished && pkMaterialId) {
+                  const prog = hafalanProgress.find(p => p.studentId === s.id && p.materialId === pkMaterialId);
+                  if (prog?.status === 'Mumtaz (Lulus)') return false;
+                }
+                
+                return true;
+              });
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-col md:flex-row gap-4 animate-in fade-in duration-500">
+                    <div className="flex-1 relative group">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
+                        <Search size={20} />
+                      </span>
+                      <input 
+                        type="text" 
+                        placeholder="Cari nama siswa..." 
+                        value={pkSearch}
+                        onChange={e => setPkSearch(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-3xl outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-500 text-sm font-bold shadow-sm transition-all"
+                      />
+                    </div>
+                    {pkType === 'Hafalan' && (
+                      <button 
+                        onClick={() => setPkFilterUnfinished(!pkFilterUnfinished)}
+                        className={`px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 border-2 ${pkFilterUnfinished ? 'bg-amber-500 border-amber-500 text-white shadow-xl shadow-amber-100 scale-105' : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                      >
+                        <Filter size={18} /> {pkFilterUnfinished ? 'Hanya Belum Lulus' : 'Tampilkan Semua'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Responsive List / Table */}
+                  <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* Desktop View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="p-4 text-sm font-bold text-gray-600">Nama Siswa</th>
+                            <th className="p-4 text-sm font-bold text-gray-600 w-48">{pkType === 'Hafalan' ? 'Status' : 'Predikat'}</th>
+                            <th className="p-4 text-sm font-bold text-gray-600 w-32">{pkType === 'Hafalan' ? 'Bintang' : 'Nilai'}</th>
+                            <th className="p-4 text-sm font-bold text-gray-600">Catatan Guru</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredPkStudents.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="p-12 text-center text-gray-400 font-medium">Data siswa tidak ditemukan dengan filter ini.</td>
+                            </tr>
+                          ) : (
+                            filteredPkStudents.map(s => (
+                              <tr key={s.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                                <td className="p-4">
+                                  <div className="font-bold text-gray-800">{s.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{s.email?.split('@')[0]}</div>
+                                </td>
+                              <td className="p-4">
+                                <select 
+                                  value={pkStudentData[s.id]?.status || ''} 
+                                  onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], status: e.target.value}}))}
+                                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 font-medium"
+                                >
+                                  {pkType === 'Hafalan' ? (
+                                    <>
+                                      <option value="Belum Mulai">-- Lewati --</option>
+                                      <option value="Sedang Menghafal">Sedang Menghafal</option>
+                                      <option value="Perlu Perbaikan">Perlu Perbaikan</option>
+                                      <option value="Mumtaz (Lulus)">Mumtaz (Lulus)</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="Lulus">Lulus / Selesai</option>
+                                      <option value="Mengulang">Mengulang / Remedial</option>
+                                      <option value="Lanjut Perkembangan Lain">Lanjut Perkemb. Lain</option>
+                                    </>
+                                  )}
+                                </select>
+                              </td>
+                              <td className="p-4">
+                                {pkType === 'Hafalan' ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <button
+                                        key={star}
+                                        onClick={() => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], stars: star}}))}
+                                        className="transition-transform active:scale-95 group cursor-pointer"
+                                      >
+                                        <Star 
+                                          size={20} 
+                                          className={`${(pkStudentData[s.id]?.stars || 0) >= star ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} group-hover:scale-110 transition-all`} 
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <input 
+                                    type="number"
+                                    min={0} 
+                                    max={100}
+                                    value={pkStudentData[s.id]?.score ?? ''}
+                                    onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], score: e.target.value}}))}
+                                    placeholder="0-100"
+                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 font-bold text-center"
+                                  />
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <input 
+                                  type="text"
+                                  value={pkStudentData[s.id]?.notes || ''}
+                                  onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], notes: e.target.value}}))}
+                                  placeholder="Catatan..."
+                                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700"
+                                />
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile View - Cards Layout */}
+                  <div className="md:hidden divide-y divide-gray-100">
+                    {filteredPkStudents.length === 0 ? (
+                      <div className="p-12 text-center text-gray-400 font-medium">Data siswa tidak ditemukan dengan filter ini.</div>
+                    ) : (
+                      filteredPkStudents.map(s => (
+                        <div key={s.id} className="p-5 space-y-4">
+                          <div className="flex justify-between items-center bg-blue-50 -mx-5 -mt-5 p-4 mb-4">
+                            <div className="font-black text-blue-900 tracking-tight">{s.name}</div>
+                            <div className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-md font-bold">{s.kelas}</div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">{pkType === 'Hafalan' ? 'Status Hafalan' : 'Predikat Lulus'}</label>
+                                <select 
+                                  value={pkStudentData[s.id]?.status || ''} 
+                                  onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], status: e.target.value}}))}
+                                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 font-bold"
+                                >
+                                  {pkType === 'Hafalan' ? (
+                                    <>
+                                      <option value="Belum Mulai">-- Lewati --</option>
+                                      <option value="Sedang Menghafal">Sedang Menghafal</option>
+                                      <option value="Perlu Perbaikan">Perlu Perbaikan</option>
+                                      <option value="Mumtaz (Lulus)">Mumtaz (Lulus)</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="Lulus">Lulus / Selesai</option>
+                                      <option value="Mengulang">Mengulang / Remedial</option>
+                                      <option value="Lanjut Perkembangan Lain">Lanjut Perkemb. Lain</option>
+                                    </>
+                                  )}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">{pkType === 'Hafalan' ? 'Bintang Pencapaian' : 'Nilai (0-100)'}</label>
+                                {pkType === 'Hafalan' ? (
+                                  <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <button
+                                        key={star}
+                                        onClick={() => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], stars: star}}))}
+                                        className="transition-all active:scale-90"
+                                      >
+                                        <Star 
+                                          size={28} 
+                                          className={`${(pkStudentData[s.id]?.stars || 0) >= star ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} transition-all`} 
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <input 
+                                    type="number"
+                                    min={0} 
+                                    max={100}
+                                    value={pkStudentData[s.id]?.score ?? ''}
+                                    onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], score: e.target.value}}))}
+                                    placeholder="0-100"
+                                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 font-black text-center"
+                                  />
+                                )}
+                            </div>
+                            <div className="flex items-end">
+                                <p className="text-[9px] text-gray-400 italic leading-tight">Gunakan angka bulat untuk memudahkan sistem rapot.</p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Catatan Khusus Guru</label>
+                              <input 
+                                type="text"
+                                value={pkStudentData[s.id]?.notes || ''}
+                                onChange={e => setPkStudentData(prev => ({...prev, [s.id]: {...prev[s.id], notes: e.target.value}}))}
+                                placeholder="Catatan perkembangan..."
+                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 font-medium"
+                              />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-6 bg-white rounded-3xl border border-gray-100 flex justify-end">
+                  <button 
+                    onClick={handleSavePk}
+                    disabled={pkIsSaving}
+                    className="w-full md:w-auto bg-blue-600 text-white px-10 py-5 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200 hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-70 disabled:hover:scale-100 uppercase tracking-widest text-sm"
+                  >
+                    <Save size={20} /> {pkIsSaving ? 'Sedang Memproses...' : 'Simpan Semua Nilai'}
+                  </button>
+                </div>
+              </div>
+              );
+            })() : (
+               <div className="bg-white p-12 rounded-3xl border border-dashed border-gray-200 text-center text-gray-400">
+                  Pilih Kelas dan Materi/Mapel terlebih dahulu untuk mulai menilai secara masal.
+               </div>
+            )}
           </div>
         )}
 
