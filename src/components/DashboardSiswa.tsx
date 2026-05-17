@@ -992,20 +992,20 @@ export default function DashboardSiswa() {
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
-                  { id: 'progress', label: 'Hasil Pembelajaran', icon: GraduationCap, color: 'from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'from-pink-400 to-pink-500' },
-                  { id: 'hafalan', label: 'Modul Hafalan', icon: Star, color: 'from-amber-400 to-amber-500' },
-                  { id: 'administration', label: 'Administrasi', icon: CreditCard, color: 'from-emerald-400 to-emerald-500' },
-                  { id: 'attendance', label: 'Absensi', icon: Camera, color: 'from-rose-400 to-rose-500' },
-                  { id: 'announcements', label: 'Info Sekolah', icon: Megaphone, color: 'from-blue-500 to-blue-600' },
-                  { id: 'profile', label: 'Profil Saya', icon: User, color: 'from-indigo-400 to-indigo-500' },
+                  { id: 'progress', label: 'Hasil Pembelajaran', icon: GraduationCap, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
+                  { id: 'hafalan', label: 'Modul Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500' },
+                  { id: 'administration', label: 'Administrasi', icon: CreditCard, color: 'bg-emerald-500 bg-gradient-to-br from-emerald-400 to-emerald-500' },
+                  { id: 'attendance', label: 'Absensi', icon: Camera, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
+                  { id: 'announcements', label: 'Info Sekolah', icon: Megaphone, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600' },
+                  { id: 'profile', label: 'Profil Saya', icon: User, color: 'bg-indigo-500 bg-gradient-to-br from-indigo-400 to-indigo-500' },
                 ].map((item, idx) => (
                   <button 
                     key={idx} 
                     onClick={() => setActiveTab(item.id)}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
-                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-black/10 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                    <div className={`w-16 h-16 md:w-20 md:h-20 ${item.color} rounded-[28px] shadow-lg flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
                       <item.icon size={28} className="md:w-10 md:h-10" />
                     </div>
                     <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
@@ -1501,7 +1501,7 @@ export default function DashboardSiswa() {
         {activeTab === 'attendance' && (
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
             {/* Quick Action: Absen Sekarang */}
-            <div className="card-3d p-8 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
+            <div className="card-3d p-8 bg-blue-600 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
                   <div className="space-y-2">

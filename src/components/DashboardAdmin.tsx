@@ -1990,24 +1990,24 @@ export default function DashboardAdmin() {
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
-                  { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'from-orange-400 to-orange-500', action: () => setActiveTab('academic') },
-                  { id: 'users', label: 'Siswa', icon: Users, color: 'from-purple-400 to-purple-500', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
-                  { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'from-emerald-400 to-emerald-500', action: () => setActiveTab('attendance') },
-                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
-                  { id: 'materials', label: 'Materi', icon: BookOpen, color: 'from-blue-400 to-blue-500', action: () => setActiveTab('materials') },
-                  { id: 'achievements', label: 'Prestasi', icon: Trophy, color: 'from-yellow-400 to-yellow-500', action: () => setActiveTab('achievements') },
-                  { id: 'assessments', label: 'Penilaian', icon: TrendingUp, color: 'from-indigo-400 to-indigo-500', action: () => setActiveTab('assessments') },
-                  { id: 'users', label: 'Guru', icon: Shield, color: 'from-teal-400 to-teal-500', action: () => { setActiveTab('users'); setFilterUserRole('guru'); } },
-                  { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'from-amber-400 to-amber-500', action: () => setActiveTab('finance') },
-                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'from-blue-500 to-blue-600', action: () => setActiveTab('announcements') },
-                  { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-400 to-gray-500', action: () => setActiveTab('settings') },
+                  { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'bg-orange-500 bg-gradient-to-br from-orange-400 to-orange-500', action: () => setActiveTab('academic') },
+                  { id: 'users', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
+                  { id: 'attendance', label: 'Absensi', icon: CheckCircle, color: 'bg-emerald-500 bg-gradient-to-br from-emerald-400 to-emerald-500', action: () => setActiveTab('attendance') },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
+                  { id: 'materials', label: 'Materi', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500', action: () => setActiveTab('materials') },
+                  { id: 'achievements', label: 'Prestasi', icon: Trophy, color: 'bg-yellow-500 bg-gradient-to-br from-yellow-400 to-yellow-500', action: () => setActiveTab('achievements') },
+                  { id: 'assessments', label: 'Penilaian', icon: TrendingUp, color: 'bg-indigo-500 bg-gradient-to-br from-indigo-400 to-indigo-500', action: () => setActiveTab('assessments') },
+                  { id: 'users', label: 'Guru', icon: Shield, color: 'bg-teal-500 bg-gradient-to-br from-teal-400 to-teal-500', action: () => { setActiveTab('users'); setFilterUserRole('guru'); } },
+                  { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500', action: () => setActiveTab('finance') },
+                  { id: 'announcements', label: 'Info', icon: Megaphone, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('announcements') },
+                  { id: 'settings', label: 'Settings', icon: Settings, color: 'bg-slate-500 bg-gradient-to-br from-slate-400 to-slate-500', action: () => setActiveTab('settings') },
                 ].map((item, idx) => (
                   <button 
                     key={idx} 
                     onClick={item.action}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
-                    <div className={`w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${item.color} rounded-[28px] shadow-lg shadow-black/10 flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
+                    <div className={`w-16 h-16 md:w-20 md:h-20 ${item.color} rounded-[28px] shadow-lg flex items-center justify-center text-white transition-all overflow-hidden group-active:scale-95 group-hover:scale-110`}>
                       <item.icon size={28} className="md:w-10 md:h-10" />
                     </div>
                     <span className="text-[11px] md:text-sm font-black text-gray-700 tracking-tight text-center">{item.label}</span>
@@ -2619,7 +2619,7 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Insight Beasiswa Card */}
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 overflow-hidden relative">
+            <div className="bg-emerald-500 bg-gradient-to-r from-emerald-500 to-teal-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100 overflow-hidden relative">
               <div className="absolute -right-10 -bottom-10 opacity-20 rotate-12">
                 <Trophy size={200} />
               </div>
@@ -4440,7 +4440,7 @@ export default function DashboardAdmin() {
         {showPayConfirmModal && activeDetailToPay && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+              <div className="absolute top-0 left-0 w-full h-2 bg-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
               <button onClick={() => setShowPayConfirmModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 z-10"><X /></button>
               
               <div className="mb-6">
