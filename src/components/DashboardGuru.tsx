@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth';
 import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
@@ -56,6 +57,8 @@ export default function DashboardGuru() {
 
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
+  const [newPassword, setNewPasswordProfile] = useState('');
+  const [confirmPassword, setConfirmPasswordProfile] = useState('');
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [showPrintRapotHafalanModal, setShowPrintRapotHafalanModal] = useState(false);
@@ -628,6 +631,34 @@ export default function DashboardGuru() {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleChangePasswordProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert("Password baru dan konfirmasi password tidak cocok!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert("Password minimal 6 karakter!");
+      return;
+    }
+    
+    try {
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPassword);
+        alert("Password berhasil diubah!");
+        setNewPasswordProfile("");
+        setConfirmPasswordProfile("");
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/requires-recent-login') {
+        alert("Untuk alasan keamanan, Anda harus login ulang sebelum mengubah password.");
+      } else {
+        alert("Gagal mengubah password: " + error.message);
+      }
     }
   };
 
@@ -2254,9 +2285,42 @@ export default function DashboardGuru() {
               </div>
 
               <button type="submit" className="w-full bg-blue-600 text-white p-5 rounded-2xl font-bold text-lg hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-3">
-                <CheckCircle size={20} /> Simpan Perubahan
+                <CheckCircle size={24} />
+                Simpan Perubahan
               </button>
             </form>
+            
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Ubah Password</h3>
+              <form onSubmit={handleChangePasswordProfile} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Password Baru</label>
+                  <input 
+                    type="password" 
+                    value={newPassword}
+                    onChange={(e) => setNewPasswordProfile(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium" 
+                    placeholder="Minimal 6 karakter"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Konfirmasi Password Baru</label>
+                  <input 
+                    type="password" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPasswordProfile(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium" 
+                    placeholder="Ulangi password baru"
+                    required
+                  />
+                </div>
+                <button type="submit" className="w-full bg-indigo-600 text-white p-5 rounded-2xl font-bold text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3">
+                  <CheckCircle size={24} />
+                  Update Password
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
-import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
 import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -85,6 +85,10 @@ export default function DashboardAdmin() {
   // Profile Edit States
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
+  
+  // Change Password State
+  const [newPasswordProfile, setNewPasswordProfile] = useState('');
+  const [confirmPassword, setConfirmPasswordProfile] = useState('');
   
   // Photo Viewer State
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -1374,6 +1378,41 @@ export default function DashboardAdmin() {
     XLSX.writeFile(wb, `Data_Keuangan_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const exportRincianTunggakanToExcel = () => {
+    const students = allUsers.filter(u => {
+      const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
+      const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
+      const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
+      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+      return matchBase && matchKelas && matchName && matchStatus;
+    });
+    
+    const data: any[] = [];
+    students.forEach(s => {
+      if (s.arrears_details && s.arrears_details.length > 0) {
+        s.arrears_details.forEach((detail: any) => {
+          data.push({
+            Nama_Siswa: s.name,
+            Kelas: s.kelas || '',
+            Tgl_Tagihan: detail.date || '',
+            Nama_Tagihan: detail.name || '',
+            Nominal: detail.amount || 0
+          });
+        });
+      }
+    });
+
+    if (data.length === 0) {
+      alert("Tidak ada rincian tunggakan untuk filter yang dipilih.");
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rincian Tunggakan");
+    XLSX.writeFile(wb, `Rincian_Tunggakan_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1389,6 +1428,34 @@ export default function DashboardAdmin() {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleChangePasswordProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPasswordProfile !== confirmPassword) {
+      alert("Password baru dan konfirmasi password tidak cocok!");
+      return;
+    }
+    if (newPasswordProfile.length < 6) {
+      alert("Password minimal 6 karakter!");
+      return;
+    }
+    
+    try {
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPasswordProfile);
+        alert("Password berhasil diubah!");
+        setNewPasswordProfile("");
+        setConfirmPasswordProfile("");
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/requires-recent-login') {
+        alert("Untuk alasan keamanan, Anda harus login ulang sebelum mengubah password.");
+      } else {
+        alert("Gagal mengubah password: " + error.message);
+      }
     }
   };
 
@@ -3027,71 +3094,107 @@ export default function DashboardAdmin() {
           <div className="space-y-6">
             <div className="flex flex-col justify-between items-start gap-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full mt-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 w-full mt-4">
                 <button 
                   onClick={exportFinanceToExcel}
-                  className="bg-blue-600 text-white px-6 py-4 rounded-3xl font-bold flex items-center justify-center gap-3 hover:bg-blue-700 transition-all text-sm shadow-xl shadow-blue-100 group"
+                  className="bg-blue-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 group relative overflow-hidden"
                 >
-                  <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
-                    <Download size={20} /> 
+                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
+                    <Download size={24} /> 
                   </div>
-                  <div className="text-left">
-                    <p className="text-xs opacity-80 font-medium">Laporan Rekap</p>
-                    <p>Export Keuangan</p>
+                  <div className="text-left w-full mt-1">
+                    <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest mb-1">Export Rekap</p>
+                    <p className="text-sm md:text-base leading-tight">Keuangan</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={exportRincianTunggakanToExcel}
+                  className="bg-rose-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-rose-700 transition-all shadow-lg hover:shadow-rose-200 group relative overflow-hidden"
+                >
+                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
+                    <Download size={24} /> 
+                  </div>
+                  <div className="text-left w-full mt-1">
+                    <p className="text-[10px] text-rose-200 font-bold uppercase tracking-widest mb-1">Export Detail</p>
+                    <p className="text-sm md:text-base leading-tight">Tunggakan</p>
                   </div>
                 </button>
 
                 <button 
                   onClick={() => setShowIuranModal(true)}
-                  className="bg-indigo-600 text-white px-6 py-4 rounded-3xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all text-sm shadow-xl shadow-indigo-100 group"
+                  className="bg-indigo-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 group relative overflow-hidden"
                 >
-                  <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
-                    <Plus size={20} /> 
+                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
+                    <Plus size={24} /> 
                   </div>
-                  <div className="text-left">
-                    <p className="text-xs opacity-80 font-medium">Buat Tagihan</p>
-                    <p>Penetapan Iuran</p>
+                  <div className="text-left w-full mt-1">
+                    <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest mb-1">Buat Tagihan</p>
+                    <p className="text-sm md:text-base leading-tight">Penetapan Iuran</p>
                   </div>
                 </button>
 
-                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 lg:col-span-1">
-                  <button 
-                    onClick={() => setShowTabunganModal(true)}
-                    className="bg-green-600 text-white p-4 rounded-3xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl shadow-green-100 group"
-                  >
-                    <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                    <span className="text-xs uppercase tracking-widest text-center">Input Tabungan</span>
-                  </button>
-                  <button 
-                    onClick={() => setShowImportTabunganModal(true)}
-                    className="bg-purple-600 text-white p-4 rounded-3xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-purple-700 transition-all shadow-xl shadow-purple-100 group"
-                  >
-                    <Upload size={24} className="group-hover:-translate-y-1 transition-transform" />
-                    <span className="text-xs uppercase tracking-widest text-center">Import Excel</span>
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setShowTabunganModal(true)}
+                  className="bg-emerald-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-emerald-700 transition-all shadow-lg hover:shadow-emerald-200 group relative overflow-hidden"
+                >
+                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                  <div className="p-3 bg-white/20 rounded-2xl group-hover:rotate-90 transition-transform duration-300 text-white">
+                    <Plus size={24} />
+                  </div>
+                  <div className="text-left w-full mt-1">
+                    <p className="text-[10px] text-emerald-200 font-bold uppercase tracking-widest mb-1">Manual</p>
+                    <p className="text-sm md:text-base leading-tight">Input Tabungan</p>
+                  </div>
+                </button>
 
-                <div className="grid grid-cols-2 gap-4 col-span-1 sm:col-span-2 lg:col-span-1">
-                  <button 
-                    onClick={() => {
-                        const ws = XLSX.utils.json_to_sheet([{ Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }]);
-                        const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
-                        XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
-                    }}
-                    className="bg-white text-gray-600 p-4 rounded-3xl border-2 border-gray-100 font-bold flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-all group"
-                  >
-                    <Download size={24} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
-                    <span className="text-xs uppercase tracking-widest text-center">Format Import</span>
-                  </button>
-                  <button 
-                    onClick={() => setShowDeleteIuranModal(true)}
-                    className="bg-red-50 text-red-600 p-4 rounded-3xl border-2 border-red-100 font-bold flex flex-col items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all group"
-                  >
-                    <Trash2 size={24} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-xs uppercase tracking-widest text-center">Hapus Iuran</span>
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setShowImportTabunganModal(true)}
+                  className="bg-purple-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-purple-700 transition-all shadow-lg hover:shadow-purple-200 group relative overflow-hidden"
+                >
+                   <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
+                  <div className="p-3 bg-white/20 rounded-2xl group-hover:-translate-y-1 transition-transform text-white">
+                    <Upload size={24} />
+                  </div>
+                  <div className="text-left w-full mt-1">
+                     <p className="text-[10px] text-purple-200 font-bold uppercase tracking-widest mb-1">Massal</p>
+                     <p className="text-sm md:text-base leading-tight">Import Tabungan</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => {
+                      const ws = XLSX.utils.json_to_sheet([{ Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }]);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
+                      XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
+                  }}
+                  className="bg-white border-2 border-slate-100 text-slate-700 p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:border-slate-200 hover:bg-slate-50 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
+                >
+                  <div className="p-3 bg-slate-100 text-slate-500 rounded-2xl group-hover:scale-110 transition-transform">
+                    <Download size={24} />
+                  </div>
+                  <div className="text-left w-full mt-1">
+                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Template</p>
+                     <p className="text-sm md:text-base leading-tight">Format Import</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setShowDeleteIuranModal(true)}
+                  className="bg-red-50 border-2 border-red-100 text-red-600 p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-red-600 hover:border-red-600 hover:text-white transition-all shadow-sm hover:shadow-md hover:shadow-red-200 group relative overflow-hidden"
+                >
+                  <div className="p-3 bg-red-100 text-red-600 group-hover:bg-white/20 group-hover:text-white rounded-2xl group-hover:scale-110 transition-all">
+                    <Trash2 size={24} />
+                  </div>
+                  <div className="text-left w-full mt-1">
+                     <p className="text-[10px] text-red-400 group-hover:text-red-200 font-bold uppercase tracking-widest mb-1 transition-colors">Massal</p>
+                     <p className="text-sm md:text-base leading-tight">Hapus Iuran</p>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -3491,6 +3594,37 @@ export default function DashboardAdmin() {
               </div>
               <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all">Simpan Profil</button>
             </form>
+
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Ubah Password</h3>
+              <form onSubmit={handleChangePasswordProfile} className="space-y-6 max-w-lg">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Password Baru</label>
+                  <input 
+                    type="password" 
+                    value={newPasswordProfile}
+                    onChange={(e) => setNewPasswordProfile(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
+                    placeholder="Minimal 6 karakter"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Konfirmasi Password Baru</label>
+                  <input 
+                    type="password" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPasswordProfile(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" 
+                    placeholder="Ulangi password baru"
+                    required
+                  />
+                </div>
+                <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all">
+                  Update Password
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
