@@ -3926,21 +3926,26 @@ export default function DashboardAdmin() {
               <div className="grid md:grid-cols-2 gap-6 mb-8">
                 <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
                   <p className="text-green-800 text-sm font-bold mb-1">Total Tabungan</p>
-                  <p className="text-3xl font-bold text-green-600 mb-4">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex flex-col sm:flex-row gap-2 w-full">
-                      <input 
-                        type="number" 
-                        id="update-savings"
-                        placeholder="Ubah Total"
-                        className="w-full sm:w-1/3 p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                      />
-                      <input 
-                        type="text" 
-                        id="update-savings-desc"
-                        placeholder="Keterangan (opsional)"
-                        className="w-full sm:w-2/3 p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                      />
+                  <p className="text-3xl font-bold text-green-600 mb-6">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
+                  
+                  <div className="mt-auto space-y-4">
+                    {/* Update Tabungan */}
+                    <div className="bg-white/60 p-4 rounded-xl border border-green-100">
+                      <p className="text-[10px] font-bold text-green-800 uppercase tracking-wider mb-2">Update Tabungan</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                        <input 
+                          type="number" 
+                          id="update-savings"
+                          placeholder="Ubah Total"
+                          className="w-full p-2.5 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm bg-white"
+                        />
+                        <input 
+                          type="text" 
+                          id="update-savings-desc"
+                          placeholder="Keterangan (opsional)"
+                          className="w-full p-2.5 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm bg-white"
+                        />
+                      </div>
                       <button 
                         onClick={() => {
                           const val = (document.getElementById('update-savings') as HTMLInputElement).value;
@@ -3951,24 +3956,29 @@ export default function DashboardAdmin() {
                             (document.getElementById('update-savings-desc') as HTMLInputElement).value = '';
                           }
                         }}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 whitespace-nowrap"
+                        className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 transition"
                       >
                         Update
                       </button>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 w-full mt-2">
-                      <input 
-                        type="number" 
-                        id="kurang-savings"
-                        placeholder="Nominal Tarik"
-                        className="w-full sm:w-1/3 p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                      />
-                      <input 
-                        type="text" 
-                        id="kurang-savings-desc"
-                        placeholder="Keterangan Tarik (opsional)"
-                        className="w-full sm:w-2/3 p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                      />
+
+                    {/* Tarik Tabungan */}
+                    <div className="bg-white/60 p-4 rounded-xl border border-orange-100">
+                      <p className="text-[10px] font-bold text-orange-800 uppercase tracking-wider mb-2">Tarik Tabungan</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                        <input 
+                          type="number" 
+                          id="kurang-savings"
+                          placeholder="Nominal Tarik"
+                          className="w-full p-2.5 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm bg-white"
+                        />
+                        <input 
+                          type="text" 
+                          id="kurang-savings-desc"
+                          placeholder="Keterangan Tarik (opsional)"
+                          className="w-full p-2.5 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm bg-white"
+                        />
+                      </div>
                       <button 
                         onClick={() => {
                           const val = (document.getElementById('kurang-savings') as HTMLInputElement).value;
@@ -3979,7 +3989,7 @@ export default function DashboardAdmin() {
                             (document.getElementById('kurang-savings-desc') as HTMLInputElement).value = '';
                           }
                         }}
-                        className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-600 whitespace-nowrap"
+                        className="w-full bg-orange-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition"
                       >
                         Tarik
                       </button>
@@ -3987,38 +3997,44 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
                 
-                <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 flex flex-col h-full">
                   <p className="text-red-800 text-sm font-bold mb-1">Total Tunggakan</p>
-                  <p className="text-3xl font-bold text-red-600 mb-4">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString()}</p>
-                  <div className="flex flex-col sm:flex-row gap-2 w-full mt-auto">
-                    <input 
-                      type="number" 
-                      id="update-arrears"
-                      placeholder="Nominal Tunggakan"
-                      className="w-full sm:w-1/3 p-2 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm"
-                    />
-                    <input 
-                      type="text" 
-                      id="update-arrears-desc"
-                      placeholder="Keterangan Tunggakan"
-                      className="w-full sm:w-2/3 p-2 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm"
-                    />
-                    <button 
-                      onClick={() => {
-                        const val = (document.getElementById('update-arrears') as HTMLInputElement).value;
-                        const desc = (document.getElementById('update-arrears-desc') as HTMLInputElement).value;
-                        if(val && desc) {
-                          handleAddSingleTunggakan(selectedStudentForFinance.id, val, desc);
-                          (document.getElementById('update-arrears') as HTMLInputElement).value = '';
-                          (document.getElementById('update-arrears-desc') as HTMLInputElement).value = '';
-                        } else {
-                          alert("Mohon isi nominal dan keterangan tunggakan.");
-                        }
-                      }}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 whitespace-nowrap"
-                    >
-                      Tambah
-                    </button>
+                  <p className="text-3xl font-bold text-red-600 mb-6">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString()}</p>
+                  
+                  <div className="mt-auto">
+                    <div className="bg-white/60 p-4 rounded-xl border border-red-100">
+                      <p className="text-[10px] font-bold text-red-800 uppercase tracking-wider mb-2">Tambah Tagihan / Tunggakan</p>
+                      <div className="grid grid-cols-1 gap-2 mb-2">
+                        <input 
+                          type="number" 
+                          id="update-arrears"
+                          placeholder="Nominal Tunggakan"
+                          className="w-full p-2.5 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm bg-white"
+                        />
+                        <input 
+                          type="text" 
+                          id="update-arrears-desc"
+                          placeholder="Keterangan Tunggakan"
+                          className="w-full p-2.5 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm bg-white"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const val = (document.getElementById('update-arrears') as HTMLInputElement).value;
+                          const desc = (document.getElementById('update-arrears-desc') as HTMLInputElement).value;
+                          if(val && desc) {
+                            handleAddSingleTunggakan(selectedStudentForFinance.id, val, desc);
+                            (document.getElementById('update-arrears') as HTMLInputElement).value = '';
+                            (document.getElementById('update-arrears-desc') as HTMLInputElement).value = '';
+                          } else {
+                            alert("Mohon isi nominal dan keterangan tunggakan.");
+                          }
+                        }}
+                        className="w-full bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-red-700 transition"
+                      >
+                        Tambah
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
