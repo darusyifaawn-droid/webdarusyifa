@@ -526,7 +526,7 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleTarikTabungan = async (userId: string, amountTarik: string) => {
+  const handleTarikTabungan = async (userId: string, amountTarik: string, desc?: string) => {
     try {
       const student = allUsers.find(u => u.id === userId);
       if (!student) return;
@@ -541,7 +541,7 @@ export default function DashboardAdmin() {
       await addDoc(collection(db, 'payments'), {
         studentId: userId,
         amount: Number(amountTarik),
-        description: 'Penarikan/Kurangi Tabungan',
+        description: desc ? `Penarikan: ${desc}` : 'Penarikan/Kurangi Tabungan',
         type: 'tabungan_keluar',
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp()
@@ -557,17 +557,19 @@ export default function DashboardAdmin() {
     }
   };
 
-  const updateFinance = async (userId: string, field: 'savings' | 'arrears', value: string) => {
+  const updateFinance = async (userId: string, field: 'savings' | 'arrears', value: string, desc?: string) => {
     try {
       await updateDoc(doc(db, 'users', userId), {
         [field]: Number(value)
       });
       
+      const defaultDesc = `Update manual ${field === 'savings' ? 'Tabungan' : 'Tunggakan'}`;
+      
       // Log to payments history
       await addDoc(collection(db, 'payments'), {
         studentId: userId,
         amount: Number(value),
-        description: `Update manual ${field === 'savings' ? 'Tabungan' : 'Tunggakan'}`,
+        description: desc ? `${defaultDesc} - ${desc}` : defaultDesc,
         type: field,
         date: new Date().toISOString().split('T')[0],
         createdAt: serverTimestamp()
@@ -583,6 +585,63 @@ export default function DashboardAdmin() {
       alert('Data administrasi berhasil disimpan!');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+    }
+  };
+
+  const handleAddSingleTunggakan = async (userId: string, amount: string, desc: string) => {
+    try {
+      const student = allUsers.find(u => u.id === userId);
+      if (!student) return;
+
+      const numAmount = Number(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        alert("Nominal harus lebih dari 0");
+        return;
+      }
+
+      if (!desc.trim()) {
+        alert("Keterangan/Nama Tagihan harus diisi!");
+        return;
+      }
+
+      const newArrearDetail = {
+        id: Date.now().toString() + Math.random().toString(36).substring(7),
+        name: desc,
+        amount: numAmount,
+        date: new Date().toISOString().split('T')[0],
+        dueDate: null
+      };
+
+      const newArrears = (student.arrears || 0) + numAmount;
+      const currentDetails = student.arrears_details || [];
+      const newDetails = [...currentDetails, newArrearDetail];
+      
+      await updateDoc(doc(db, 'users', student.id), { 
+        arrears: newArrears,
+        arrears_details: newDetails
+      });
+
+      await addDoc(collection(db, 'payments'), {
+        studentId: student.id,
+        amount: numAmount,
+        description: `Tagihan Baru: ${desc}`,
+        type: 'tagihan',
+        date: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp()
+      });
+
+      if (selectedStudentForFinance && selectedStudentForFinance.id === userId) {
+        setSelectedStudentForFinance((prev: any) => ({
+          ...prev,
+          arrears: newArrears,
+          arrears_details: newDetails
+        }));
+      }
+
+      alert('Tagihan berhasil ditambahkan!');
+    } catch (error) {
+      console.error(error);
+      alert('Gagal menambahkan tagihan.');
     }
   };
 
@@ -3869,36 +3928,55 @@ export default function DashboardAdmin() {
                   <p className="text-green-800 text-sm font-bold mb-1">Total Tabungan</p>
                   <p className="text-3xl font-bold text-green-600 mb-4">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
                   <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
                       <input 
                         type="number" 
                         id="update-savings"
                         placeholder="Ubah Total"
-                        className="w-full p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                        className="w-full sm:w-1/3 p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                      />
+                      <input 
+                        type="text" 
+                        id="update-savings-desc"
+                        placeholder="Keterangan (opsional)"
+                        className="w-full sm:w-2/3 p-2 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm"
                       />
                       <button 
                         onClick={() => {
                           const val = (document.getElementById('update-savings') as HTMLInputElement).value;
-                          if(val) updateFinance(selectedStudentForFinance.id, 'savings', val);
+                          const desc = (document.getElementById('update-savings-desc') as HTMLInputElement).value;
+                          if(val) {
+                            updateFinance(selectedStudentForFinance.id, 'savings', val, desc);
+                            (document.getElementById('update-savings') as HTMLInputElement).value = '';
+                            (document.getElementById('update-savings-desc') as HTMLInputElement).value = '';
+                          }
                         }}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700"
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 whitespace-nowrap"
                       >
                         Update
                       </button>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full mt-2">
                       <input 
                         type="number" 
                         id="kurang-savings"
                         placeholder="Nominal Tarik"
-                        className="w-full p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                        className="w-full sm:w-1/3 p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                      />
+                      <input 
+                        type="text" 
+                        id="kurang-savings-desc"
+                        placeholder="Keterangan Tarik (opsional)"
+                        className="w-full sm:w-2/3 p-2 rounded-lg border border-orange-200 outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                       />
                       <button 
                         onClick={() => {
                           const val = (document.getElementById('kurang-savings') as HTMLInputElement).value;
+                          const desc = (document.getElementById('kurang-savings-desc') as HTMLInputElement).value;
                           if(val && Number(val) > 0) {
-                            handleTarikTabungan(selectedStudentForFinance.id, val);
+                            handleTarikTabungan(selectedStudentForFinance.id, val, desc);
                             (document.getElementById('kurang-savings') as HTMLInputElement).value = '';
+                            (document.getElementById('kurang-savings-desc') as HTMLInputElement).value = '';
                           }
                         }}
                         className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-orange-600 whitespace-nowrap"
@@ -3912,21 +3990,34 @@ export default function DashboardAdmin() {
                 <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
                   <p className="text-red-800 text-sm font-bold mb-1">Total Tunggakan</p>
                   <p className="text-3xl font-bold text-red-600 mb-4">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString()}</p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full mt-auto">
                     <input 
                       type="number" 
                       id="update-arrears"
-                      placeholder="Nominal baru"
-                      className="w-full p-2 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                      placeholder="Nominal Tunggakan"
+                      className="w-full sm:w-1/3 p-2 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                    />
+                    <input 
+                      type="text" 
+                      id="update-arrears-desc"
+                      placeholder="Keterangan Tunggakan"
+                      className="w-full sm:w-2/3 p-2 rounded-lg border border-red-200 outline-none focus:ring-2 focus:ring-red-500 text-sm"
                     />
                     <button 
                       onClick={() => {
                         const val = (document.getElementById('update-arrears') as HTMLInputElement).value;
-                        if(val) updateFinance(selectedStudentForFinance.id, 'arrears', val);
+                        const desc = (document.getElementById('update-arrears-desc') as HTMLInputElement).value;
+                        if(val && desc) {
+                          handleAddSingleTunggakan(selectedStudentForFinance.id, val, desc);
+                          (document.getElementById('update-arrears') as HTMLInputElement).value = '';
+                          (document.getElementById('update-arrears-desc') as HTMLInputElement).value = '';
+                        } else {
+                          alert("Mohon isi nominal dan keterangan tunggakan.");
+                        }
                       }}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700"
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 whitespace-nowrap"
                     >
-                      Update
+                      Tambah
                     </button>
                   </div>
                 </div>
