@@ -588,6 +588,48 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleAddSingleTabungan = async (userId: string, amount: string, desc: string) => {
+    try {
+      const student = allUsers.find(u => u.id === userId);
+      if (!student) return;
+
+      const numAmount = Number(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        alert("Nominal tabungan harus lebih dari 0");
+        return;
+      }
+
+      const finalDesc = desc.trim() ? desc : "Nabung manual";
+
+      const newSavings = (student.savings || 0) + numAmount;
+      
+      await updateDoc(doc(db, 'users', student.id), { 
+        savings: newSavings
+      });
+
+      await addDoc(collection(db, 'payments'), {
+        studentId: student.id,
+        amount: numAmount,
+        description: `Tambah Tabungan: ${finalDesc}`,
+        type: 'tabungan',
+        date: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp()
+      });
+
+      if (selectedStudentForFinance && selectedStudentForFinance.id === userId) {
+        setSelectedStudentForFinance((prev: any) => ({
+          ...prev,
+          savings: newSavings
+        }));
+      }
+
+      alert('Tabungan berhasil ditambahkan!');
+    } catch (error) {
+      console.error(error);
+      alert('Gagal menambahkan tabungan.');
+    }
+  };
+
   const handleAddSingleTunggakan = async (userId: string, amount: string, desc: string) => {
     try {
       const student = allUsers.find(u => u.id === userId);
@@ -3931,12 +3973,12 @@ export default function DashboardAdmin() {
                   <div className="mt-auto space-y-4">
                     {/* Update Tabungan */}
                     <div className="bg-white/60 p-4 rounded-xl border border-green-100">
-                      <p className="text-[10px] font-bold text-green-800 uppercase tracking-wider mb-2">Update Tabungan</p>
+                      <p className="text-[10px] font-bold text-green-800 uppercase tracking-wider mb-2">Tambah Tabungan</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                         <input 
                           type="number" 
                           id="update-savings"
-                          placeholder="Ubah Total"
+                          placeholder="Nominal Tabungan"
                           className="w-full p-2.5 rounded-lg border border-green-200 outline-none focus:ring-2 focus:ring-green-500 text-sm bg-white"
                         />
                         <input 
@@ -3951,14 +3993,14 @@ export default function DashboardAdmin() {
                           const val = (document.getElementById('update-savings') as HTMLInputElement).value;
                           const desc = (document.getElementById('update-savings-desc') as HTMLInputElement).value;
                           if(val) {
-                            updateFinance(selectedStudentForFinance.id, 'savings', val, desc);
+                            handleAddSingleTabungan(selectedStudentForFinance.id, val, desc || 'Nabung manual');
                             (document.getElementById('update-savings') as HTMLInputElement).value = '';
                             (document.getElementById('update-savings-desc') as HTMLInputElement).value = '';
                           }
                         }}
                         className="w-full bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 transition"
                       >
-                        Update
+                        Tambah
                       </button>
                     </div>
 
