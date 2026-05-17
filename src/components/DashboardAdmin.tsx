@@ -1081,10 +1081,33 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleDeletePayment = async (payId: string) => {
-    if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Catatan pada saldo/tunggakan tidak akan berubah otomatis.')) return;
+  const handleDeletePayment = async (pay: any) => {
+    if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Perhatian: Menghapus riwayat tabungan akan otomatis mengupdate total saldo.')) return;
     try {
-      await deleteDoc(doc(db, 'payments', payId));
+      if (pay.type === 'tabungan' || pay.type === 'tabungan_keluar') {
+        const student = allUsers.find(u => u.id === pay.studentId);
+        if (student) {
+          let newSavings = student.savings || 0;
+          if (pay.type === 'tabungan') {
+            newSavings -= pay.amount; // Removing an "add" reverses the addition
+          } else if (pay.type === 'tabungan_keluar') {
+            newSavings += pay.amount; // Removing a "tarik" reverses the deduction
+          }
+          
+          await updateDoc(doc(db, 'users', pay.studentId), {
+            savings: newSavings
+          });
+          
+          if (selectedStudentForFinance?.id === pay.studentId) {
+            setSelectedStudentForFinance((prev: any) => ({
+              ...prev,
+              savings: newSavings
+            }));
+          }
+        }
+      }
+    
+      await deleteDoc(doc(db, 'payments', pay.id));
       alert('Riwayat transaksi berhasil dihapus.');
     } catch (error) {
       console.error("Error deleting payment:", error);
@@ -3967,8 +3990,25 @@ export default function DashboardAdmin() {
               
               <div className="grid md:grid-cols-2 gap-6 mb-8">
                 <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
-                  <p className="text-green-800 text-sm font-bold mb-1">Total Tabungan</p>
-                  <p className="text-3xl font-bold text-green-600 mb-6">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <p className="text-green-800 text-sm font-bold mb-1">Total Tabungan</p>
+                      <p className="text-3xl font-bold text-green-600">Rp {(selectedStudentForFinance.savings || 0).toLocaleString()}</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newVal = window.prompt("Masukkan nominal tabungan baru (Setel ulang):", selectedStudentForFinance.savings?.toString() || "0");
+                        if (newVal !== null && !isNaN(Number(newVal))) {
+                          const desc = window.prompt("Keterangan update (contoh: Koreksi saldo):", "Koreksi saldo");
+                          updateFinance(selectedStudentForFinance.id, 'savings', newVal, desc || "Koreksi saldo");
+                          setSelectedStudentForFinance((prev: any) => ({ ...prev, savings: Number(newVal) }));
+                        }
+                      }}
+                      className="text-[10px] bg-green-200 text-green-800 px-2 py-1 rounded font-bold uppercase tracking-widest hover:bg-green-300 transition"
+                    >
+                      Koreksi
+                    </button>
+                  </div>
                   
                   <div className="mt-auto space-y-4">
                     {/* Update Tabungan */}
@@ -4040,8 +4080,25 @@ export default function DashboardAdmin() {
                 </div>
                 
                 <div className="bg-red-50 p-6 rounded-2xl border border-red-100 flex flex-col h-full">
-                  <p className="text-red-800 text-sm font-bold mb-1">Total Tunggakan</p>
-                  <p className="text-3xl font-bold text-red-600 mb-6">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString()}</p>
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <p className="text-red-800 text-sm font-bold mb-1">Total Tunggakan</p>
+                      <p className="text-3xl font-bold text-red-600">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString()}</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newVal = window.prompt("Masukkan nominal tunggakan baru (Setel ulang):", selectedStudentForFinance.arrears?.toString() || "0");
+                        if (newVal !== null && !isNaN(Number(newVal))) {
+                          const desc = window.prompt("Keterangan update (contoh: Koreksi tunggakan):", "Koreksi tunggakan");
+                          updateFinance(selectedStudentForFinance.id, 'arrears', newVal, desc || "Koreksi tunggakan");
+                          setSelectedStudentForFinance((prev: any) => ({ ...prev, arrears: Number(newVal) }));
+                        }
+                      }}
+                      className="text-[10px] bg-red-200 text-red-800 px-2 py-1 rounded font-bold uppercase tracking-widest hover:bg-red-300 transition"
+                    >
+                      Koreksi
+                    </button>
+                  </div>
                   
                   <div className="mt-auto">
                     <div className="bg-white/60 p-4 rounded-xl border border-red-100">
@@ -4160,7 +4217,7 @@ export default function DashboardAdmin() {
                           <Printer size={18} />
                         </button>
                         <button 
-                          onClick={() => handleDeletePayment(pay.id)}
+                          onClick={() => handleDeletePayment(pay)}
                           className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                           title="Hapus Riwayat"
                         >
