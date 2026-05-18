@@ -65,21 +65,28 @@ export const getPrintStyles = () => `
   }
 `;
 
-export const getPrintSignatureHTML = (dateStr: string = "", role1: string = "Bendahara / Penerima", role2: string = "Kepala Sekolah", qrData: string = "Ditandatangani secara elektronik oleh Kepala Sekolah RA Darusyifa Arjawinangun") => `
+export const getPrintSignatureHTML = (
+  dateStr: string = "", 
+  role1: string = "Bendahara / Penerima", 
+  role2: string = "Kepala Sekolah", 
+  qrData: string = "Ditandatangani secara elektronik oleh Kepala Sekolah RA Darusyifa Arjawinangun",
+  name1: string = "Nama Terang",
+  name2: string = "Gian Dwi Wahyuni, S.H"
+) => `
   <div style="text-align: right; margin-bottom: 30px; font-size: 14px; color: #4b5563;">
     Arjawinangun, ${dateStr || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
   </div>
   <div class="footer">
     <div class="signature">
       <p>${role1}</p>
-      <div class="line signature-spacing">Nama Terang</div>
+      <div class="line signature-spacing">${name1}</div>
     </div>
     <div class="signature">
       <p>${role2}</p>
       <div class="qr-code">
          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}" alt="QR Code Signature" />
       </div>
-      <div class="line">Kepala Sekolah</div>
+      <div class="line">${name2}</div>
     </div>
   </div>
 `;
