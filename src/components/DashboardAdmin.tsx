@@ -3138,20 +3138,6 @@ export default function DashboardAdmin() {
                 </button>
 
                 <button 
-                  onClick={() => setShowTabunganModal(true)}
-                  className="bg-emerald-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-emerald-700 transition-all shadow-lg hover:shadow-emerald-200 group relative overflow-hidden"
-                >
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:rotate-90 transition-transform duration-300 text-white">
-                    <Plus size={24} />
-                  </div>
-                  <div className="text-left w-full mt-1">
-                    <p className="text-[10px] text-emerald-200 font-bold uppercase tracking-widest mb-1">Manual</p>
-                    <p className="text-sm md:text-base leading-tight">Input Tabungan</p>
-                  </div>
-                </button>
-
-                <button 
                   onClick={() => setShowImportTabunganModal(true)}
                   className="bg-purple-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-purple-700 transition-all shadow-lg hover:shadow-purple-200 group relative overflow-hidden"
                 >
