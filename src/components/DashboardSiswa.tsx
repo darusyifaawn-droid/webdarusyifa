@@ -343,10 +343,9 @@ export default function DashboardSiswa() {
             </table>
           </div>
         </div>
-        
-        <script>window.onload = function() { window.print(); window.close(); }</script>
       </body>
     </html>
+    <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
 
     const win = window.open('', '_blank');
@@ -363,9 +362,6 @@ export default function DashboardSiswa() {
     const sortedHafalan = hafalanProgress
       .filter(p => !p.isReadyForTest)
       .sort((a,b) => new Date(b.updatedAt || '').getTime() - new Date(a.updatedAt || '').getTime());
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
 
     let itemsHtml = '';
     sortedHafalan.forEach((p, idx) => {
@@ -402,7 +398,7 @@ export default function DashboardSiswa() {
             ${getPrintStyles()}
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           ${getPrintHeaderHTML('LAPORAN HASIL HAFALAN (RAPOT)', settings?.schoolName, settings?.logoUrl)}
           
           <div class="student-info">
@@ -436,10 +432,14 @@ export default function DashboardSiswa() {
           </div>
         </body>
       </html>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   const handleExecutePrintRapot = () => {
@@ -453,9 +453,6 @@ export default function DashboardSiswa() {
         const dateB = new Date(b.date).getTime();
         return dateA - dateB;
       });
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
 
     let itemsHtml = '';
     
@@ -496,7 +493,7 @@ export default function DashboardSiswa() {
             ${getPrintStyles()}
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR (RAPOT)', settings?.schoolName, settings?.logoUrl)}
           
           <div class="student-info">
@@ -523,15 +520,17 @@ export default function DashboardSiswa() {
           ${getPrintSignatureHTML('', 'Mengetahui,<br>Orang Tua/Wali', 'Kepala Sekolah / Guru Kelas')}
         </body>
       </html>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   const handlePrintReceipt = (pay: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     const formattedAmount = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pay.amount);
     const transactionId = `TRX-${pay.id.substring(0, 10).toUpperCase()}`;
     const dateStr = pay.date || new Date().toLocaleDateString('id-ID');
@@ -545,7 +544,7 @@ export default function DashboardSiswa() {
             ${getPrintStyles()}
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           ${getPrintHeaderHTML('TANDA BUKTI PEMBAYARAN', settings?.schoolName, settings?.logoUrl)}
           
           <div class="receipt-details">
@@ -574,9 +573,14 @@ export default function DashboardSiswa() {
           ${getPrintSignatureHTML(dateStr, 'Bendahara / Penerima', 'Kepala Sekolah')}
         </body>
       </html>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
   
   // Profile Edit State

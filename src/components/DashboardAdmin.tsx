@@ -212,9 +212,6 @@ export default function DashboardAdmin() {
 
   const handlePrintReceipt = (pay: any) => {
     const student = allUsers.find(u => u.id === pay.studentId);
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     const formattedAmount = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pay.amount);
     const transactionId = `TRX-${pay.id.substring(0, 10).toUpperCase()}`;
     const dateStr = pay.date || new Date().toLocaleDateString('id-ID');
@@ -228,7 +225,7 @@ export default function DashboardAdmin() {
             ${getPrintStyles()}
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           ${getPrintHeaderHTML('TANDA BUKTI PEMBAYARAN', settings?.schoolName, settings?.logoUrl)}
           
           <div class="receipt-details">
@@ -257,9 +254,14 @@ export default function DashboardAdmin() {
           ${getPrintSignatureHTML(dateStr, 'Bendahara / Penerima', 'Kepala Sekolah')}
         </body>
       </html>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   useEffect(() => {
@@ -1749,9 +1751,6 @@ export default function DashboardAdmin() {
       .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     let itemsHtml = '';
     studentProgressList.forEach((p, idx) => {
        const scoreNum = Number(p.score) || 0;
@@ -1790,7 +1789,7 @@ export default function DashboardAdmin() {
             ${getPrintStyles()}
           </style>
         </head>
-        <body onload="window.print();">
+        <body>
           ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR (RAPOT)', settings?.schoolName, settings?.logoUrl)}
           
           <div class="student-info">
@@ -1817,9 +1816,14 @@ export default function DashboardAdmin() {
           ${getPrintSignatureHTML('', 'Mengetahui,<br>Orang Tua/Wali', 'Kepala Sekolah / Guru Kelas')}
         </body>
       </html>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+    
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   const getFinanceChartData = () => {
