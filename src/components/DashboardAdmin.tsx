@@ -20,6 +20,7 @@ export default function DashboardAdmin() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({ galleryImages: [], logoUrl: '', heroImageUrl: '' });
   const [showAddUser, setShowAddUser] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
@@ -78,7 +79,21 @@ export default function DashboardAdmin() {
   const [searchStudentDelete, setSearchStudentDelete] = useState('');
   const [searchFinanceList, setSearchFinanceList] = useState('');
   
+  // Exam States
+  const [showExamModal, setShowExamModal] = useState(false);
+  const [examType, setExamType] = useState('PTS Ganjil');
+  const [examYear, setExamYear] = useState('2024/2025');
+  const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);
+  const [activeExamId, setActiveExamId] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleSubject, setScheduleSubject] = useState('');
+  const [scheduleClass, setScheduleClass] = useState('Semua Kelas');
+  
   // Manage Finance Modal States
+  const [filterFinanceIuranName, setFilterFinanceIuranName] = useState('');
+  const [filterFinanceStartDate, setFilterFinanceStartDate] = useState('');
+  const [filterFinanceEndDate, setFilterFinanceEndDate] = useState('');
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
   const [selectedStudentForFinance, setSelectedStudentForFinance] = useState<any>(null);
 
@@ -136,6 +151,50 @@ export default function DashboardAdmin() {
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
+
+  const isFinanceFiltered = filterFinanceIuranName || filterFinanceStartDate || filterFinanceEndDate;
+  const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
+    if (u.role !== 'siswa') return u;
+
+    let filteredArrears = 0;
+    const details = u.arrears_details || [];
+    details.forEach((d: any) => {
+      let match = true;
+      if (filterFinanceIuranName && !d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+      if (filterFinanceStartDate && d.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && d.date > filterFinanceEndDate) match = false;
+      if (match) filteredArrears += d.amount;
+    });
+
+    let filteredSavings = 0;
+    payments.forEach(p => {
+      if (p.studentId !== u.id) return;
+      let match = true;
+      if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+      if (!match) return;
+      if (p.type === 'tabungan') filteredSavings += Number(p.amount || 0);
+      else if (p.method === 'Tabungan') filteredSavings -= Number(p.amount || 0);
+    });
+
+    if (filterFinanceIuranName && !filterFinanceStartDate && !filterFinanceEndDate) {
+      filteredSavings = u.savings || 0;
+    }
+
+    return {
+      ...u,
+      viewArrears: filteredArrears,
+      viewSavings: filteredSavings
+    };
+  }) : allUsers;
+
+  const displayTotalTunggakan = isFinanceFiltered 
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
+    : allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0);
+    
+  const displayTotalTabungan = isFinanceFiltered
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewSavings || 0), 0)
+    : allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0);
 
   useEffect(() => {
     if (showManageFinanceModal && selectedStudentForFinance) {
@@ -256,6 +315,14 @@ export default function DashboardAdmin() {
       }
     });
 
+    const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error fetching exams:", error);
+      }
+    });
+
     const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc')), (snapshot) => {
       setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
@@ -300,6 +367,7 @@ export default function DashboardAdmin() {
       unsubUsers();
       unsubAttendance();
       unsubAnnounce();
+      unsubExams();
       unsubPayments();
       unsubSettings();
       unsubClasses();
@@ -1021,6 +1089,74 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleAddExam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!examType || !examYear) return;
+    try {
+      await addDoc(collection(db, 'exams'), {
+        type: examType,
+        academicYear: examYear,
+        createdAt: serverTimestamp(),
+        schedules: []
+      });
+      setShowExamModal(false);
+      setExamType('PTS Ganjil');
+      alert('Jadwal Ujian berhasil dibuat!');
+    } catch (error) {
+       handleFirestoreError(error, OperationType.CREATE, 'exams');
+    }
+  };
+
+  const handleDeleteExam = async (examId: string) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus ujian ini?")) return;
+    try {
+      await deleteDoc(doc(db, 'exams', examId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `exams/${examId}`);
+    }
+  };
+
+  const handleAddExamSchedule = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!activeExamId || !scheduleDate || !scheduleTime || !scheduleSubject) return;
+     try {
+       const exam = exams.find(ex => ex.id === activeExamId);
+       if (!exam) return;
+       const newSchedule = {
+         id: Date.now().toString(),
+         date: scheduleDate,
+         time: scheduleTime,
+         subject: scheduleSubject,
+         kelas: scheduleClass
+       };
+       const updatedSchedules = [...(exam.schedules || []), newSchedule];
+       await updateDoc(doc(db, 'exams', activeExamId), {
+         schedules: updatedSchedules
+       });
+       setScheduleDate('');
+       setScheduleTime('');
+       setScheduleSubject('');
+       setShowExamScheduleModal(false);
+       alert('Jadwal berhasil ditambahkan!');
+     } catch (error) {
+       handleFirestoreError(error, OperationType.UPDATE, `exams/${activeExamId}`);
+     }
+  };
+
+  const handleDeleteExamSchedule = async (examId: string, scheduleId: string) => {
+      if (!window.confirm("Hapus jadwal ini?")) return;
+      try {
+        const exam = exams.find(ex => ex.id === examId);
+        if (!exam) return;
+        const updatedSchedules = (exam.schedules || []).filter((s: any) => s.id !== scheduleId);
+        await updateDoc(doc(db, 'exams', examId), {
+          schedules: updatedSchedules
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `exams/${examId}`);
+      }
+  };
+
   const handleApprovePayment = async (pay: any) => {
     if (!window.confirm(`Verifikasi pembayaran ${pay.method} ini? Tindakan ini akan mengupdate status menjadi lunas dan mengurangi tunggakan siswa.`)) return;
     try {
@@ -1356,20 +1492,21 @@ export default function DashboardAdmin() {
   };
 
   const exportFinanceToExcel = () => {
-    const students = allUsers.filter(u => {
+    const students = filteredUsersForFinance.filter((u: any) => {
       const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
       const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
       const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
       return matchBase && matchKelas && matchName && matchStatus;
     });
     
-    const data = students.map(s => ({
+    const data = students.map((s: any) => ({
       Nama: s.name,
       Kelas: s.kelas || '',
       Status: s.status || 'Aktif',
-      Total_Tabungan: s.savings || 0,
-      Total_Tunggakan: s.arrears || 0
+      Total_Tabungan: isFinanceFiltered ? (s.viewSavings || 0) : (s.savings || 0),
+      Total_Tunggakan: isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0)
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1379,25 +1516,34 @@ export default function DashboardAdmin() {
   };
 
   const exportRincianTunggakanToExcel = () => {
-    const students = allUsers.filter(u => {
+    const students = filteredUsersForFinance.filter((u: any) => {
       const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
       const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
       const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
       return matchBase && matchKelas && matchName && matchStatus;
     });
     
     const data: any[] = [];
-    students.forEach(s => {
+    students.forEach((s: any) => {
       if (s.arrears_details && s.arrears_details.length > 0) {
         s.arrears_details.forEach((detail: any) => {
-          data.push({
-            Nama_Siswa: s.name,
-            Kelas: s.kelas || '',
-            Tgl_Tagihan: detail.date || '',
-            Nama_Tagihan: detail.name || '',
-            Nominal: detail.amount || 0
-          });
+          let match = true;
+          if (isFinanceFiltered) {
+            if (filterFinanceIuranName && !detail.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+            if (filterFinanceStartDate && detail.date < filterFinanceStartDate) match = false;
+            if (filterFinanceEndDate && detail.date > filterFinanceEndDate) match = false;
+          }
+          if (match) {
+            data.push({
+              Nama_Siswa: s.name,
+              Kelas: s.kelas || '',
+              Tgl_Tagihan: detail.date || '',
+              Nama_Tagihan: detail.name || '',
+              Nominal: detail.amount || 0
+            });
+          }
         });
       }
     });
@@ -1951,8 +2097,8 @@ export default function DashboardAdmin() {
               {[
                 { label: 'Jumlah Siswa', value: allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').length, detail: `♂: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Laki-laki')).length} | ♀: ${allUsers.filter(u => u.role === 'siswa' && (u.jenisKelamin === 'Perempuan')).length}`, color: 'bg-indigo-600 bg-gradient-to-br from-purple-500 to-indigo-600', icon: Users },
                 { label: 'Jumlah Kelas', value: schoolClasses.length, detail: 'Aktif Tahun Ini', color: 'bg-teal-500 bg-gradient-to-br from-emerald-400 to-teal-500', icon: BookOpen },
-                { label: 'Total Tabungan', value: `Rp ${allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}`, detail: 'Saldo Sekolah', color: 'bg-orange-500 bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
-                { label: 'Total Tunggakan', value: `Rp ${allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}`, detail: 'Tagihan Berjalan', color: 'bg-pink-600 bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
+                { label: 'Total Tabungan', value: `Rp ${displayTotalTabungan.toLocaleString('id-ID')}`, detail: isFinanceFiltered ? 'Berdasarkan Filter' : 'Saldo Sekolah', color: 'bg-orange-500 bg-gradient-to-br from-amber-400 to-orange-500', icon: CreditCard },
+                { label: 'Total Tunggakan', value: `Rp ${displayTotalTunggakan.toLocaleString('id-ID')}`, detail: isFinanceFiltered ? 'Berdasarkan Filter' : 'Tagihan Berjalan', color: 'bg-pink-600 bg-gradient-to-br from-rose-500 to-pink-600', icon: AlertCircle }
               ].map((stat, i) => (
                 <div key={i} className={`relative overflow-hidden ${stat.color} p-5 md:p-6 rounded-[32px] text-white shadow-xl shadow-black/10 group hover:scale-[1.02] transition-all flex flex-col justify-between h-52 sm:h-48 md:h-44`}>
                   <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform rotate-12">
@@ -1997,6 +2143,7 @@ export default function DashboardAdmin() {
                   { id: 'materials', label: 'Materi', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500', action: () => setActiveTab('materials') },
                   { id: 'achievements', label: 'Prestasi', icon: Trophy, color: 'bg-yellow-500 bg-gradient-to-br from-yellow-400 to-yellow-500', action: () => setActiveTab('achievements') },
                   { id: 'assessments', label: 'Penilaian', icon: TrendingUp, color: 'bg-indigo-500 bg-gradient-to-br from-indigo-400 to-indigo-500', action: () => setActiveTab('assessments') },
+                  { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500', action: () => setActiveTab('exams') },
                   { id: 'users', label: 'Guru', icon: Shield, color: 'bg-teal-500 bg-gradient-to-br from-teal-400 to-teal-500', action: () => { setActiveTab('users'); setFilterUserRole('guru'); } },
                   { id: 'finance', label: 'Administrasi', icon: CreditCard, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500', action: () => setActiveTab('finance') },
                   { id: 'announcements', label: 'Info', icon: Megaphone, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('announcements') },
@@ -2441,6 +2588,97 @@ export default function DashboardAdmin() {
                   <div className="p-6 text-center text-gray-400 italic text-sm">Data siswa dengan status tersebut belum tersedia.</div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'exams' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <Edit size={24} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Manajemen Ujian</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Atur jadwal ujian seperti PTS, PAS untuk siswa dan guru.</p>
+              </div>
+              <button 
+                onClick={() => setShowExamModal(true)}
+                className="bg-rose-600 text-white px-5 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-rose-700 hover:shadow-lg hover:shadow-rose-200 transition-all text-sm w-full md:w-auto"
+              >
+                <Plus size={18} /> Tambah Ujian
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {exams.map(exam => (
+                <div key={exam.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] z-0 opacity-50 group-hover:bg-rose-100 transition-colors"></div>
+                  <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{exam.academicYear}</span>
+                        <h4 className="text-xl font-bold text-gray-800">{exam.type}</h4>
+                      </div>
+                      <p className="text-gray-500 text-sm font-medium mb-4 flex items-center gap-2">
+                        <Calendar size={14} /> {(exam.schedules || []).length} Jadwal Mata Pelajaran
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button 
+                          onClick={() => {
+                            setActiveExamId(exam.id);
+                            setShowExamScheduleModal(true);
+                          }}
+                          className="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-100 transition-colors flex items-center gap-2"
+                        >
+                          <Plus size={14} /> Tambah Jadwal
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteExam(exam.id)}
+                          className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-2"
+                        >
+                          <Trash2 size={14} /> Hapus Ujian
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-2xl p-4 flex-1">
+                      <h5 className="font-bold text-gray-700 text-sm mb-3">Daftar Jadwal</h5>
+                      {(exam.schedules || []).length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Belum ada jadwal yang ditambahkan.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(exam.schedules || []).map((s: any) => (
+                            <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-bold text-gray-800">{s.subject} <span className="text-xs text-gray-400 font-medium ml-2">({s.kelas})</span></p>
+                                <p className="text-xs text-rose-600 font-bold mt-1">
+                                  {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | {s.time}
+                                </p>
+                              </div>
+                              <button onClick={() => handleDeleteExamSchedule(exam.id, s.id)} className="text-red-400 hover:text-red-600 p-2">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {exams.length === 0 && (
+                <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
+                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    <Edit size={24} />
+                  </div>
+                  <h4 className="text-gray-600 font-bold mb-2">Belum ada Jadwal Ujian</h4>
+                  <p className="text-gray-400 text-sm">Tambahkan ujian baru seperti PTS atau PAS.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3193,7 +3431,7 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
-                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {allUsers.reduce((acc, curr) => acc + (curr.savings || 0), 0).toLocaleString('id-ID')}</h4>
+                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
@@ -3203,7 +3441,36 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan Siswa</p>
-                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {allUsers.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.arrears || 0), 0).toLocaleString('id-ID')}</h4>
+                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 rounded-3xl p-6">
+              <div className="flex-1">
+                <h4 className="text-lg font-black text-indigo-800 tracking-tight mb-2">Filter Spesifik Keuangan</h4>
+                <div className="flex flex-col md:flex-row gap-4 w-full">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Nama Tagihan</label>
+                    <select 
+                      value={filterFinanceIuranName} 
+                      onChange={(e) => setFilterFinanceIuranName(e.target.value)} 
+                      className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                    >
+                      <option value="">Semua Tagihan</option>
+                      {Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => d.name)))).sort().map((name: any) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-full md:w-48">
+                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Dari Tanggal</label>
+                    <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                  </div>
+                  <div className="w-full md:w-48">
+                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Sampai Tanggal</label>
+                    <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3368,25 +3635,32 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {allUsers.filter(u => {
+                    {filteredUsersForFinance.filter(u => {
                       const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
                       const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
                       const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-                      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+                      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
                       return matchBase && matchKelas && matchName && matchStatus;
-                    }).map((u) => (
+                    }).map((u) => {
+                      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                      const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
+                      return (
                       <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
                         <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
-                        <td className="px-6 py-4 font-bold text-green-600">Rp {(u.savings || 0).toLocaleString()}</td>
-                        <td className="px-6 py-4 font-bold text-red-600">Rp {(u.arrears || 0).toLocaleString()}</td>
+                        <td className="px-6 py-4 font-bold text-green-600">Rp {displaySavings.toLocaleString()}</td>
+                        <td className="px-6 py-4 font-bold text-red-600">Rp {displayArrears.toLocaleString()}</td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {u.whatsapp && (u.arrears > 0) && (
+                            {u.whatsapp && (displayArrears > 0) && (
                               <button 
                                 onClick={() => {
                                   // Find the first arrear detail to follow up
-                                  const firstArrear = u.arrears_details?.[0];
+                                  let firstArrear = u.arrears_details?.[0];
+                                  if (isFinanceFiltered && filterFinanceIuranName) {
+                                    firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
+                                  }
                                   if (firstArrear) {
                                     handleWhatsAppFollowUp(u, firstArrear);
                                   } else {
@@ -3411,20 +3685,25 @@ export default function DashboardAdmin() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile View Keuangan */}
               <div className="md:hidden divide-y divide-gray-100">
-                {allUsers.filter(u => {
+                {filteredUsersForFinance.filter(u => {
                   const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
                   const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
                   const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-                  const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (u.arrears > 0) : ((u.arrears || 0) === 0));
+                  const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                  const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
                   return matchBase && matchKelas && matchName && matchStatus;
-                }).map((u) => (
+                }).map((u) => {
+                  const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                  const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
+                  return (
                   <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -3435,18 +3714,21 @@ export default function DashboardAdmin() {
                     <div className="flex justify-between items-center bg-gray-50 p-3 border border-gray-100 rounded-lg">
                       <div className="flex flex-col gap-1">
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tabungan</p>
-                        <p className="font-bold text-green-600">Rp {(u.savings || 0).toLocaleString()}</p>
+                        <p className="font-bold text-green-600">Rp {displaySavings.toLocaleString()}</p>
                       </div>
                       <div className="flex flex-col gap-1 text-right">
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tunggakan</p>
-                        <p className="font-bold text-red-600">Rp {(u.arrears || 0).toLocaleString()}</p>
+                        <p className="font-bold text-red-600">Rp {displayArrears.toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="flex justify-end items-center gap-2 mt-4">
-                       {u.whatsapp && u.arrears > 0 && (
+                       {u.whatsapp && displayArrears > 0 && (
                          <button 
                            onClick={() => {
-                             const firstArrear = u.arrears_details?.[0];
+                             let firstArrear = u.arrears_details?.[0];
+                             if (isFinanceFiltered && filterFinanceIuranName) {
+                               firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
+                             }
                              if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
                            }}
                            className="flex-1 bg-green-50 text-green-600 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-widest flex items-center justify-center gap-2"
@@ -3465,7 +3747,7 @@ export default function DashboardAdmin() {
                        </button>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           </div>
@@ -3723,6 +4005,120 @@ export default function DashboardAdmin() {
                 <button type="submit" className="w-full px-4 py-3 bg-yellow-500 text-white rounded-xl font-bold hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-200">Simpan Password</button>
               </form>
             </div>
+          </div>
+        )}
+
+        {showExamModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white max-w-md w-full rounded-[2.5rem] p-8 shadow-2xl relative">
+              <button onClick={() => setShowExamModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors z-10">
+                <X size={20} />
+              </button>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
+                  <Edit size={24} />
+                </div>
+                <h3 className="text-xl font-black text-gray-800">Tambah Ujian</h3>
+              </div>
+              <form onSubmit={handleAddExam} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Jenis Ujian</label>
+                  <select 
+                    value={examType} 
+                    onChange={(e) => setExamType(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-700" 
+                    required
+                  >
+                    <option value="PTS Ganjil">PTS Ganjil</option>
+                    <option value="PAS Ganjil">PAS Ganjil</option>
+                    <option value="PTS Genap">PTS Genap</option>
+                    <option value="PAS Genap">PAS Genap</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Tahun Ajaran</label>
+                  <input 
+                    type="text" 
+                    value={examYear} 
+                    onChange={(e) => setExamYear(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-800" 
+                    placeholder="Contoh: 2024/2025"
+                    required 
+                  />
+                </div>
+                <button type="submit" className="w-full bg-rose-600 text-white p-4 rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 mt-2">
+                  Simpan Ujian
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {showExamScheduleModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+             <div className="bg-white max-w-md w-full rounded-[2.5rem] p-8 shadow-2xl relative">
+                <button onClick={() => setShowExamScheduleModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors z-10">
+                  <X size={20} />
+                </button>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
+                    <Calendar size={24} />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-800">Tambah Jadwal Pelajaran</h3>
+                </div>
+                <form onSubmit={handleAddExamSchedule} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Tanggal</label>
+                      <input 
+                        type="date" 
+                        value={scheduleDate} 
+                        onChange={(e) => setScheduleDate(e.target.value)} 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-800" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Waktu</label>
+                      <input 
+                        type="text" 
+                        value={scheduleTime} 
+                        onChange={(e) => setScheduleTime(e.target.value)} 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-800" 
+                        placeholder="08:00 - 09:30"
+                        required 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Mata Pelajaran</label>
+                    <input 
+                      type="text" 
+                      value={scheduleSubject} 
+                      onChange={(e) => setScheduleSubject(e.target.value)} 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-800"
+                      placeholder="Contoh: Matematika" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                     <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Kelas</label>
+                     <select 
+                      value={scheduleClass} 
+                      onChange={(e) => setScheduleClass(e.target.value)} 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-800"
+                     >
+                       <option value="Semua Kelas">Semua Kelas</option>
+                       {schoolClasses.map((c: any) => (
+                         <option key={c.id} value={c.name}>{c.name}</option>
+                       ))}
+                     </select>
+                  </div>
+                  <button type="submit" className="w-full bg-rose-600 text-white p-4 rounded-xl font-bold hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 mt-2">
+                    Simpan Jadwal
+                  </button>
+                </form>
+             </div>
           </div>
         )}
 

@@ -20,6 +20,7 @@ export default function DashboardGuru() {
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
@@ -168,6 +169,14 @@ export default function DashboardGuru() {
       }
     });
 
+    const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error fetching exams:", error);
+      }
+    });
+
     const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
       setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
@@ -213,6 +222,7 @@ export default function DashboardGuru() {
       unsubProgress();
       unsubHafalanProgress();
       unsubAnnounce();
+      unsubExams();
       unsubAttendance();
       unsubSubjects();
       unsubClasses();
@@ -1090,6 +1100,7 @@ export default function DashboardGuru() {
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'subjects', label: 'Penilaian', icon: TrendingUp, color: 'bg-orange-500 bg-gradient-to-br from-orange-400 to-orange-500' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
+                  { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
                   { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500' },
                   { id: 'attendance', label: 'Absensi', icon: Camera, color: 'bg-emerald-500 bg-gradient-to-br from-emerald-400 to-emerald-500' },
                   { id: 'announcements', label: 'Info', icon: Megaphone, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600' },
@@ -2507,6 +2518,70 @@ export default function DashboardGuru() {
                    </>
                  );
               })()}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'exams' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <Edit size={24} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Jadwal Ujian</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Lihat jadwal evaluasi PTS dan PAS yang diatur Admin.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {exams.map(exam => (
+                <div key={exam.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] z-0 opacity-50 group-hover:bg-rose-100 transition-colors"></div>
+                  <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{exam.academicYear}</span>
+                        <h4 className="text-xl font-bold text-gray-800">{exam.type}</h4>
+                      </div>
+                      <p className="text-gray-500 text-sm font-medium mb-4 flex items-center gap-2">
+                        <Calendar size={14} /> {(exam.schedules || []).length} Jadwal Mata Pelajaran
+                      </p>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-2xl p-4 flex-1">
+                      <h5 className="font-bold text-gray-700 text-sm mb-3">Daftar Jadwal</h5>
+                      {(exam.schedules || []).length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Belum ada jadwal yang ditambahkan.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(exam.schedules || []).map((s: any) => (
+                            <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-bold text-gray-800">{s.subject} <span className="text-xs text-gray-400 font-medium ml-2">({s.kelas})</span></p>
+                                <p className="text-xs text-rose-600 font-bold mt-1">
+                                  {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | {s.time}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {exams.length === 0 && (
+                <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
+                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    <Edit size={24} />
+                  </div>
+                  <h4 className="text-gray-600 font-bold mb-2">Belum ada Jadwal Ujian</h4>
+                  <p className="text-gray-400 text-sm">Harap cek secara berkala.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

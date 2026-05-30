@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle } from 'lucide-react';
 import { hafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -25,6 +25,7 @@ export default function DashboardSiswa() {
   const [userData, setUserData] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -240,6 +241,119 @@ export default function DashboardSiswa() {
       alert('Gagal mengirim pembayaran.');
     }
     setPaymentSubmitting(false);
+  };
+
+  const handleExecutePrintExamCard = (exam: any) => {
+    if (!userData) return;
+    
+    // Sort schedules
+    const schedules = [...(exam.schedules || [])].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    let htmlContent = `
+    <html>
+      <head>
+        <title>Kartu Ujian - ${exam.type}</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; padding: 20px; font-size: 12px; }
+          .card { border: 2px solid #000; width: 100%; max-width: 600px; margin: 0 auto 30px; }
+          .header { text-align: center; border-bottom: 2px solid #000; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 15px; }
+          .header img { width: 50px; height: 50px; }
+          .header-text h3 { margin: 0; font-size: 14px; text-transform: uppercase; }
+          .header-text h2 { margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase; }
+          .header-text p { margin: 0; font-size: 10px; }
+          .title { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px solid #000; padding: 5px 0; text-transform: uppercase; border-top: 1px solid #000; margin-top: 5px; }
+          .content { padding: 15px; line-height: 1.5; }
+          .content table { width: 100%; font-size: 12px; }
+          .content td { padding: 4px 0; }
+          .content td:first-child { width: 140px; font-weight: bold; }
+          .content td:nth-child(2) { width: 10px; }
+          .signature-container { margin-top: 30px; display: flex; justify-content: flex-end; padding-right: 20px; }
+          .schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .schedule-table th, .schedule-table td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px; }
+          @media print {
+            .page-break { page-break-after: always; }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Front Side -->
+        <div class="card">
+          <div class="header">
+            ${settings?.logoUrl ? `<img src="${settings.logoUrl}" alt="Logo" />` : ''}
+            <div class="header-text">
+              <h3>YAYASAN DARUSYIFA AL ISLAMIYAH</h3>
+              <h2>RAUDHATUL ATHFAL (RA) DARUSYIFA ARJAWINANGUN</h2>
+              <p>Blok telar baru Rt.004 Rw.014 Desa/Kecamatan Arjawinangun Kabupaten Cirebon</p>
+            </div>
+          </div>
+          <div class="title">
+            KARTU ${exam.type}
+          </div>
+          <div class="content">
+            <table style="margin-bottom: 20px;">
+              <tr>
+                <td>NAMA</td>
+                <td>:</td>
+                <td>${userData.name}</td>
+              </tr>
+              <tr>
+                <td>NO PESERTA</td>
+                <td>:</td>
+                <td>${(user?.uid || '').substring(0,8).toUpperCase()} - ${userData.kelas || 'UMUM'}</td>
+              </tr>
+            </table>
+
+            <div class="signature-container">
+              <div style="text-align: center;">
+                <p style="margin: 0; margin-bottom: 5px;">Cirebon, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                <p style="margin: 0; font-weight: bold;">Kepala Sekolah</p>
+                <p style="margin: 5px 0; font-size: 10px;">NPSN: 69993923<br/>NSRA: 101232090331</p>
+                <br/><br/><br/>
+                <p style="margin: 0; font-weight: bold; text-decoration: underline;">Gian Dwi Wahyuni, S.H</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- Back Side -->
+        <div class="card">
+          <div class="title" style="border-top: none; margin-top: 0;">JADWAL ${exam.type}</div>
+          <div class="content">
+            <table class="schedule-table">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Mata Pelajaran</th>
+                  <th>Hari, Tanggal</th>
+                  <th>Waktu</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${schedules.map((s, idx) => `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td style="text-align: left; font-weight: bold;">${s.subject}</td>
+                    <td>${new Date(s.date).toLocaleDateString('id-ID', {weekday: 'long', day: '2-digit', month: 'short', year: 'numeric'})}</td>
+                    <td>${s.time}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <script>window.onload = function() { window.print(); window.close(); }</script>
+      </body>
+    </html>
+    `;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(htmlContent);
+      win.document.close();
+    }
   };
 
   const handleExecutePrintRapotHafalan = () => {
@@ -577,6 +691,10 @@ export default function DashboardSiswa() {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+    const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubAttendance();
       unsubProgress();
@@ -586,6 +704,7 @@ export default function DashboardSiswa() {
       unsubSettings();
       unsubKaldik();
       unsubMaterials();
+      unsubExams();
     };
   }, [user]);
 
@@ -995,6 +1114,7 @@ export default function DashboardSiswa() {
                   { id: 'progress', label: 'Hasil Pembelajaran', icon: GraduationCap, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
                   { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
                   { id: 'hafalan', label: 'Modul Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500' },
+                  { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
                   { id: 'administration', label: 'Administrasi', icon: CreditCard, color: 'bg-emerald-500 bg-gradient-to-br from-emerald-400 to-emerald-500' },
                   { id: 'attendance', label: 'Absensi', icon: Camera, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
                   { id: 'announcements', label: 'Info Sekolah', icon: Megaphone, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600' },
@@ -1494,6 +1614,88 @@ export default function DashboardSiswa() {
                   <CheckCircle size={20} /> Update Password
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'exams' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <Edit size={24} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Jadwal Ujian</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Lihat jadwal evaluasi PTS dan PAS. Cetak kartu ujian jika administrasi sudah lunas.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {exams.map(exam => {
+                const canPrint = !userData?.arrears || userData.arrears === 0;
+
+                return (
+                <div key={exam.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] z-0 opacity-50 group-hover:bg-rose-100 transition-colors"></div>
+                  <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{exam.academicYear}</span>
+                        <h4 className="text-xl font-bold text-gray-800">{exam.type}</h4>
+                      </div>
+                      <p className="text-gray-500 text-sm font-medium mb-4 flex items-center gap-2">
+                        <Calendar size={14} /> {(exam.schedules || []).length} Jadwal Mata Pelajaran
+                      </p>
+                      
+                      <div className="mt-4">
+                        {canPrint ? (
+                          <button 
+                            onClick={() => handleExecutePrintExamCard(exam)}
+                            className="bg-rose-600 text-white px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+                          >
+                            <Printer size={16} /> Cetak Kartu Ujian
+                          </button>
+                        ) : (
+                          <div className="bg-amber-50 border border-amber-100 text-amber-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
+                            <AlertCircle size={16} /> Harap lunasi administrasi untuk mencetak kartu ujian
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-2xl p-4 flex-1">
+                      <h5 className="font-bold text-gray-700 text-sm mb-3">Daftar Jadwal</h5>
+                      {(exam.schedules || []).length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Belum ada jadwal yang ditambahkan.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(exam.schedules || []).map((s: any) => (
+                            <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-bold text-gray-800">{s.subject} <span className="text-xs text-gray-400 font-medium ml-2">({s.kelas})</span></p>
+                                <p className="text-xs text-rose-600 font-bold mt-1">
+                                  {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | {s.time}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )})}
+              {exams.length === 0 && (
+                <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
+                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    <Edit size={24} />
+                  </div>
+                  <h4 className="text-gray-600 font-bold mb-2">Belum ada Jadwal Ujian</h4>
+                  <p className="text-gray-400 text-sm">Harap cek secara berkala.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

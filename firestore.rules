@@ -118,6 +118,12 @@ service cloud.firestore {
       allow write: if isGuru() || isAdmin();
     }
 
+    // Exams (Jadwal Ujian)
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // Payments (Financial History)
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (
