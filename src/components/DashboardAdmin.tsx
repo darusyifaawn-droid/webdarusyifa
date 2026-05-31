@@ -59,6 +59,8 @@ export default function DashboardAdmin() {
   const [newUserTeacherType, setNewUserTeacherType] = useState('Guru Kelas');
   const [newUserAssignedClass, setNewUserAssignedClass] = useState('');
   const [newUserWhatsapp, setNewUserWhatsapp] = useState('');
+  const [newUserTempatLahir, setNewUserTempatLahir] = useState('');
+  const [newUserTanggalLahir, setNewUserTanggalLahir] = useState('');
   const [editUserWhatsapp, setEditUserWhatsapp] = useState('');
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
@@ -433,6 +435,8 @@ export default function DashboardAdmin() {
       if (newUserRole === 'siswa') {
         userData.kelas = newUserKelas;
         userData.whatsapp = newUserWhatsapp;
+        userData.tempatLahir = newUserTempatLahir;
+        userData.tanggalLahir = newUserTanggalLahir;
       }
       if (newUserRole === 'guru') {
         userData.teacherType = newUserTeacherType;
@@ -447,6 +451,8 @@ export default function DashboardAdmin() {
       setNewUserPassword('123456');
       setNewUserKelas('');
       setNewUserWhatsapp('');
+      setNewUserTempatLahir('');
+      setNewUserTanggalLahir('');
       setShowAddUser(false);
       alert(`User berhasil ditambahkan! Guru/Siswa sekarang bisa login menggunakan email ini dengan password: ${newUserPassword}`);
     } catch (error: any) {
@@ -470,6 +476,8 @@ export default function DashboardAdmin() {
         userData.kelas = editingUser.kelas || '';
         userData.whatsapp = editingUser.whatsapp || '';
         userData.status = editingUser.status || 'Aktif';
+        userData.tempatLahir = editingUser.tempatLahir || '';
+        userData.tanggalLahir = editingUser.tanggalLahir || '';
       }
       if (editingUser.role === 'guru') {
         userData.teacherType = editingUser.teacherType || 'Guru Kelas';
@@ -2649,21 +2657,39 @@ export default function DashboardAdmin() {
                       </div>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-2xl p-4 flex-1">
-                      <h5 className="font-bold text-gray-700 text-sm mb-3">Daftar Jadwal</h5>
+                    <div className="bg-gray-50/50 rounded-3xl p-6 flex-1 border border-gray-100">
+                      <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">Daftar Jadwal Mata Pelajaran</h5>
                       {(exam.schedules || []).length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">Belum ada jadwal yang ditambahkan.</p>
+                        <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal yang ditambahkan.</p>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {(exam.schedules || []).map((s: any) => (
-                            <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-bold text-gray-800">{s.subject} <span className="text-xs text-gray-400 font-medium ml-2">({s.kelas})</span></p>
-                                <p className="text-xs text-rose-600 font-bold mt-1">
-                                  {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | {s.time}
-                                </p>
+                            <div key={s.id} className="group relative bg-white p-4 rounded-2xl border border-gray-100 hover:border-rose-100 hover:shadow-md hover:shadow-rose-50/10 transition-all flex items-center justify-between gap-4 pl-6 overflow-hidden">
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                  <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
+                                  <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
+                                    {s.kelas}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                  <span className="flex items-center gap-1.5 font-bold text-gray-600">
+                                    <Calendar size={12} className="text-rose-500" />
+                                    {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </span>
+                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                  <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                                    <Clock size={12} />
+                                    {s.time}
+                                  </span>
+                                </div>
                               </div>
-                              <button onClick={() => handleDeleteExamSchedule(exam.id, s.id)} className="text-red-400 hover:text-red-600 p-2">
+                              <button 
+                                onClick={() => handleDeleteExamSchedule(exam.id, s.id)} 
+                                className="text-gray-400 hover:text-red-600 p-2 rounded-xl bg-gray-50 hover:bg-red-50 transition-all"
+                                title="Hapus Jadwal"
+                              >
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -3947,6 +3973,14 @@ export default function DashboardAdmin() {
                       <label className="block text-xs font-bold text-gray-500 uppercase mb-1">No WhatsApp</label>
                       <input type="text" value={editingUser.whatsapp || ''} onChange={(e) => setEditingUser({...editingUser, whatsapp: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tempat Lahir</label>
+                      <input type="text" value={editingUser.tempatLahir || ''} onChange={(e) => setEditingUser({...editingUser, tempatLahir: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" placeholder="Contoh: Cirebon" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tanggal Lahir</label>
+                      <input type="date" value={editingUser.tanggalLahir || ''} onChange={(e) => setEditingUser({...editingUser, tanggalLahir: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
                   </>
                 )}
                 {editingUser.role === 'guru' && (
@@ -4234,6 +4268,27 @@ export default function DashboardAdmin() {
                             className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
                             placeholder="08123456789"
                             required 
+                          />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Tempat Lahir</label>
+                          <input 
+                            type="text" 
+                            value={newUserTempatLahir} 
+                            onChange={(e) => setNewUserTempatLahir(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-800 transition-all placeholder:text-gray-400 placeholder:font-medium" 
+                            placeholder="Contoh: Cirebon"
+                          />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1 animate-in fade-in slide-in-from-top-2">
+                          <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Tanggal Lahir</label>
+                          <input 
+                            type="date" 
+                            value={newUserTanggalLahir} 
+                            onChange={(e) => setNewUserTanggalLahir(e.target.value)} 
+                            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-850 transition-all text-sm" 
                           />
                         </div>
                       </>

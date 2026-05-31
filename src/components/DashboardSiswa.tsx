@@ -246,9 +246,20 @@ export default function DashboardSiswa() {
   const handleExecutePrintExamCard = (exam: any) => {
     if (!userData) return;
     
-    // Sort schedules
-    const schedules = [...(exam.schedules || [])].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort and filter schedules to student's specific class only
+    const filteredSchedules = (exam.schedules || []).filter((s: any) => 
+      s.kelas === "Semua Kelas" || 
+      (userData.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+    );
+    const schedules = [...filteredSchedules].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
+    // Format Tempat, Tanggal Lahir
+    let ttlSiswa = '-';
+    if (userData.tempatLahir || userData.tanggalLahir) {
+      const tgl = userData.tanggalLahir ? new Date(userData.tanggalLahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+      ttlSiswa = `${userData.tempatLahir || ''}${userData.tempatLahir && tgl ? ', ' : ''}${tgl}`;
+    }
+
     let htmlContent = `
     <html>
       <head>
@@ -267,7 +278,7 @@ export default function DashboardSiswa() {
           .content td { padding: 4px 0; }
           .content td:first-child { width: 140px; font-weight: bold; }
           .content td:nth-child(2) { width: 10px; }
-          .signature-container { margin-top: 30px; display: flex; justify-content: flex-end; padding-right: 20px; }
+          .signature-container { margin-top: 20px; display: flex; justify-content: flex-end; padding-right: 20px; }
           .schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           .schedule-table th, .schedule-table td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 11px; }
           @media print {
@@ -292,31 +303,43 @@ export default function DashboardSiswa() {
           <div class="content">
             <table style="margin-bottom: 20px;">
               <tr>
-                <td>NAMA</td>
+                <td>NAMA SISWA</td>
                 <td>:</td>
                 <td>${userData.name}</td>
               </tr>
               <tr>
+                <td>TEMPAT, TGL LAHIR</td>
+                <td>:</td>
+                <td>${ttlSiswa}</td>
+              </tr>
+              <tr>
                 <td>NO PESERTA</td>
                 <td>:</td>
-                <td>${(user?.uid || '').substring(0,8).toUpperCase()} - ${userData.kelas || 'UMUM'}</td>
+                <td>${(user?.uid || '').substring(0,8).toUpperCase()}</td>
+              </tr>
+              <tr>
+                <td>KELAS</td>
+                <td>:</td>
+                <td>${userData.kelas || 'Belum Ditentukan'}</td>
               </tr>
             </table>
-
+ 
             <div class="signature-container">
-              <div style="text-align: center;">
-                <p style="margin: 0; margin-bottom: 5px;">Cirebon, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
-                <p style="margin: 0; font-weight: bold;">Kepala Sekolah</p>
-                <p style="margin: 5px 0; font-size: 10px;">NPSN: 69993923<br/>NSRA: 101232090331</p>
-                <br/><br/><br/>
-                <p style="margin: 0; font-weight: bold; text-decoration: underline;">Gian Dwi Wahyuni, S.H</p>
+              <div style="text-align: center; width: 180px;">
+                <p style="margin: 0; font-size: 11px;">Cirebon, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                <p style="margin: 3px 0 0; font-weight: bold; font-size: 11px;">Kepala Sekolah</p>
+                <div style="margin: 8px auto; width: 85px; height: 85px;">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent('Kartu Ujian Terverifikasi secara elektronik oleh Kepala Sekolah RA Darusyifa Arjawinangun: Gian Dwi Wahyuni, S.H')}" alt="QR Code Signature" style="width: 100%; height: 100%; object-fit: contain;" />
+                </div>
+                <p style="margin: 0; font-weight: bold; text-decoration: underline; font-size: 11px;">Gian Dwi Wahyuni, S.H</p>
+                <p style="margin: 2px 0 0; font-size: 9px; color: #666;">NPSN: 69993923</p>
               </div>
             </div>
           </div>
         </div>
-
+ 
         <div class="page-break"></div>
-
+ 
         <!-- Back Side -->
         <div class="card">
           <div class="title" style="border-top: none; margin-top: 0;">JADWAL ${exam.type}</div>
@@ -339,6 +362,11 @@ export default function DashboardSiswa() {
                     <td>${s.time}</td>
                   </tr>
                 `).join('')}
+                ${schedules.length === 0 ? `
+                  <tr>
+                    <td colspan="4" style="padding: 20px; font-style: italic; color: #666;">Belum ada jadwal ujian untuk kelas Anda.</td>
+                  </tr>
+                ` : ''}
               </tbody>
             </table>
           </div>
@@ -347,7 +375,7 @@ export default function DashboardSiswa() {
     </html>
     <script>window.onload = function() { setTimeout(function(){ window.print(); window.close(); }, 500); }</script>
     `;
-
+ 
     const win = window.open('', '_blank');
     if (win) {
       win.document.write(htmlContent);
@@ -588,6 +616,8 @@ export default function DashboardSiswa() {
   const [editName, setEditName] = useState('');
   const [editWhatsapp, setEditWhatsapp] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
+  const [editTempatLahir, setEditTempatLahir] = useState('');
+  const [editTanggalLahir, setEditTanggalLahir] = useState('');
   const [newPassword, setNewPasswordProfile] = useState('');
   const [confirmPassword, setConfirmPasswordProfile] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -607,10 +637,13 @@ export default function DashboardSiswa() {
           }
           
           setUser(currentUser);
-          setUserData(userDoc.data());
-          setEditName(userDoc.data().name);
-          setEditWhatsapp(userDoc.data().whatsapp || '');
-          setEditPhoto(userDoc.data().photoURL || '');
+          const data = userDoc.data();
+          setUserData(data);
+          setEditName(data.name);
+          setEditWhatsapp(data.whatsapp || '');
+          setEditPhoto(data.photoURL || '');
+          setEditTempatLahir(data.tempatLahir || '');
+          setEditTanggalLahir(data.tanggalLahir || '');
         } catch (error) {
           console.error('Error verifying siswa role:', error);
           navigate('/login');
@@ -865,9 +898,18 @@ export default function DashboardSiswa() {
       await updateDoc(doc(db, 'users', user.uid), {
         name: editName,
         whatsapp: editWhatsapp,
-        photoURL: editPhoto
+        photoURL: editPhoto,
+        tempatLahir: editTempatLahir,
+        tanggalLahir: editTanggalLahir
       });
-      setUserData({ ...userData, name: editName, whatsapp: editWhatsapp, photoURL: editPhoto });
+      setUserData({ 
+        ...userData, 
+        name: editName, 
+        whatsapp: editWhatsapp, 
+        photoURL: editPhoto,
+        tempatLahir: editTempatLahir,
+        tanggalLahir: editTanggalLahir
+      });
       setIsEditingProfile(false);
       alert('Profil berhasil diperbarui!');
     } catch (error) {
@@ -1567,6 +1609,27 @@ export default function DashboardSiswa() {
                     placeholder="Contoh: 081234567890"
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-2 ml-1">Tempat Lahir</label>
+                    <input 
+                      type="text" 
+                      value={editTempatLahir} 
+                      onChange={(e) => setEditTempatLahir(e.target.value)} 
+                      className="w-full p-5 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all font-bold text-gray-800" 
+                      placeholder="Contoh: Cirebon"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[2px] mb-2 ml-1">Tanggal Lahir</label>
+                    <input 
+                      type="date" 
+                      value={editTanggalLahir} 
+                      onChange={(e) => setEditTanggalLahir(e.target.value)} 
+                      className="w-full p-5 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all font-bold text-gray-800" 
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-4">
@@ -1669,24 +1732,47 @@ export default function DashboardSiswa() {
                       </div>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-2xl p-4 flex-1">
-                      <h5 className="font-bold text-gray-700 text-sm mb-3">Daftar Jadwal</h5>
-                      {(exam.schedules || []).length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">Belum ada jadwal yang ditambahkan.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {(exam.schedules || []).map((s: any) => (
-                            <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-bold text-gray-800">{s.subject} <span className="text-xs text-gray-400 font-medium ml-2">({s.kelas})</span></p>
-                                <p className="text-xs text-rose-600 font-bold mt-1">
-                                  {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} | {s.time}
-                                </p>
+                    <div className="bg-gray-50/50 rounded-3xl p-6 flex-1 border border-gray-100">
+                      <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">Mata Pelajaran Ujian Anda</h5>
+                      {(() => {
+                        const studentSchedules = (exam.schedules || []).filter((s: any) => 
+                          s.kelas === "Semua Kelas" || 
+                          (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+                        );
+
+                        if (studentSchedules.length === 0) {
+                          return <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal ujian untuk kelas Anda.</p>;
+                        }
+
+                        return (
+                          <div className="space-y-3">
+                            {studentSchedules.map((s: any) => (
+                              <div key={s.id} className="group relative bg-white p-4 rounded-2xl border border-gray-100 hover:border-rose-100 hover:shadow-md hover:shadow-rose-50/10 transition-all flex items-center justify-between gap-4 pl-6 overflow-hidden">
+                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
+                                    <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
+                                      {s.kelas}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                    <span className="flex items-center gap-1.5 font-bold text-gray-600">
+                                      <Calendar size={12} className="text-rose-500" />
+                                      {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                    <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                                      <Clock size={12} />
+                                      {s.time}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

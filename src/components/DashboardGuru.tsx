@@ -265,7 +265,7 @@ export default function DashboardGuru() {
         // Find existing record for this student & material
         const existingList = hafalanProgress.filter(p => p.studentId === s.id && p.materialId === pkMaterialId);
         // Find the one that's not readyForTest or the primary one
-        const existing = existingList.sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
+        const existing = existingList.sort((a,b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())[0];
 
         if (existing) {
           newData[s.id] = {
