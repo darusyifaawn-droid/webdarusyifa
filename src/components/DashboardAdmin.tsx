@@ -130,6 +130,7 @@ export default function DashboardAdmin() {
   const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
   const [filterAchievementCategory, setFilterAchievementCategory] = useState('Semua');
   const [filterAchievementSearch, setFilterAchievementSearch] = useState('');
+  const [filterAchievementPeriod, setFilterAchievementPeriod] = useState('Semua');
 
   // Academic States
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
@@ -137,6 +138,7 @@ export default function DashboardAdmin() {
   const [hafalanData, setHafalanData] = useState<any[]>([]);
   const [filterAssessmentName, setFilterAssessmentName] = useState('');
   const [filterAssessmentKelas, setFilterAssessmentKelas] = useState('');
+  const [filterAssessmentCategory, setFilterAssessmentCategory] = useState('Semua');
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [showClassModal, setShowClassModal] = useState(false);
@@ -152,7 +154,7 @@ export default function DashboardAdmin() {
   const [selectedStudentsForMutasi, setSelectedStudentsForMutasi] = useState<string[]>([]);
   const [selectedStudentForRapot, setSelectedStudentForRapot] = useState<any>(null);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
-  const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
+  const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
 
   const isFinanceFiltered = filterFinanceIuranName || filterFinanceStartDate || filterFinanceEndDate;
   const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
@@ -363,7 +365,7 @@ export default function DashboardAdmin() {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
-    const unsubHafalan = onSnapshot(query(collection(db, 'hafalan'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsubHafalan = onSnapshot(query(collection(db, 'hafalan_progress'), orderBy('createdAt', 'desc')), (snapshot) => {
       setHafalanData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
@@ -1756,7 +1758,7 @@ export default function DashboardAdmin() {
     // Filter by student and evaluation period
     const studentProgressList = progressData
       .filter(p => p.studentId === student.id)
-      .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
+      .filter(p => p.evaluationPeriod === printRapotPeriod)
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     let itemsHtml = '';
@@ -1769,10 +1771,10 @@ export default function DashboardAdmin() {
            <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
            <td style="padding: 12px; border-bottom: 1px solid #eee;">
              <div style="display:flex; align-items:center;">
-               <strong style="display:block;">${p.title}</strong>
+               <strong style="display:block;">${p.category}</strong>
                ${periodBadge}
              </div>
-             <small style="color: #666;">${p.category}</small>
+             ${p.title && p.title.trim() !== '' ? `<small style="color: #666;">${p.title}</small>` : ''}
            </td>
            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
@@ -1784,10 +1786,7 @@ export default function DashboardAdmin() {
       itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
     }
 
-    let reportTitle = `Rapot Belajar - ${student.name}`;
-    if (printRapotPeriod !== 'Semua') {
-       reportTitle = `Rapot ${printRapotPeriod} - ${student.name}`;
-    }
+    let reportTitle = `Rapot ${printRapotPeriod} - ${student.name}`;
 
     const html = `
       <html>
@@ -1989,7 +1988,6 @@ export default function DashboardAdmin() {
                     onChange={(e) => setPrintRapotPeriod(e.target.value)} 
                     className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-700"
                   >
-                    <option value="Semua">Cetak Semua Periode</option>
                     <option value="PTS Ganjil">PTS Ganjil</option>
                     <option value="PAS Ganjil">PAS Ganjil</option>
                     <option value="PTS Genap">PTS Genap</option>
@@ -2750,8 +2748,19 @@ export default function DashboardAdmin() {
                   className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-gray-600"
                 >
                   <option value="Semua">Semua Kategori</option>
-                  <option value="Akademik">Akademik (Mapel)</option>
-                  <option value="Hafalan">Hafalan (Tahfidz)</option>
+                  <option value="Akademik">Penilaian Rapot</option>
+                  <option value="Hafalan">Penilaian Hafalan</option>
+                </select>
+                <select 
+                  value={filterAchievementPeriod}
+                  onChange={(e) => setFilterAchievementPeriod(e.target.value)}
+                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-gray-600"
+                >
+                  <option value="Semua">Semua Periode</option>
+                  <option value="PTS Ganjil">PTS Ganjil</option>
+                  <option value="PAS Ganjil">PAS Ganjil</option>
+                  <option value="PTS Genap">PTS Genap</option>
+                  <option value="PAS Genap">PAS Genap</option>
                 </select>
               </div>
             </div>
@@ -2783,9 +2792,9 @@ export default function DashboardAdmin() {
                           .filter(u => filterAchievementKelas === 'Semua' || (u.kelas || '').toLowerCase() === filterAchievementKelas.toLowerCase())
                           .filter(u => !filterAchievementSearch || u.name.toLowerCase().includes(filterAchievementSearch.toLowerCase()))
                           .map(student => {
-                            const studentHafalan = hafalanData.filter(h => h.studentId === student.id);
+                            const studentHafalan = hafalanData.filter(h => h.studentId === student.id && (filterAchievementPeriod === 'Semua' || h.evaluationSemester === filterAchievementPeriod));
                             const totalStars = studentHafalan.reduce((sum, h) => sum + (h.stars || 0), 0);
-                            const completedCount = studentHafalan.filter(h => h.status === 'Lulus' || h.status === 'Sudah Setor').length;
+                            const completedCount = studentHafalan.filter(h => h.status === 'Lulus' || h.status === 'Sudah Setor' || h.status === 'Mumtaz (Lulus)' || h.status === 'Jayyid Jiddan (Lulus)' || h.status === 'Jayyid (Lulus)' || h.status === 'Maqbul (Lulus)').length;
                             return { ...student, totalStars, completedCount };
                           })
                           .sort((a, b) => b.totalStars - a.totalStars)
@@ -2826,7 +2835,7 @@ export default function DashboardAdmin() {
                 <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
                   <div className="p-8 border-b border-gray-50 bg-blue-50/30 flex items-center justify-between">
                     <h4 className="text-lg font-black text-gray-800 flex items-center gap-2">
-                      <BookOpen className="text-blue-500" size={20} /> Juara Kelas Akademik
+                      <BookOpen className="text-blue-500" size={20} /> Juara Kelas Rapot
                     </h4>
                     <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-blue-100 shadow-sm">Berdasarkan Rata-rata Nilai</span>
                   </div>
@@ -2847,7 +2856,7 @@ export default function DashboardAdmin() {
                           .filter(u => filterAchievementKelas === 'Semua' || (u.kelas || '').toLowerCase() === filterAchievementKelas.toLowerCase())
                           .filter(u => !filterAchievementSearch || u.name.toLowerCase().includes(filterAchievementSearch.toLowerCase()))
                           .map(student => {
-                            const studentProgress = progressData.filter(p => p.studentId === student.id && (p.score !== undefined));
+                            const studentProgress = progressData.filter(p => p.studentId === student.id && (p.score !== undefined) && (filterAchievementPeriod === 'Semua' || p.evaluationPeriod === filterAchievementPeriod));
                             const totalScore = studentProgress.reduce((sum, p) => sum + (Number(p.score) || 0), 0);
                             const avgScore = studentProgress.length > 0 ? (totalScore / studentProgress.length) : 0;
                             return { ...student, avgScore, subjectCount: studentProgress.length };
@@ -3236,7 +3245,7 @@ export default function DashboardAdmin() {
               <h3 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Detail Siswa</h3>
               <p className="text-gray-400 text-[10px] sm:text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
               
-              <div className="mt-6 sm:mt-8 flex flex-col md:flex-row gap-4">
+              <div className="mt-6 sm:mt-8 flex flex-col md:flex-row gap-4 mb-4">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Users size={16} className="text-gray-500" />
@@ -3261,6 +3270,17 @@ export default function DashboardAdmin() {
                     ))}
                   </select>
                 </div>
+                <div className="w-full md:w-64">
+                  <select 
+                    value={filterAssessmentCategory}
+                    onChange={(e) => setFilterAssessmentCategory(e.target.value)}
+                    className="w-full p-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
+                  >
+                    <option value="Semua">Semua Kategori</option>
+                    <option value="Rapot">Penilaian Rapot</option>
+                    <option value="Hafalan">Penilaian Hafalan</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -3268,15 +3288,15 @@ export default function DashboardAdmin() {
                   <table className="w-full text-left whitespace-nowrap min-w-[700px] sm:min-w-[800px]">
                     <thead className="bg-gray-50/50 text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">
                       <tr>
-                        <th className="px-6 py-5">Tanggal</th>
-                        <th className="px-6 py-5">Siswa</th>
+                        <th className="px-6 py-5">Kategori / Tanggal</th>
+                        <th className="px-6 py-5">Siswa & Kelas</th>
                         <th className="px-6 py-5 text-indigo-600">Guru Penilai</th>
                         <th className="px-6 py-5">Detail Penilaian</th>
                         <th className="px-6 py-5 text-center">Hasil & Skor</th>
                       </tr>
                     </thead>
                 <tbody className="divide-y divide-gray-100">
-                   {progressData
+                   {(filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Rapot') && progressData
                     .filter(p => {
                       const student = allUsers.find(u => u.id === p.studentId);
                       const matchesName = 
@@ -3293,7 +3313,8 @@ export default function DashboardAdmin() {
                        <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
                          <td className="px-6 py-4">
                            <div className="flex flex-col">
-                             <span className="text-xs font-black text-indigo-500">{new Date(p.date).toLocaleDateString('id-ID')}</span>
+                             <div className="flex items-center gap-1.5 mb-1.5"><BookOpen size={12} className="text-blue-500" /><span className="text-[9px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Rapot</span></div>
+                             <span className="text-xs font-black text-indigo-500">{new Date(p.date || p.createdAt).toLocaleDateString('id-ID')}</span>
                              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
                            </div>
                          </td>
@@ -3346,7 +3367,73 @@ export default function DashboardAdmin() {
                        </tr>
                      )
                    })}
-                  {progressData.length === 0 && (
+
+                   {(filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Hafalan') && hafalanData
+                    .filter(h => {
+                      const student = allUsers.find(u => u.id === h.studentId);
+                      const matchesName = student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase());
+                      const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
+                      return matchesName && matchesKelas;
+                    })
+                    .map(h => {
+                     const student = allUsers.find(u => u.id === h.studentId);
+                     const mat = materialsData.find(m => m.id === h.materialId);
+                     return (
+                       <tr key={h.id} className="hover:bg-gray-50 transition-colors group">
+                         <td className="px-6 py-4">
+                           <div className="flex flex-col">
+                             <div className="flex items-center gap-1.5 mb-1.5"><Star size={12} className="text-yellow-500" /><span className="text-[9px] text-yellow-600 font-bold uppercase tracking-widest bg-yellow-50 px-2 py-0.5 rounded-full">Hafalan</span></div>
+                             <span className="text-xs font-black text-indigo-500">{h.createdAt ? new Date(h.createdAt?.toDate ? h.createdAt.toDate() : h.createdAt).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID')}</span>
+                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{h.evaluationSemester || 'Semester'}</span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex flex-col">
+                             <span className="font-black text-gray-800 text-sm">{student?.name || 'Siswa'}</span>
+                             <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full w-fit font-black mt-1 uppercase tracking-tighter">{student?.kelas || '-'}</span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex items-center gap-3">
+                             <div className="relative">
+                               <div className="w-10 h-10 bg-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 border-2 border-white shadow-sm group-hover:bg-yellow-600 group-hover:text-white transition-all duration-300">
+                                 <User size={18} />
+                               </div>
+                             </div>
+                             <div>
+                               <p className="text-sm font-black text-gray-800 leading-tight group-hover:text-yellow-600 transition-colors">Sistem Hafalan</p>
+                               <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                                  <p className="text-[9px] text-yellow-500 font-black uppercase tracking-widest">Catatan Update</p>
+                               </div>
+                             </div>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 min-w-[300px]">
+                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 group-hover:bg-white group-hover:border-yellow-100 transition-all">
+                              <span className="text-[10px] font-black text-yellow-600 block mb-1 uppercase tracking-widest">{mat ? mat.title : 'Tahfidz / Surah'}</span>
+                              <p className="text-[11px] text-gray-600 leading-relaxed font-semibold italic line-clamp-3">"{h.catatanGuru || 'Guru tidak memberikan catatan detail.'}"</p>
+                            </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="flex items-center justify-center gap-4">
+                             <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${h.status?.includes('Lulus') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                               {h.status || 'Berjalan'}
+                             </div>
+                             <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-[1rem] font-black text-yellow-600 bg-white shadow-md border-2 border-yellow-100`}>
+                               <div className="flex items-center gap-0.5 mt-0.5">
+                                 <span className="text-lg leading-none">{h.stars || 0}</span>
+                                 <Star size={10} fill="currentColor" />
+                               </div>
+                               <span className="text-[7px] font-bold mt-1 opacity-80 uppercase tracking-widest">Bintang</span>
+                             </div>
+                           </div>
+                         </td>
+                       </tr>
+                     )
+                   })}
+
+                  {progressData.length === 0 && hafalanData.length === 0 && (
                     <tr>
                       <td colSpan={5} className="text-center p-8 text-gray-400 font-medium italic">Belum ada penilaian siswa yang diinputkan guru.</td>
                     </tr>

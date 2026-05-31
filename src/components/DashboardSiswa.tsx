@@ -49,7 +49,7 @@ export default function DashboardSiswa() {
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
-  const [printRapotPeriod, setPrintRapotPeriod] = useState('Semua');
+  const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
   
   // Setoran Modal State
   const [showSetoranModal, setShowSetoranModal] = useState(false);
@@ -248,8 +248,8 @@ export default function DashboardSiswa() {
     
     // Sort and filter schedules to student's specific class only
     const filteredSchedules = (exam.schedules || []).filter((s: any) => 
-      s.kelas === "Semua Kelas" || 
-      (userData.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+      !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
+      (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
     );
     const schedules = [...filteredSchedules].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -475,7 +475,7 @@ export default function DashboardSiswa() {
     
     // Sort progress ascending by date or createdAt and filter by period
     const sortedProgress = [...progress]
-      .filter(p => printRapotPeriod === 'Semua' || p.evaluationPeriod === printRapotPeriod)
+      .filter(p => p.evaluationPeriod === printRapotPeriod)
       .sort((a,b) => {
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
@@ -493,10 +493,10 @@ export default function DashboardSiswa() {
            <td style="padding: 12px; border-bottom: 1px solid #eee;">${idx + 1}</td>
            <td style="padding: 12px; border-bottom: 1px solid #eee;">
              <div style="display:flex; align-items:center;">
-               <strong style="display:block;">${p.title}</strong>
+               <strong style="display:block;">${p.category}</strong>
                ${periodBadge}
              </div>
-             <small style="color: #666;">${p.category}</small>
+             ${p.title && p.title.trim() !== '' ? `<small style="color: #666;">${p.title}</small>` : ''}
            </td>
            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${scoreNum}</td>
            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;"><strong>${gradeInfo.grade}</strong> <br><small>${gradeInfo.text}</small></td>
@@ -508,10 +508,7 @@ export default function DashboardSiswa() {
       itemsHtml = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: #666; font-style: italic;">Belum ada data evaluasi belajar.</td></tr>`;
     }
 
-    let reportTitle = `Rapot Belajar - ${userData.name}`;
-    if (printRapotPeriod !== 'Semua') {
-       reportTitle = `Rapot ${printRapotPeriod} - ${userData.name}`;
-    }
+    let reportTitle = `Rapot ${printRapotPeriod} - ${userData.name}`;
 
     const html = `
       <html>
@@ -1700,7 +1697,13 @@ export default function DashboardSiswa() {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-              {exams.map(exam => {
+              {exams.filter(exam => {
+                const studentSchedules = (exam.schedules || []).filter((s: any) => 
+                  !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
+                  (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+                );
+                return studentSchedules.length > 0;
+              }).map(exam => {
                 const canPrint = !userData?.arrears || userData.arrears === 0;
 
                 return (
@@ -1736,7 +1739,7 @@ export default function DashboardSiswa() {
                       <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">Mata Pelajaran Ujian Anda</h5>
                       {(() => {
                         const studentSchedules = (exam.schedules || []).filter((s: any) => 
-                          s.kelas === "Semua Kelas" || 
+                          !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
                           (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
                         );
 
@@ -1777,7 +1780,13 @@ export default function DashboardSiswa() {
                   </div>
                 </div>
               )})}
-              {exams.length === 0 && (
+              {exams.filter(exam => {
+                const studentSchedules = (exam.schedules || []).filter((s: any) => 
+                  !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
+                  (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+                );
+                return studentSchedules.length > 0;
+              }).length === 0 && (
                 <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
                   <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
                     <Edit size={24} />
@@ -2178,7 +2187,6 @@ export default function DashboardSiswa() {
                     onChange={(e) => setPrintRapotPeriod(e.target.value)} 
                     className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
                   >
-                    <option value="Semua">Cetak Semua Periode</option>
                     <option value="PTS Ganjil">PTS Ganjil</option>
                     <option value="PAS Ganjil">PAS Ganjil</option>
                     <option value="PTS Genap">PTS Genap</option>
