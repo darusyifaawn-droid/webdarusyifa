@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -139,6 +139,7 @@ export default function DashboardAdmin() {
   const [filterAssessmentName, setFilterAssessmentName] = useState('');
   const [filterAssessmentKelas, setFilterAssessmentKelas] = useState('');
   const [filterAssessmentCategory, setFilterAssessmentCategory] = useState('Semua');
+  const [expandedStudentIds, setExpandedStudentIds] = useState<Record<string, boolean>>({});
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [showClassModal, setShowClassModal] = useState(false);
@@ -3283,21 +3284,11 @@ export default function DashboardAdmin() {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-               <div className="overflow-x-auto scrolling-touch custom-scrollbar">
-                  <table className="w-full text-left whitespace-nowrap min-w-[700px] sm:min-w-[800px]">
-                    <thead className="bg-gray-50/50 text-gray-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                      <tr>
-                        <th className="px-6 py-5">Kategori / Tanggal</th>
-                        <th className="px-6 py-5">Siswa & Kelas</th>
-                        <th className="px-6 py-5 text-indigo-600">Guru Penilai</th>
-                        <th className="px-6 py-5">Detail Penilaian</th>
-                        <th className="px-6 py-5 text-center">Hasil & Skor</th>
-                      </tr>
-                    </thead>
-                <tbody className="divide-y divide-gray-100">
-                   {(filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Rapot') && progressData
-                    .filter(p => {
+
+            <div className="space-y-4">
+              {(() => {
+                const filteredProgress = (filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Rapot')
+                  ? progressData.filter(p => {
                       const student = allUsers.find(u => u.id === p.studentId);
                       const matchesName = 
                         student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase()) || 
@@ -3305,145 +3296,215 @@ export default function DashboardAdmin() {
                       const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
                       return matchesName && matchesKelas;
                     })
-                    .map(p => {
-                     const student = allUsers.find(u => u.id === p.studentId);
-                     const teacher = allUsers.find(u => u.id === p.teacherId);
-                     const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
-                     return (
-                       <tr key={p.id} className="hover:bg-gray-50 transition-colors group">
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-1.5"><BookOpen size={12} className="text-blue-500" /><span className="text-[9px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Rapot</span></div>
-                             <span className="text-xs font-black text-indigo-500">{new Date(p.date || p.createdAt).toLocaleDateString('id-ID')}</span>
-                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <span className="font-black text-gray-800 text-sm">{student?.name || 'Siswa'}</span>
-                             <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full w-fit font-black mt-1 uppercase tracking-tighter">{student?.kelas || '-'}</span>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex items-center gap-3">
-                             <div className="relative">
-                               <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border-2 border-white shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                                 <User size={18} />
-                               </div>
-                               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                             </div>
-                             <div>
-                               <p className="text-sm font-black text-gray-800 leading-tight group-hover:text-indigo-600 transition-colors">{p.teacherName || teacher?.name || 'Guru'}</p>
-                               <div className="flex items-center gap-1.5 mt-0.5">
-                                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
-                                  <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest">Penilai Utama</p>
-                               </div>
-                             </div>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4 min-w-[300px]">
-                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 group-hover:bg-white group-hover:border-indigo-100 transition-all">
-                              <span className="text-[10px] font-black text-indigo-600 block mb-1 uppercase tracking-widest">{p.category || 'Penilaian Umum'}</span>
-                              <p className="text-[11px] text-gray-600 leading-relaxed font-semibold italic line-clamp-3">"{p.description || 'Guru tidak memberikan catatan detail.'}"</p>
-                              {p.target && (
-                                <div className="mt-2 flex items-center gap-1.5 opacity-80">
-                                  <TrendingUp size={10} className="text-emerald-500" />
-                                  <span className="text-[9px] text-emerald-600 font-black uppercase tracking-tighter">Target: {p.target}</span>
-                                </div>
-                              )}
-                            </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex items-center justify-center gap-4">
-                             <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${p.status === 'Lulus' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                               {p.status || 'Selesai'}
-                             </div>
-                             <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-[1rem] font-black ${gradeInfo.color} bg-white shadow-md border-2 border-white`}>
-                               <span className="text-base leading-none">{p.score || 0}</span>
-                               <span className="text-[8px] font-bold mt-1 opacity-80">{gradeInfo.grade}</span>
-                             </div>
-                           </div>
-                         </td>
-                       </tr>
-                     )
-                   })}
+                  : [];
 
-                   {(filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Hafalan') && hafalanData
-                    .filter(h => {
+                const filteredHafalan = (filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Hafalan')
+                  ? hafalanData.filter(h => {
                       const student = allUsers.find(u => u.id === h.studentId);
                       const matchesName = student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase());
                       const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
                       return matchesName && matchesKelas;
                     })
-                    .map(h => {
-                     const student = allUsers.find(u => u.id === h.studentId);
-                     const mat = materialsData.find(m => m.id === h.materialId);
-                     return (
-                       <tr key={h.id} className="hover:bg-gray-50 transition-colors group">
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-1.5"><Star size={12} className="text-yellow-500" /><span className="text-[9px] text-yellow-600 font-bold uppercase tracking-widest bg-yellow-50 px-2 py-0.5 rounded-full">Hafalan</span></div>
-                             <span className="text-xs font-black text-indigo-500">{h.createdAt ? new Date(h.createdAt?.toDate ? h.createdAt.toDate() : h.createdAt).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID')}</span>
-                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{h.evaluationSemester || 'Semester'}</span>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <span className="font-black text-gray-800 text-sm">{student?.name || 'Siswa'}</span>
-                             <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full w-fit font-black mt-1 uppercase tracking-tighter">{student?.kelas || '-'}</span>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex items-center gap-3">
-                             <div className="relative">
-                               <div className="w-10 h-10 bg-yellow-50 rounded-2xl flex items-center justify-center text-yellow-600 border-2 border-white shadow-sm group-hover:bg-yellow-600 group-hover:text-white transition-all duration-300">
-                                 <User size={18} />
-                               </div>
-                             </div>
-                             <div>
-                               <p className="text-sm font-black text-gray-800 leading-tight group-hover:text-yellow-600 transition-colors">Sistem Hafalan</p>
-                               <div className="flex items-center gap-1.5 mt-0.5">
-                                  <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
-                                  <p className="text-[9px] text-yellow-500 font-black uppercase tracking-widest">Catatan Update</p>
-                               </div>
-                             </div>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4 min-w-[300px]">
-                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 group-hover:bg-white group-hover:border-yellow-100 transition-all">
-                              <span className="text-[10px] font-black text-yellow-600 block mb-1 uppercase tracking-widest">{mat ? mat.title : 'Tahfidz / Surah'}</span>
-                              <p className="text-[11px] text-gray-600 leading-relaxed font-semibold italic line-clamp-3">"{h.catatanGuru || 'Guru tidak memberikan catatan detail.'}"</p>
-                            </div>
-                         </td>
-                         <td className="px-6 py-4">
-                           <div className="flex items-center justify-center gap-4">
-                             <div className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${h.status?.includes('Lulus') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                               {h.status || 'Berjalan'}
-                             </div>
-                             <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-[1rem] font-black text-yellow-600 bg-white shadow-md border-2 border-yellow-100`}>
-                               <div className="flex items-center gap-0.5 mt-0.5">
-                                 <span className="text-lg leading-none">{h.stars || 0}</span>
-                                 <Star size={10} fill="currentColor" />
-                               </div>
-                               <span className="text-[7px] font-bold mt-1 opacity-80 uppercase tracking-widest">Bintang</span>
-                             </div>
-                           </div>
-                         </td>
-                       </tr>
-                     )
-                   })}
+                  : [];
 
-                  {progressData.length === 0 && hafalanData.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center p-8 text-gray-400 font-medium italic">Belum ada penilaian siswa yang diinputkan guru.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                const studentIdsWithRecords = Array.from(new Set([
+                  ...filteredProgress.map(p => p.studentId),
+                  ...filteredHafalan.map(h => h.studentId)
+                ])).filter(Boolean);
+
+                const matchingStudents = allUsers
+                  .filter(u => u.role === 'siswa' && studentIdsWithRecords.includes(u.id))
+                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                if (matchingStudents.length === 0) {
+                  return (
+                    <div className="p-12 text-center text-gray-400 font-medium italic bg-white rounded-3xl border border-gray-100">
+                      Tidak ada data penilaian siswa yang cocok dengan filter pencarian.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {matchingStudents.map(student => {
+                      const studentProgress = filteredProgress.filter(p => p.studentId === student.id);
+                      const studentHafalan = filteredHafalan.filter(h => h.studentId === student.id);
+                      const totalAssessments = studentProgress.length + studentHafalan.length;
+                      const isExpanded = !!expandedStudentIds[student.id];
+
+                      return (
+                        <div key={student.id} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
+                          {/* Header Accordion */}
+                          <button
+                            onClick={() => {
+                              setExpandedStudentIds(prev => ({
+                                ...prev,
+                                [student.id]: !prev[student.id]
+                              }));
+                            }}
+                            className="w-full text-left p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 font-extrabold text-sm uppercase">
+                                {(student.name || 'S').substring(0, 2)}
+                              </div>
+                              <div>
+                                <h4 className="text-base font-black text-gray-800 leading-tight">{student.name}</h4>
+                                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                  <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2.5 py-0.5 rounded-full font-black uppercase tracking-tight">
+                                    Kelas: {student.kelas || '-'}
+                                  </span>
+                                  <span className="text-[10px] bg-slate-50 text-slate-500 px-2.5 py-0.5 rounded-full font-bold">
+                                    {student.nisn ? `NISN: ${student.nisn}` : 'No NISN'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 self-end sm:self-center">
+                              <div className="flex items-center gap-2">
+                                {studentProgress.length > 0 && (
+                                  <span className="text-[10px] bg-blue-50 text-blue-600 px-2.5 py-1 rounded-xl font-bold border border-blue-100/50">
+                                    {studentProgress.length} Rapot
+                                  </span>
+                                )}
+                                {studentHafalan.length > 0 && (
+                                  <span className="text-[10px] bg-yellow-50 text-yellow-600 px-2.5 py-1 rounded-xl font-bold border border-yellow-100/50">
+                                    {studentHafalan.length} Hafalan
+                                  </span>
+                                )}
+                              </div>
+                              <div className="p-1.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-600">
+                                {isExpanded ? <ChevronUp size={18} className="text-indigo-600" /> : <ChevronDown size={18} />}
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Expanded Content */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-100 bg-gray-50/20">
+                              <div className="overflow-x-auto scrolling-touch custom-scrollbar">
+                                <table className="w-full text-left table-fixed min-w-[700px] sm:min-w-[800px]">
+                                  <thead className="bg-gray-50 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em] border-b border-gray-100">
+                                    <tr>
+                                      <th className="px-6 py-4 w-1/5">Kategori / Tanggal</th>
+                                      <th className="px-6 py-4 w-1/4 text-indigo-600">Guru/Sistem Penilai</th>
+                                      <th className="px-6 py-4 w-2/5">Detail Penilaian</th>
+                                      <th className="px-6 py-4 w-1/5 text-center">Hasil & Skor</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100 bg-white">
+                                    {/* Render Rapot Progress first */}
+                                    {studentProgress.map(p => {
+                                      const teacher = allUsers.find(u => u.id === p.teacherId);
+                                      const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
+                                      return (
+                                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="flex flex-col">
+                                              <div className="flex items-center gap-1.5 mb-1"><BookOpen size={11} className="text-blue-500" /><span className="text-[8px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Rapot</span></div>
+                                              <span className="text-xs font-black text-indigo-500">{new Date(p.date || p.createdAt).toLocaleDateString('id-ID')}</span>
+                                              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="flex items-center gap-2.5">
+                                              <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100">
+                                                <User size={14} />
+                                              </div>
+                                              <div>
+                                                <p className="text-xs font-black text-gray-800 leading-tight">{p.teacherName || teacher?.name || 'Guru'}</p>
+                                                <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">Penilai Utama</p>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                              <span className="text-[9px] font-black text-indigo-600 block mb-1 uppercase tracking-widest">{p.category || 'Penilaian Umum'}</span>
+                                              <p className="text-[11px] text-gray-650 leading-relaxed font-semibold italic">"{p.description || 'Guru tidak memberikan catatan detail.'}"</p>
+                                              {p.target && (
+                                                <div className="mt-2 flex items-center gap-1">
+                                                  <TrendingUp size={10} className="text-emerald-500" />
+                                                  <span className="text-[9px] text-emerald-600 font-black uppercase tracking-tighter">Target: {p.target}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-3">
+                                              <div className={`px-2 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${p.status === 'Lulus' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                                {p.status || 'Selesai'}
+                                              </div>
+                                              <div className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl font-black ${gradeInfo.color} bg-white shadow-sm border border-gray-100`}>
+                                                <span className="text-xs leading-none">{p.score || 0}</span>
+                                                <span className="text-[8px] font-black opacity-85 mt-0.5">{gradeInfo.grade}</span>
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+
+                                    {/* Render Hafalan second */}
+                                    {studentHafalan.map(h => {
+                                      const mat = materialsData.find(m => m.id === h.materialId);
+                                      return (
+                                        <tr key={h.id} className="hover:bg-gray-50/50 transition-colors group">
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="flex flex-col">
+                                              <div className="flex items-center gap-1.5 mb-1"><Star size={11} className="text-yellow-500" /><span className="text-[8px] text-yellow-600 font-bold uppercase tracking-widest bg-yellow-50 px-2 py-0.5 rounded-full">Hafalan</span></div>
+                                              <span className="text-xs font-black text-indigo-500">{h.createdAt ? new Date(h.createdAt?.toDate ? h.createdAt.toDate() : h.createdAt).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID')}</span>
+                                              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{h.evaluationSemester || 'Semester'}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="flex items-center gap-2.5">
+                                              <div className="w-8 h-8 bg-yellow-50 rounded-xl flex items-center justify-center text-yellow-600 border border-yellow-100">
+                                                <User size={14} />
+                                              </div>
+                                              <div>
+                                                <p className="text-xs font-black text-gray-800 leading-tight">Sistem Hafalan</p>
+                                                <p className="text-[8px] text-yellow-500 font-black uppercase tracking-widest mt-0.5">Catatan Update</p>
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 whitespace-normal">
+                                            <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                              <span className="text-[9px] font-black text-yellow-600 block mb-1 uppercase tracking-widest">{mat ? mat.title : 'Tahfidz / Surah'}</span>
+                                              <p className="text-[11px] text-gray-650 leading-relaxed font-semibold italic">"{h.catatanGuru || 'Guru tidak memberikan catatan detail.'}"</p>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-3">
+                                              <div className={`px-2 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${h.status?.includes('Lulus') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                                {h.status || 'Berjalan'}
+                                              </div>
+                                              <div className="flex flex-col items-center justify-center w-11 h-11 rounded-xl font-black text-yellow-600 bg-white shadow-sm border border-yellow-100">
+                                                <div className="flex items-center gap-0.5">
+                                                  <span className="text-xs leading-none">{h.stars || 0}</span>
+                                                  <Star size={8} fill="currentColor" />
+                                                </div>
+                                                <span className="text-[6px] font-black opacity-85 uppercase tracking-widest mt-0.5">Bintang</span>
+                                              </div>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {activeTab === 'finance' && (
           <div className="space-y-6">
