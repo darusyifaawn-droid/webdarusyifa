@@ -32,6 +32,8 @@ export default function DashboardGuru() {
   // Form States
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [editingProgress, setEditingProgress] = useState<any>(null);
+  const [rapotSearch, setRapotSearch] = useState('');
+  const [rapotPeriod, setRapotPeriod] = useState('Semua');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [progressTitle, setProgressTitle] = useState('');
   const [progressCategory, setProgressCategory] = useState('');
@@ -753,6 +755,17 @@ export default function DashboardGuru() {
     }
   };
 
+  const handleDeleteProgress = async (id: string) => {
+    if (window.confirm('Yakin ingin menghapus laporan belajar/rapot ini?')) {
+      try {
+        await deleteDoc(doc(db, 'progress', id));
+        alert('Laporan berhasil dihapus!');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `progress/${id}`);
+      }
+    }
+  };
+
   const handleSaveProgress = async (e: React.FormEvent) => {
     e.preventDefault();
     const path = 'progress';
@@ -871,6 +884,12 @@ export default function DashboardGuru() {
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'penilaian-kelas' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
         <Edit size={20} className={activeTab === 'penilaian-kelas' ? 'text-white' : 'text-gray-400'} /> Penilaian Kelas
+      </button>
+      <button 
+        onClick={() => { setActiveTab('progress'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'progress' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <GraduationCap size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Rapot Siswa
       </button>
       <button 
         onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
@@ -2013,6 +2032,192 @@ export default function DashboardGuru() {
                   Pilih Kelas dan Materi/Mapel terlebih dahulu untuk mulai menilai secara masal.
                </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'progress' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="text-2xl font-black text-gray-800">Laporan Hasil Belajar (Rapot)</h3>
+                <p className="text-sm text-gray-500">Kelola rapot perkembangan belajar harian, mingguan, PTS, dan PAS siswa.</p>
+              </div>
+              <button 
+                onClick={() => { resetForm(); setShowProgressModal(true); }}
+                className="bg-blue-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-100"
+              >
+                <Plus size={20} /> Input Laporan Baru
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4">
+              <div className="flex-grow relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Search size={18} />
+                </span>
+                <input 
+                  type="text" 
+                  placeholder="Cari Nama Siswa..." 
+                  value={rapotSearch}
+                  onChange={(e) => setRapotSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-750 text-sm"
+                />
+              </div>
+              <div className="w-full md:w-64">
+                <select 
+                  value={rapotPeriod} 
+                  onChange={(e) => setRapotPeriod(e.target.value)}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm"
+                >
+                  <option value="Semua">Semua Periode</option>
+                  <option value="Harian">Laporan Harian / Mingguan</option>
+                  <option value="PTS Ganjil">PTS Ganjil</option>
+                  <option value="PAS Ganjil">PAS Ganjil</option>
+                  <option value="PTS Genap">PTS Genap</option>
+                  <option value="PAS Genap">PAS Genap</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Progress List */}
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+              <div className="hidden md:block">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Siswa</th>
+                      <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Periode / Mapel</th>
+                      <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Detail & Keterangan</th>
+                      <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest w-36 text-center">Nilai</th>
+                      <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest text-center w-40">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {progress.filter(p => {
+                      const s = students.find(st => st.id === p.studentId);
+                      const matchName = !rapotSearch || (s?.name || '').toLowerCase().includes(rapotSearch.toLowerCase());
+                      const matchPeriod = rapotPeriod === 'Semua' || p.evaluationPeriod === rapotPeriod;
+                      return matchName && matchPeriod;
+                    }).map((p) => {
+                      const s = students.find(st => st.id === p.studentId);
+                      return (
+                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="p-5">
+                            <div className="font-bold text-gray-800">{s?.name || 'Siswa'}</div>
+                            <div className="text-xs text-gray-400 font-bold uppercase tracking-tight">{s?.kelas || 'Tanpa Kelas'}</div>
+                          </td>
+                          <td className="p-5">
+                            <span className="text-xs font-black px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full inline-block mb-1">{p.evaluationPeriod || 'Harian'}</span>
+                            <div className="font-medium text-sm text-gray-700">{p.title || p.category}</div>
+                          </td>
+                          <td className="p-5 max-w-xs">
+                            {p.target && (
+                              <p className="text-xs text-gray-500 font-bold mb-1">Target: {p.target}</p>
+                            )}
+                            <p className="text-xs text-gray-600 line-clamp-3">{p.description}</p>
+                            <span className="text-[10px] text-gray-400 font-bold block mt-1">Tanggal: {p.date}</span>
+                          </td>
+                          <td className="p-5 text-center">
+                            <div className="text-lg font-black text-blue-600">{p.score || 0}</div>
+                            <span className={`inline-block text-[10px] font-black uppercase tracking-tight px-2 py-0.5 rounded ${p.status === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {p.status || 'Status'}
+                            </span>
+                          </td>
+                          <td className="p-5">
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={() => handleEdit(p)}
+                                className="p-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                                title="Edit Laporan"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteProgress(p.id)}
+                                className="p-2 border border-red-100 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                title="Hapus Laporan"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {progress.filter(p => {
+                      const s = students.find(st => st.id === p.studentId);
+                      const matchName = !rapotSearch || (s?.name || '').toLowerCase().includes(rapotSearch.toLowerCase());
+                      const matchPeriod = rapotPeriod === 'Semua' || p.evaluationPeriod === rapotPeriod;
+                      return matchName && matchPeriod;
+                    }).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center text-gray-400 font-medium">Laporan tidak ditemukan.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card-Based View */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {progress.filter(p => {
+                  const s = students.find(st => st.id === p.studentId);
+                  const matchName = !rapotSearch || (s?.name || '').toLowerCase().includes(rapotSearch.toLowerCase());
+                  const matchPeriod = rapotPeriod === 'Semua' || p.evaluationPeriod === rapotPeriod;
+                  return matchName && matchPeriod;
+                }).map((p) => {
+                  const s = students.find(st => st.id === p.studentId);
+                  return (
+                    <div key={p.id} className="p-5 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-gray-800">{s?.name || 'Siswa'}</h4>
+                          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{s?.kelas || 'Tanpa Kelas'}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-black text-blue-600">{p.score || 0}</div>
+                          <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded ${p.status === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {p.status || 'Status'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs text-gray-700 space-y-1">
+                        <div><strong className="text-[10px] text-gray-400 uppercase tracking-wider">Topik/Mapel:</strong> {p.title || p.category}</div>
+                        <div><strong className="text-[10px] text-gray-450 uppercase tracking-wider">Periode:</strong> {p.evaluationPeriod || 'Harian'}</div>
+                        {p.target && <div><strong className="text-[10px] text-gray-400 uppercase tracking-wider">Target:</strong> {p.target}</div>}
+                        <div className="pt-2 border-t border-gray-200/50 text-gray-600 font-medium">{p.description}</div>
+                        <p className="text-[9px] text-gray-400 pt-1 font-bold">Tanggal: {p.date}</p>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleEdit(p)}
+                          className="flex-1 max-w-[120px] py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Edit size={14} /> Ubah
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteProgress(p.id)}
+                          className="flex-1 max-w-[120px] py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Trash2 size={14} /> Hapus
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {progress.filter(p => {
+                  const s = students.find(st => st.id === p.studentId);
+                  const matchName = !rapotSearch || (s?.name || '').toLowerCase().includes(rapotSearch.toLowerCase());
+                  const matchPeriod = rapotPeriod === 'Semua' || p.evaluationPeriod === rapotPeriod;
+                  return matchName && matchPeriod;
+                }).length === 0 && (
+                  <div className="p-12 text-center text-gray-400 font-medium">Laporan tidak ditemukan.</div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
