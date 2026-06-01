@@ -38,6 +38,7 @@ export default function DashboardSiswa() {
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedExamDays, setSelectedExamDays] = useState<Record<string, string>>({});
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
   const [quote, setQuote] = useState('');
@@ -364,7 +365,7 @@ export default function DashboardSiswa() {
                 `).join('')}
                 ${schedules.length === 0 ? `
                   <tr>
-                    <td colspan="4" style="padding: 20px; font-style: italic; color: #666;">Belum ada jadwal ujian untuk kelas Anda.</td>
+                    <td colspan="4" style="padding: 20px; font-style: italic; color: #666;">Belum ada jadwal ujian untuk kelas ${userData?.kelas || 'Ananda'}.</td>
                   </tr>
                 ` : ''}
               </tbody>
@@ -1736,7 +1737,9 @@ export default function DashboardSiswa() {
                     </div>
                     
                     <div className="bg-gray-50/50 rounded-3xl p-6 flex-1 border border-gray-100">
-                      <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">Mata Pelajaran Ujian Anda</h5>
+                      <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">
+                        Mata Pelajaran Ujian {userData?.name || 'Ananda'}
+                      </h5>
                       {(() => {
                         const studentSchedules = (exam.schedules || []).filter((s: any) => 
                           !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
@@ -1744,35 +1747,93 @@ export default function DashboardSiswa() {
                         );
 
                         if (studentSchedules.length === 0) {
-                          return <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal ujian untuk kelas Anda.</p>;
+                          return <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal ujian untuk kelas {userData?.kelas || 'Ananda'}.</p>;
                         }
 
+                        const getIndonesianDay = (dateStr: string) => {
+                          try {
+                            const d = new Date(dateStr);
+                            if (isNaN(d.getTime())) return 'Senin';
+                            const rawDay = d.toLocaleDateString('id-ID', { weekday: 'long' });
+                            return rawDay.charAt(0).toUpperCase() + rawDay.slice(1);
+                          } catch (e) {
+                            return 'Senin';
+                          }
+                        };
+
+                        const sortedSchedules = [...studentSchedules].sort((a: any, b: any) => {
+                          const dateA = new Date(a.date).getTime();
+                          const dateB = new Date(b.date).getTime();
+                          return dateA - dateB;
+                        });
+
+                        const uniqueDays: string[] = [];
+                        const seenDays = new Set<string>();
+                        sortedSchedules.forEach((s: any) => {
+                          const dayName = getIndonesianDay(s.date);
+                          if (!seenDays.has(dayName)) {
+                            seenDays.add(dayName);
+                            uniqueDays.push(dayName);
+                          }
+                        });
+
+                        const activeDay = selectedExamDays[exam.id] || uniqueDays[0];
+                        const activeSchedules = sortedSchedules.filter((s: any) => getIndonesianDay(s.date) === activeDay);
+
                         return (
-                          <div className="space-y-3">
-                            {studentSchedules.map((s: any) => (
-                              <div key={s.id} className="group relative bg-white p-4 rounded-2xl border border-gray-100 hover:border-rose-100 hover:shadow-md hover:shadow-rose-50/10 transition-all flex items-center justify-between gap-4 pl-6 overflow-hidden">
-                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                    <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
-                                    <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
-                                      {s.kelas}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                                    <span className="flex items-center gap-1.5 font-bold text-gray-600">
-                                      <Calendar size={12} className="text-rose-500" />
-                                      {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </span>
-                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                    <span className="flex items-center gap-1.5 font-bold text-rose-600">
-                                      <Clock size={12} />
-                                      {s.time}
-                                    </span>
+                          <div className="space-y-4">
+                            {/* Day Tabs */}
+                            <div className="flex flex-wrap gap-2">
+                              {uniqueDays.map((dayName) => {
+                                const isActive = activeDay === dayName;
+                                return (
+                                  <button
+                                    key={dayName}
+                                    onClick={() => setSelectedExamDays(prev => ({ ...prev, [exam.id]: dayName }))}
+                                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all duration-200 ${
+                                      isActive 
+                                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200 scale-105' 
+                                        : 'bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-100/50 border border-gray-100 shadow-sm'
+                                    }`}
+                                  >
+                                    Hari {dayName}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Active Day list */}
+                            <div className="space-y-3 mt-2">
+                              {activeSchedules.map((s: any) => (
+                                <div key={s.id} className="group relative bg-white p-5 rounded-[2rem] border border-gray-100 hover:border-rose-100 hover:shadow-lg hover:shadow-rose-50/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 pl-6 overflow-hidden animate-in fade-in duration-300">
+                                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-rose-500 to-rose-600 rounded-l-[2rem]"></div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+                                      <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
+                                      <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
+                                        {s.kelas}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                      <span className="flex items-center gap-1.5 font-bold text-gray-600">
+                                        <Calendar size={13} className="text-rose-500" />
+                                        {new Date(s.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                      </span>
+                                      <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                      <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                                        <Clock size={13} />
+                                        {s.time} WIB
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                              {activeSchedules.length === 0 && (
+                                <p className="text-xs text-gray-450 italic font-bold py-4 text-center bg-white rounded-2xl border border-gray-100">
+                                  Tidak ada ujian untuk hari {activeDay}.
+                                </p>
+                              )}
+                            </div>
                           </div>
                         );
                       })()}
