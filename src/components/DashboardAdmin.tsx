@@ -3704,15 +3704,15 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Visual KPI Cards Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
                 <div className="absolute right-0 bottom-0 w-16 h-16 bg-green-50 rounded-full blur-xl z-0"></div>
                 <div className="relative z-10 w-11 h-11 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shrink-0">
                   <CreditCard size={20} />
                 </div>
                 <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Total Tabungan</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Tabungan</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
                 </div>
               </div>
 
@@ -3722,8 +3722,8 @@ export default function DashboardAdmin() {
                   <AlertCircle size={20} />
                 </div>
                 <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Total Tunggakan</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Tunggakan</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5 text-red-600">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
                 </div>
               </div>
 
@@ -3733,8 +3733,8 @@ export default function DashboardAdmin() {
                   <Shield size={20} />
                 </div>
                 <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Pendapatan Online</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Pendapatan Online</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">
                     Rp {payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0).toLocaleString('id-ID')}
                   </h4>
                 </div>
@@ -3746,8 +3746,8 @@ export default function DashboardAdmin() {
                   <Clock size={20} />
                 </div>
                 <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Antrean Validasi</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Antrean Validasi</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">
                     {payments.filter(p => p.status === 'pending').length} Permintaan
                   </h4>
                 </div>
