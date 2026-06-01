@@ -80,6 +80,7 @@ export default function DashboardAdmin() {
   const [deleteIuranSearchName, setDeleteIuranSearchName] = useState('');
   const [searchStudentDelete, setSearchStudentDelete] = useState('');
   const [searchFinanceList, setSearchFinanceList] = useState('');
+  const [searchTransactionText, setSearchTransactionText] = useState('');
   
   // Exam States
   const [showExamModal, setShowExamModal] = useState(false);
@@ -125,6 +126,11 @@ export default function DashboardAdmin() {
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
   const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
+  const [financeSubTab, setFinanceSubTab] = useState<'siswa' | 'validasi' | 'riwayat'>('siswa');
+  const [filterFinanceKelas, setFilterFinanceKelas] = useState('');
+  const [filterLogStatus, setFilterLogStatus] = useState<'semua' | 'pending' | 'lunas' | 'ditolak'>('semua');
+  const [filterLogStartDate, setFilterLogStartDate] = useState('');
+  const [filterLogEndDate, setFilterLogEndDate] = useState('');
 
   // Achievement Filters
   const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
@@ -1505,6 +1511,7 @@ export default function DashboardAdmin() {
   };
 
   const exportFinanceToExcel = () => {
+    // 1. Ringkasan & Tabungan
     const students = filteredUsersForFinance.filter((u: any) => {
       const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
       const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
@@ -1513,19 +1520,94 @@ export default function DashboardAdmin() {
       const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
       return matchBase && matchKelas && matchName && matchStatus;
     });
-    
-    const data = students.map((s: any) => ({
-      Nama: s.name,
-      Kelas: s.kelas || '',
-      Status: s.status || 'Aktif',
-      Total_Tabungan: isFinanceFiltered ? (s.viewSavings || 0) : (s.savings || 0),
-      Total_Tunggakan: isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0)
+
+    const summaryData = students.map((s: any) => ({
+      "Nama Siswa": s.name,
+      "Kelas": s.kelas || '',
+      "Status": s.status || 'Aktif',
+      "Total Tabungan (Rp)": isFinanceFiltered ? (s.viewSavings || 0) : (s.savings || 0),
+      "Total Tunggakan (Rp)": isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0)
     }));
-    
-    const ws = XLSX.utils.json_to_sheet(data);
+
+    // 2. Riwayat Pembayaran & Transaksi
+    const transactionsData = payments.map((pay: any) => {
+      const student = allUsers.find(u => u.id === pay.studentId);
+      let dateText = '-';
+      if (pay.createdAt) {
+        try {
+          const dateObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+          dateText = dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        } catch (e) {
+          dateText = String(pay.createdAt);
+        }
+      }
+      return {
+        "Waktu Transaksi": dateText,
+        "Nama Siswa": student?.name || 'Siswa tidak ditemukan',
+        "Kelas": student?.kelas || '-',
+        "Keterangan / Item": pay.description || (pay.type === 'tabungan' ? 'Setor Tabungan' : pay.type === 'tabungan_keluar' ? 'Tarik Tabungan' : 'Pembayaran'),
+        "Nominal (Rp)": pay.amount || 0,
+        "Metode Pembayaran": pay.method || (pay.type === 'tabungan' || pay.type === 'tabungan_keluar' ? 'Tabungan (Tunai)' : '-'),
+        "Status Transaksi": pay.status === 'lunas' ? 'LUNAS / BERHASIL' : pay.status === 'pending' ? 'MENUNGGU VALIDASI' : pay.status === 'ditolak' ? 'DITOLAK' : (pay.status || 'SUCCESS'),
+        "Catatan Tambahan": pay.meetDate ? `Janji Tunai: ${pay.meetDate}` : (pay.proofStr ? 'Bukti Transfer Terlampir (Online)' : '')
+      };
+    });
+
+    // 3. Detail Tunggakan Siswa
+    const arrearsListData: any[] = [];
+    students.forEach((s: any) => {
+      if (s.arrears_details && s.arrears_details.length > 0) {
+        s.arrears_details.forEach((detail: any) => {
+          let match = true;
+          if (isFinanceFiltered) {
+            if (filterFinanceIuranName && !detail.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+            if (filterFinanceStartDate && detail.date < filterFinanceStartDate) match = false;
+            if (filterFinanceEndDate && detail.date > filterFinanceEndDate) match = false;
+          }
+          if (match) {
+            arrearsListData.push({
+              "Nama Siswa": s.name,
+              "Kelas": s.kelas || '',
+              "Tanggal Tagihan": detail.date || '',
+              "Nama Tagihan / Iuran": detail.name || '',
+              "Nominal Tagihan (Rp)": detail.amount || 0
+            });
+          }
+        });
+      }
+    });
+
+    // Generate Sheet
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Keuangan");
-    XLSX.writeFile(wb, `Data_Keuangan_Siswa_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    const wsTransactions = XLSX.utils.json_to_sheet(transactionsData);
+    const wsArrears = XLSX.utils.json_to_sheet(arrearsListData);
+
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan & Tabungan");
+    XLSX.utils.book_append_sheet(wb, wsTransactions, "Riwayat Transaksi");
+    XLSX.utils.book_append_sheet(wb, wsArrears, "Detail Tunggakan Spesifik");
+
+    // Auto-fit Column Widths for a clean look
+    [wsSummary, wsTransactions, wsArrears].forEach(ws => {
+      if (ws['!ref']) {
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        const colWidths = [];
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          let maxWidth = 12; // base min width
+          for (let R = range.s.r; R <= range.e.r; ++R) {
+            const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+            if (cell && cell.v) {
+              const len = String(cell.v).length;
+              if (len > maxWidth) maxWidth = len;
+            }
+          }
+          colWidths.push({ wch: maxWidth + 3 });
+        }
+        ws['!cols'] = colWidths;
+      }
+    });
+
+    XLSX.writeFile(wb, `Rekap_Keuangan_Konsolidasi_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const exportRincianTunggakanToExcel = () => {
@@ -3508,314 +3590,312 @@ export default function DashboardAdmin() {
 
         {activeTab === 'finance' && (
           <div className="space-y-6">
-            <div className="flex flex-col justify-between items-start gap-4">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 w-full mt-4">
-                <button 
-                  onClick={exportFinanceToExcel}
-                  className="bg-blue-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 group relative overflow-hidden"
-                >
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
-                    <Download size={24} /> 
-                  </div>
-                  <div className="text-left w-full mt-1">
-                    <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest mb-1">Export Rekap</p>
-                    <p className="text-sm md:text-base leading-tight">Keuangan</p>
-                  </div>
-                </button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl md:text-2xl font-black text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Laporan Real-time, Validasi Pembayaran, & Log Transaksi</p>
+              </div>
 
-                <button 
-                  onClick={exportRincianTunggakanToExcel}
-                  className="bg-rose-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-rose-700 transition-all shadow-lg hover:shadow-rose-200 group relative overflow-hidden"
+              {/* Terapkan Tab Navigation */}
+              <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 self-start md:self-center">
+                <button
+                  type="button"
+                  onClick={() => setFinanceSubTab('siswa')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'siswa' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
-                    <Download size={24} /> 
-                  </div>
-                  <div className="text-left w-full mt-1">
-                    <p className="text-[10px] text-rose-200 font-bold uppercase tracking-widest mb-1">Export Detail</p>
-                    <p className="text-sm md:text-base leading-tight">Tunggakan</p>
-                  </div>
+                  <Users size={14} /> Daftar Siswa
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setFinanceSubTab('validasi')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 relative ${financeSubTab === 'validasi' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <Clock size={14} /> Validasi
+                  {payments.filter(p => p.status === 'pending').length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
+                      {payments.filter(p => p.status === 'pending').length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFinanceSubTab('riwayat')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'riwayat' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <FileText size={14} /> Riwayat Log
+                </button>
+              </div>
+            </div>
 
-                <button 
+            {/* Consolidated & Ultra-Clean Actions Panel */}
+            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 rounded-[28px] border border-slate-800 shadow-xl relative overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/15 rounded-full blur-3xl"></div>
+              <div className="absolute left-1/3 -top-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+              
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div>
+                  <h4 className="text-lg font-black tracking-tight flex items-center gap-2">
+                    <Shield size={20} className="text-indigo-400" /> Ekspor & Pengaturan Finansial
+                  </h4>
+                  <p className="text-xs text-indigo-200 mt-1 max-w-xl">Unduh satu dokumen excel lengkap berisi: data ringkasan tabungan, seluruh riwayat transaksi pembayaran digital/tunai, serta rincian tunggakan spesifik per siswa untuk laporan yang profesional.</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                  <button 
+                    onClick={exportFinanceToExcel}
+                    className="bg-indigo-500 text-white hover:bg-indigo-600 px-6 py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
+                  >
+                    <Download size={18} /> Export Rekap Keuangan Lengkap
+                  </button>
+                </div>
+              </div>
+
+              {/* Secondary Clean Actions Row */}
+              <div className="border-t border-slate-800/80 mt-6 pt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button
                   onClick={() => setShowIuranModal(true)}
-                  className="bg-indigo-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 group relative overflow-hidden"
+                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
                 >
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform text-white">
-                    <Plus size={24} /> 
-                  </div>
-                  <div className="text-left w-full mt-1">
-                    <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-widest mb-1">Buat Tagihan</p>
-                    <p className="text-sm md:text-base leading-tight">Penetapan Iuran</p>
+                  <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg"><Plus size={16} /></div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Iuran Siswa</p>
+                    <p className="text-xs leading-none mt-0.5">Buat Tagihan</p>
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => setShowImportTabunganModal(true)}
-                  className="bg-purple-600 text-white p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-purple-700 transition-all shadow-lg hover:shadow-purple-200 group relative overflow-hidden"
+                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
                 >
-                   <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-all"></div>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:-translate-y-1 transition-transform text-white">
-                    <Upload size={24} />
-                  </div>
-                  <div className="text-left w-full mt-1">
-                     <p className="text-[10px] text-purple-200 font-bold uppercase tracking-widest mb-1">Massal</p>
-                     <p className="text-sm md:text-base leading-tight">Import Tabungan</p>
+                  <div className="p-2 bg-purple-500/15 text-purple-400 rounded-lg"><Upload size={16} /></div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tabungan</p>
+                    <p className="text-xs leading-none mt-0.5">Impor Massal</p>
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => {
                       const ws = XLSX.utils.json_to_sheet([{ Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }]);
                       const wb = XLSX.utils.book_new();
                       XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
                       XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
                   }}
-                  className="bg-white border-2 border-slate-100 text-slate-700 p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:border-slate-200 hover:bg-slate-50 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
+                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
                 >
-                  <div className="p-3 bg-slate-100 text-slate-500 rounded-2xl group-hover:scale-110 transition-transform">
-                    <Download size={24} />
-                  </div>
-                  <div className="text-left w-full mt-1">
-                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Template</p>
-                     <p className="text-sm md:text-base leading-tight">Format Import</p>
+                  <div className="p-2 bg-slate-500/15 text-slate-300 rounded-lg"><Download size={16} /></div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Format Impor</p>
+                    <p className="text-xs leading-none mt-0.5">Unduh Template</p>
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => setShowDeleteIuranModal(true)}
-                  className="bg-red-50 border-2 border-red-100 text-red-600 p-4 lg:p-5 rounded-[24px] font-bold flex flex-col items-start gap-4 hover:bg-red-600 hover:border-red-600 hover:text-white transition-all shadow-sm hover:shadow-md hover:shadow-red-200 group relative overflow-hidden"
+                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left hover:border-red-610 group hover:bg-red-500/10"
                 >
-                  <div className="p-3 bg-red-100 text-red-600 group-hover:bg-white/20 group-hover:text-white rounded-2xl group-hover:scale-110 transition-all">
-                    <Trash2 size={24} />
-                  </div>
-                  <div className="text-left w-full mt-1">
-                     <p className="text-[10px] text-red-400 group-hover:text-red-200 font-bold uppercase tracking-widest mb-1 transition-colors">Massal</p>
-                     <p className="text-sm md:text-base leading-tight">Hapus Iuran</p>
+                  <div className="p-2 bg-red-500/15 text-red-400 group-hover:bg-red-500/25 group-hover:text-red-300 rounded-lg"><Trash2 size={16} /></div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider group-hover:text-red-300">Penghapusan</p>
+                    <p className="text-xs leading-none mt-0.5 group-hover:text-white">Hapus Iuran Massal</p>
                   </div>
                 </button>
               </div>
             </div>
 
-            {/* Visual Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-green-50 rounded-full blur-2xl z-0"></div>
-                <div className="relative z-10 w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
-                  <CreditCard size={24} />
+            {/* Visual KPI Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 w-16 h-16 bg-green-50 rounded-full blur-xl z-0"></div>
+                <div className="relative z-10 w-11 h-11 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shrink-0">
+                  <CreditCard size={20} />
                 </div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tabungan Siswa</p>
-                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
+                <div className="relative z-10 min-w-0">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Total Tabungan</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
                 </div>
               </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative overflow-hidden">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-50 rounded-full blur-2xl z-0"></div>
-                <div className="relative z-10 w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600">
-                  <AlertCircle size={24} />
+
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 w-16 h-16 bg-red-50 rounded-full blur-xl z-0"></div>
+                <div className="relative z-10 w-11 h-11 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
+                  <AlertCircle size={20} />
                 </div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan Siswa</p>
-                  <h4 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight break-all">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                <div className="relative z-10 min-w-0">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Total Tunggakan</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 w-16 h-16 bg-blue-50 rounded-full blur-xl z-0"></div>
+                <div className="relative z-10 w-11 h-11 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
+                  <Shield size={20} />
+                </div>
+                <div className="relative z-10 min-w-0">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Pendapatan Online</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">
+                    Rp {payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0).toLocaleString('id-ID')}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 w-16 h-16 bg-orange-50 rounded-full blur-xl z-0"></div>
+                <div className="relative z-10 w-11 h-11 bg-orange-150 rounded-2xl flex items-center justify-center text-orange-600 shrink-0">
+                  <Clock size={20} />
+                </div>
+                <div className="relative z-10 min-w-0">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">Antrean Validasi</p>
+                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight truncate mt-0.5">
+                    {payments.filter(p => p.status === 'pending').length} Permintaan
+                  </h4>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 rounded-3xl p-6">
-              <div className="flex-1">
-                <h4 className="text-lg font-black text-indigo-800 tracking-tight mb-2">Filter Spesifik Keuangan</h4>
-                <div className="flex flex-col md:flex-row gap-4 w-full">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Nama Tagihan</label>
-                    <select 
-                      value={filterFinanceIuranName} 
-                      onChange={(e) => setFilterFinanceIuranName(e.target.value)} 
-                      className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
-                    >
-                      <option value="">Semua Tagihan</option>
-                      {Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => d.name)))).sort().map((name: any) => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
+            {/* Sub Tab: Daftar Siswa */}
+            {financeSubTab === 'siswa' && (
+              <div className="space-y-6">
+                {/* Filter Spesifik Keuangan */}
+                <div className="bg-indigo-50/50 border border-indigo-100/50 rounded-3xl p-5">
+                  <h4 className="text-sm font-black text-indigo-800 tracking-tight mb-3">Pencarian & Penyaringan Khusus</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Cari Nama</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ketik nama siswa..." 
+                        value={searchFinanceList} 
+                        onChange={(e) => setSearchFinanceList(e.target.value)} 
+                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Status Keuangan</label>
+                      <select 
+                        value={filterKeuanganStatus} 
+                        onChange={(e) => setFilterKeuanganStatus(e.target.value as any)} 
+                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      >
+                        <option value="semua">Semua Status</option>
+                        <option value="menunggak">Menunggak</option>
+                        <option value="lunas">Lunas</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Kelas</label>
+                      <select 
+                        value={filterFinanceKelas} 
+                        onChange={(e) => setFilterFinanceKelas(e.target.value)} 
+                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      >
+                        <option value="">Semua Kelas</option>
+                        {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div className="w-full md:w-48">
-                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Dari Tanggal</label>
-                    <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
-                  </div>
-                  <div className="w-full md:w-48">
-                    <label className="block text-[10px] font-bold text-indigo-500 uppercase mb-1">Sampai Tanggal</label>
-                    <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className="w-full text-sm p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Visual Summary Chart */}
-            <div className="card-3d p-8 overflow-hidden">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h4 className="text-xl font-black text-gray-800 tracking-tight">Ringkasan Keuangan</h4>
-                  <p className="text-xs text-gray-400 font-bold uppercase mt-1">Total Tabungan vs Pelunasan Iuran (6 Bulan Terakhir)</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">Tabungan</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-indigo-100/40">
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Nama Tagihan Spesifik</label>
+                      <select 
+                        value={filterFinanceIuranName} 
+                        onChange={(e) => setFilterFinanceIuranName(e.target.value)} 
+                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                      >
+                        <option value="">Semua Tagihan</option>
+                        {Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => d.name)))).sort().map((name: any) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Mulai Tanggal</label>
+                      <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Sampai Tanggal</label>
+                      <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">Iuran</span>
-                  </div>
                 </div>
-              </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ReBarChart data={getMonthlyFinanceData()}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="month" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} 
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }}
-                      tickFormatter={(value) => `Rp${(value / 1000).toLocaleString()}k`}
-                    />
-                    <Tooltip 
-                      cursor={{ fill: '#f8fafc' }}
-                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px' }}
-                      formatter={(value: any) => [`Rp ${value.toLocaleString()}`, '']}
-                    />
-                    <Bar dataKey="savings" fill="#10b981" radius={[6, 6, 0, 0]} name="Tabungan" barSize={25} />
-                    <Bar dataKey="arrears" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Pelunasan Iuran" barSize={25} />
-                  </ReBarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            
-            {/* Validasi Pembayaran Section */}
-            {payments.filter(p => p.status === 'pending').length > 0 && (
-              <div className="bg-orange-50/50 rounded-3xl shadow-sm border border-orange-100 overflow-hidden mt-6">
-                <div className="p-6 border-b border-orange-100 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-orange-800 flex items-center gap-2">
-                    <Clock size={20} /> Menunggu Validasi Pembayaran
-                  </h3>
-                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">
-                    {payments.filter(p => p.status === 'pending').length} Menunggu
-                  </span>
-                </div>
-                <div className="divide-y divide-orange-100 max-h-96 overflow-y-auto">
-                  {payments.filter(p => p.status === 'pending').map((pay) => {
-                    const student = allUsers.find(u => u.id === pay.studentId);
-                    return (
-                      <div key={pay.id} className="p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-orange-50 transition-colors">
-                        <div>
-                          <p className="font-bold text-gray-800">{student?.name || 'Siswa tidak ditemukan'}</p>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              {pay.method === 'Transfer' && pay.proofStr && (
-                                <button 
-                                  onClick={() => setSelectedPhoto(pay.proofStr)}
-                                  className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1"
-                                >
-                                  <ImageIcon size={12} /> Bukti Transfer
-                                </button>
-                              )}
-                              {pay.method === 'Tunai' && pay.meetDate && (
-                                <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                                  <Calendar size={12} /> Janji: {pay.meetDate}
+
+                {/* Table & Mobile Card layouts */}
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left whitespace-nowrap min-w-[700px]">
+                      <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <tr>
+                          <th className="px-6 py-4">Nama Siswa</th>
+                          <th className="px-6 py-4">Kelas</th>
+                          <th className="px-6 py-4">Total Tabungan</th>
+                          <th className="px-6 py-4">Total Tunggakan</th>
+                          <th className="px-6 py-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredUsersForFinance.filter(u => {
+                          const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
+                          const matchKelas = !filterFinanceKelas || (u.kelas || '').toLowerCase() === filterFinanceKelas.toLowerCase();
+                          const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
+                          const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                          const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
+                          return matchBase && matchKelas && matchName && matchStatus;
+                        }).map((u) => {
+                          const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                          const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
+                          return (
+                            <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-4 font-bold text-gray-800">{u.name}</td>
+                              <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
+                              <td className="px-6 py-4 font-bold text-green-600">Rp {displaySavings.toLocaleString()}</td>
+                              <td className="px-6 py-4 font-bold text-red-600">Rp {displayArrears.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {u.whatsapp && (displayArrears > 0) && (
+                                    <button 
+                                      onClick={() => {
+                                        let firstArrear = u.arrears_details?.[0];
+                                        if (isFinanceFiltered && filterFinanceIuranName) {
+                                          firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
+                                        }
+                                        if (firstArrear) {
+                                          handleWhatsAppFollowUp(u, firstArrear);
+                                        } else {
+                                          alert("Tidak ada rincian tunggakan spesifik.");
+                                        }
+                                      }}
+                                      className="bg-green-50 text-green-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-all flex items-center gap-1"
+                                      title="Follow up via WA"
+                                    >
+                                      <Megaphone size={14} /> Tagih WA
+                                    </button>
+                                  )}
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedStudentForFinance(u);
+                                      setShowManageFinanceModal(true);
+                                    }}
+                                    className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                                  >
+                                    Kelola Keuangan
+                                  </button>
                                 </div>
-                              )}
-                              {pay.method === 'Tabungan' && (
-                                <div className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                                  <CreditCard size={12} /> Potong Tabungan
-                                </div>
-                              )}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                          <div className="text-left md:text-right flex-1">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Nominal</p>
-                            <p className="font-black text-blue-600">Rp {pay.amount.toLocaleString()}</p>
-                          </div>
-                          
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button 
-                                onClick={() => handleApprovePayment(pay)}
-                                className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-1"
-                              >
-                                <CheckCircle size={14} /> Validasi
-                              </button>
-                              <button 
-                                onClick={() => handleRejectPayment(pay.id)}
-                                className="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1"
-                              >
-                                <X size={14} /> Tolak
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              )}
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mt-6">
-              <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-lg font-bold text-gray-800">Daftar Keuangan Siswa</h3>
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-64">
-                    <input 
-                      type="text"
-                      placeholder="Cari Nama Siswa..."
-                      value={searchFinanceList}
-                      onChange={(e) => setSearchFinanceList(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-medium"
-                    />
-                    <Users className="absolute left-3 top-2 text-gray-500" size={16} />
-                  </div>
-                  <select 
-                    value={filterKeuanganStatus}
-                    onChange={(e) => setFilterKeuanganStatus(e.target.value as any)}
-                    className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
-                  >
-                    <option value="semua">Semua Status Keuangan</option>
-                    <option value="menunggak">Menunggak</option>
-                    <option value="lunas">Lunas</option>
-                  </select>
-                  <select 
-                    value={filterKelas}
-                    onChange={(e) => setFilterKelas(e.target.value)}
-                    className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-green-500 font-bold text-gray-600"
-                  >
-                    <option value="">Semua Kelas</option>
-                    {schoolClasses.map((c: any) => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap min-w-[700px]">
-                  <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
-                    <tr>
-                      <th className="px-6 py-4">Nama Siswa</th>
-                      <th className="px-6 py-4">Kelas</th>
-                      <th className="px-6 py-4">Total Tabungan</th>
-                      <th className="px-6 py-4">Total Tunggakan</th>
-                      <th className="px-6 py-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  {/* Responsive Mobile Card List */}
+                  <div className="md:hidden divide-y divide-gray-100">
                     {filteredUsersForFinance.filter(u => {
                       const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
-                      const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
+                      const matchKelas = !filterFinanceKelas || (u.kelas || '').toLowerCase() === filterFinanceKelas.toLowerCase();
                       const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
                       const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
                       const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
@@ -3824,31 +3904,36 @@ export default function DashboardAdmin() {
                       const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
                       const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
                       return (
-                      <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
-                        <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
-                        <td className="px-6 py-4 font-bold text-green-600">Rp {displaySavings.toLocaleString()}</td>
-                        <td className="px-6 py-4 font-bold text-red-600">Rp {displayArrears.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <div key={u.id} className="p-4 hover:bg-slate-50/50 flex flex-col gap-3">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-gray-850">{u.name}</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{u.kelas || 'Belum Ditentukan'}</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center bg-gray-55/60 p-3 rounded-xl border border-gray-100/50 text-xs">
+                            <div>
+                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Tabungan</p>
+                              <p className="font-bold text-green-600 mt-0.5">Rp {displaySavings.toLocaleString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Tunggakan</p>
+                              <p className="font-bold text-red-650 mt-0.5">Rp {displayArrears.toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 text-xs">
                             {u.whatsapp && (displayArrears > 0) && (
                               <button 
                                 onClick={() => {
-                                  // Find the first arrear detail to follow up
                                   let firstArrear = u.arrears_details?.[0];
                                   if (isFinanceFiltered && filterFinanceIuranName) {
                                     firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
                                   }
-                                  if (firstArrear) {
-                                    handleWhatsAppFollowUp(u, firstArrear);
-                                  } else {
-                                    alert("Tidak ada rincian tunggakan spesifik.");
-                                  }
+                                  if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
                                 }}
-                                className="bg-green-50 text-green-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-all flex items-center gap-1"
-                                title="Follow up Tagihan via WA"
+                                className="flex-1 bg-green-50 text-green-600 px-3 py-2.5 rounded-xl font-bold hover:bg-green-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
                               >
-                                <Megaphone size={14} /> Follow-up
+                                <Megaphone size={14} /> Tagih WA
                               </button>
                             )}
                             <button 
@@ -3856,78 +3941,326 @@ export default function DashboardAdmin() {
                                 setSelectedStudentForFinance(u);
                                 setShowManageFinanceModal(true);
                               }}
-                              className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                              className="flex-1 bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold hover:bg-blue-100 transition-colors text-center"
                             >
                               Kelola Keuangan
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
 
-              {/* Mobile View Keuangan */}
-              <div className="md:hidden divide-y divide-gray-100">
-                {filteredUsersForFinance.filter(u => {
-                  const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
-                  const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
-                  const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-                  const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-                  const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
-                  return matchBase && matchKelas && matchName && matchStatus;
-                }).map((u) => {
-                  const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-                  const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
-                  return (
-                  <div key={u.id} className="p-4 hover:bg-gray-50 flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-gray-800">{u.name}</p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">{u.kelas || 'Belum Ditentukan'}</p>
-                      </div>
+                {/* Monthly Chart Section */}
+                <div className="card-3d p-6 md:p-8 overflow-hidden z-10">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h4 className="text-lg font-black text-gray-800 tracking-tight">Perkembangan Transaksi Keuangan</h4>
+                      <p className="text-[10px] text-gray-450 font-bold uppercase mt-1">Total Tabungan vs Pelunasan Tagihan (6 Bulan Terakhir)</p>
                     </div>
-                    <div className="flex justify-between items-center bg-gray-50 p-3 border border-gray-100 rounded-lg">
-                      <div className="flex flex-col gap-1">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tabungan</p>
-                        <p className="font-bold text-green-600">Rp {displaySavings.toLocaleString()}</p>
+                    <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+                        <span>Tabungan</span>
                       </div>
-                      <div className="flex flex-col gap-1 text-right">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Tunggakan</p>
-                        <p className="font-bold text-red-600">Rp {displayArrears.toLocaleString()}</p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></div>
+                        <span>Iuran</span>
                       </div>
-                    </div>
-                    <div className="flex justify-end items-center gap-2 mt-4">
-                       {u.whatsapp && displayArrears > 0 && (
-                         <button 
-                           onClick={() => {
-                             let firstArrear = u.arrears_details?.[0];
-                             if (isFinanceFiltered && filterFinanceIuranName) {
-                               firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
-                             }
-                             if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
-                           }}
-                           className="flex-1 bg-green-50 text-green-600 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-widest flex items-center justify-center gap-2"
-                         >
-                           <Megaphone size={14} /> Tagih WA
-                         </button>
-                       )}
-                       <button 
-                         onClick={() => {
-                           setSelectedStudentForFinance(u);
-                           setShowManageFinanceModal(true);
-                         }}
-                         className="flex-1 bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl text-[10px] uppercase font-black tracking-widest flex items-center justify-center gap-2"
-                       >
-                         Detail Keuangan
-                       </button>
                     </div>
                   </div>
-                )})}
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ReBarChart data={getMonthlyFinanceData()}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} tickFormatter={(val) => `Rp${(val / 1000).toLocaleString()}k`} />
+                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px' }} formatter={(value: any) => [`Rp ${value.toLocaleString()}`, '']} />
+                        <Bar dataKey="savings" fill="#10b981" radius={[5, 5, 0, 0]} name="Tabungan" barSize={24} />
+                        <Bar dataKey="arrears" fill="#6366f1" radius={[5, 5, 0, 0]} name="Pelunasan Iuran" barSize={24} />
+                      </ReBarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Sub Tab: Menunggu Validasi Pembayaran */}
+            {financeSubTab === 'validasi' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-black text-gray-850 tracking-tight text-lg">Persetujuan & Validasi Keuangan</h3>
+                      <p className="text-xs text-slate-400 mt-1">Siswa telah mengirim pengajuan setoran tabungan, penyelesaian iuran, tunai atau transfer.</p>
+                    </div>
+                    <span className="bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-xs font-black">
+                      {payments.filter(p => p.status === 'pending').length} Menunggu Proses
+                    </span>
+                  </div>
+
+                  {payments.filter(p => p.status === 'pending').length === 0 ? (
+                    <div className="p-12 text-center flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-slate-50 text-slate-450 border border-slate-100 rounded-full flex items-center justify-center mb-4 text-emerald-500 bg-emerald-50">
+                        <CheckCircle size={28} />
+                      </div>
+                      <h4 className="font-black text-gray-800 text-lg">Semua Pembayaran Bersih!</h4>
+                      <p className="text-xs text-gray-400 mt-1 max-w-sm">Tidak ada permintaan konfirmasi atau transfer dari siswa yang pending untuk divalidasi hari ini.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                      {payments.filter(p => p.status === 'pending').map((pay) => {
+                        const student = allUsers.find(u => u.id === pay.studentId);
+                        return (
+                          <div key={pay.id} className="p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50/50 transition-colors">
+                            <div className="space-y-2 min-w-0 flex-1">
+                              <div>
+                                <p className="font-bold text-gray-805 text-base">{student?.name || 'Siswa tidak ditemukan'}</p>
+                                <p className="text-[10px] text-gray-400 tracking-wider font-extrabold uppercase mt-0.5">{student?.kelas || 'Tanpa Kelas'} • {pay.description || 'Pembayaran'}</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {pay.method === 'Transfer' && pay.proofStr && (
+                                  <button 
+                                    onClick={() => setSelectedPhoto(pay.proofStr)}
+                                    className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors flex items-center gap-1.5 border border-blue-100"
+                                  >
+                                    <ImageIcon size={13} /> Lihat Bukti Transfer
+                                  </button>
+                                )}
+                                {pay.method === 'Tunai' && pay.meetDate && (
+                                  <div className="bg-amber-100/50 text-amber-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-amber-100/40">
+                                    <Calendar size={13} /> Janji Temu: {pay.meetDate}
+                                  </div>
+                                )}
+                                {pay.method === 'Tabungan' && (
+                                  <div className="bg-emerald-100/50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-emerald-100/40">
+                                    <CreditCard size={13} /> Bayar Potong Tabungan
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                              <div className="text-left md:text-right">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Jumlah Nominal</p>
+                                <p className="font-black text-indigo-650 text-lg">Rp {(pay.amount || 0).toLocaleString('id-ID')}</p>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button 
+                                  onClick={() => handleApprovePayment(pay)}
+                                  className="bg-green-600 text-white hover:bg-green-700 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md items-center flex gap-1.5"
+                                >
+                                  <CheckCircle size={14} /> Validasi
+                                </button>
+                                <button 
+                                  onClick={() => handleRejectPayment(pay.id)}
+                                  className="bg-red-50 text-red-650 hover:bg-red-100 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all items-center flex gap-1.5"
+                                >
+                                  <X size={14} /> Tolak
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sub Tab: Riwayat Validasi & Pembayaran */}
+            {financeSubTab === 'riwayat' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-black text-gray-850 tracking-tight text-lg">Log Historis Keuangan & Validasi</h3>
+                      <p className="text-xs text-slate-400 mt-1">Daftar lengkap transaksi: Transfer (online), Tunai, atau Tabungan yang telah divalidasi atau ditolak.</p>
+                    </div>
+                    {/* Search Bar untuk Riwayat Logs */}
+                    <div className="relative w-full md:w-72">
+                      <input 
+                        type="text"
+                        placeholder="Cari nama siswa atau transaksi..."
+                        value={searchTransactionText}
+                        onChange={(e) => setSearchTransactionText(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                      />
+                      <Users className="absolute left-3.5 top-3.5 text-gray-400" size={15} />
+                    </div>
+                  </div>
+
+                  {/* Advanced Filters: Status & Date Range (Filter Waktu) */}
+                  <div className="bg-slate-50/70 border-b border-gray-150 p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Status Transaksi</label>
+                      <select 
+                        value={filterLogStatus} 
+                        onChange={(e) => setFilterLogStatus(e.target.value as any)} 
+                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700"
+                      >
+                        <option value="semua">Semua Status Log</option>
+                        <option value="pending">Menunggu Validasi (Pending)</option>
+                        <option value="lunas">Diterima / Lunas</option>
+                        <option value="ditolak">Ditolak</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Dari Tanggal (Mulai)</label>
+                      <input 
+                        type="date" 
+                        value={filterLogStartDate} 
+                        onChange={(e) => setFilterLogStartDate(e.target.value)} 
+                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-700" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Sampai Tanggal (Selesai)</label>
+                      <input 
+                        type="date" 
+                        value={filterLogEndDate} 
+                        onChange={(e) => setFilterLogEndDate(e.target.value)} 
+                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-700" 
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setFilterLogStatus('semua');
+                          setFilterLogStartDate('');
+                          setFilterLogEndDate('');
+                        }}
+                        className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                      >
+                        Reset Saring Waktu
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Transaction History Log Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left whitespace-nowrap">
+                      <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <tr>
+                          <th className="px-6 py-4">Waktu Transaksi</th>
+                          <th className="px-6 py-4">Siswa</th>
+                          <th className="px-6 py-4">Nama Tagihan / Transaksi</th>
+                          <th className="px-6 py-4">Nominal</th>
+                          <th className="px-6 py-4">Metode</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-center">Bukti / Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-xs font-semibold">
+                        {(() => {
+                          const filteredLogPayments = payments.filter(pay => {
+                            const student = allUsers.find(u => u.id === pay.studentId);
+                            const studentName = student?.name || '';
+                            const desc = pay.description || '';
+                            const searchLower = searchTransactionText.toLowerCase();
+                            const matchesSearch = studentName.toLowerCase().includes(searchLower) || desc.toLowerCase().includes(searchLower);
+                            
+                            // 1. Filter Status
+                            const matchesStatus = filterLogStatus === 'semua' || pay.status === filterLogStatus;
+                            
+                            // 2. Filter Waktu (Date range)
+                            let matchesDate = true;
+                            if (pay.createdAt) {
+                              try {
+                                const dObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+                                const y = dObj.getFullYear();
+                                const m = String(dObj.getMonth() + 1).padStart(2, '0');
+                                const d = String(dObj.getDate()).padStart(2, '0');
+                                const payDateStr = `${y}-${m}-${d}`;
+                                
+                                if (filterLogStartDate && payDateStr < filterLogStartDate) matchesDate = false;
+                                if (filterLogEndDate && payDateStr > filterLogEndDate) matchesDate = false;
+                              } catch (e) {
+                                // ignore parse issues
+                              }
+                            }
+                            
+                            return matchesSearch && matchesStatus && matchesDate;
+                          });
+
+                          if (filteredLogPayments.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-bold">
+                                  Belum ada catatan riwayat transaksi pembayaran ditemukan.
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filteredLogPayments.map((pay) => {
+                            const student = allUsers.find(u => u.id === pay.studentId);
+                            let formattedDate = '-';
+                            if (pay.createdAt) {
+                              try {
+                                const dObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+                                formattedDate = dObj.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                              } catch (e) {
+                                formattedDate = String(pay.createdAt);
+                              }
+                            }
+                            return (
+                              <tr key={pay.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-4 text-gray-400 font-mono">{formattedDate}</td>
+                                <td className="px-6 py-4">
+                                  <span className="font-bold text-gray-800 block">{student?.name || 'Siswa tidak ditemukan'}</span>
+                                  <span className="text-[10px] text-gray-400 tracking-wider font-extrabold uppercase mt-0.5">{student?.kelas || 'Tanpa Kelas'}</span>
+                                </td>
+                                <td className="px-6 py-4 text-gray-700 font-medium">
+                                  {pay.description || (pay.type === 'tabungan' ? 'Setoran Tabungan' : pay.type === 'tabungan_keluar' ? 'Penarikan Tabungan' : 'Pembayaran Iuran')}
+                                </td>
+                                <td className="px-6 py-4 font-black text-indigo-950">Rp {(pay.amount || 0).toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                  {pay.method === 'Transfer' ? (
+                                    <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-blue-100">Transfer Mandiri</span>
+                                  ) : pay.method === 'Tunai' ? (
+                                    <span className="bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-100">Tunai Langsung</span>
+                                  ) : pay.method === 'Tabungan' ? (
+                                    <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-100">Auto Tabungan</span>
+                                  ) : (
+                                    <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-slate-200">System</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  {pay.status === 'lunas' ? (
+                                    <span className="text-green-600 font-black tracking-widest text-[9.5px] uppercase">● Diterima</span>
+                                  ) : pay.status === 'ditolak' ? (
+                                    <span className="text-red-500 font-black tracking-widest text-[9.5px] uppercase">● Ditolak</span>
+                                  ) : (
+                                    <span className="text-orange-500 font-black tracking-widest text-[9.5px] uppercase animate-pulse">● Pending</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {pay.proofStr ? (
+                                    <button 
+                                      onClick={() => setSelectedPhoto(pay.proofStr)}
+                                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition select-none"
+                                    >
+                                      Lihat Bukti
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
