@@ -61,8 +61,10 @@ export default function DashboardSiswa() {
   const [isSetoranSubmitting, setIsSetoranSubmitting] = useState(false);
   
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState('Transfer');
+  const [paymentMethod, setPaymentMethod] = useState<'Transfer' | 'Tunai' | 'Tabungan' | 'Campuran'>('Transfer');
   const [paymentProof, setPaymentProof] = useState<string>('');
+  const [mixedSavingsAmount, setMixedSavingsAmount] = useState('');
+  const [mixedCashAmount, setMixedCashAmount] = useState('');
   const [paymentMeetDate, setPaymentMeetDate] = useState('');
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
@@ -189,7 +191,6 @@ export default function DashboardSiswa() {
           return;
         }
         
-        // Tabungan is now a request too
         await addDoc(collection(db, 'payments'), {
           studentId: user.uid,
           amount: activeDetailToPay.amount,
@@ -203,6 +204,42 @@ export default function DashboardSiswa() {
         });
         
         alert('Permintaan potong tabungan terkirim. Menunggu validasi bendahara.');
+      } else if (paymentMethod === 'Campuran') {
+        const savingsAmount = Number(mixedSavingsAmount) || 0;
+        const cashAmount = Number(mixedCashAmount) || 0;
+        const total = savingsAmount + cashAmount;
+
+        if (savingsAmount > (userData.savings || 0)) {
+          alert('Input nominal tabungan melebihi saldo yang Anda miliki.');
+          setPaymentSubmitting(false);
+          return;
+        }
+
+        if (total < activeDetailToPay.amount) {
+          if (!window.confirm(`Total Rp ${total.toLocaleString()} kurang dari tagihan Rp ${activeDetailToPay.amount.toLocaleString()}. Ajukan sebagai pembayaran sebagian?`)) {
+            setPaymentSubmitting(false);
+            return;
+          }
+        }
+
+        await addDoc(collection(db, 'payments'), {
+          studentId: user.uid,
+          amount: total,
+          description: `Pembayaran Iuran: ${activeDetailToPay.name} (Campuran: Tabungan Rp ${savingsAmount.toLocaleString()} & Transfer/Tunai Rp ${cashAmount.toLocaleString()})`,
+          type: 'pembayaran',
+          method: 'Campuran',
+          status: 'pending',
+          proofStr: paymentProof || null,
+          date: new Date().toISOString().split('T')[0],
+          arrearDetailId: activeDetailToPay.id,
+          createdAt: serverTimestamp(),
+          mixedDetails: {
+            fromSavings: savingsAmount,
+            fromCash: cashAmount
+          }
+        });
+
+        alert('Permintaan pembayaran campuran terkirim. Menunggu validasi admin.');
       } else {
         if (paymentMethod === 'Transfer' && !paymentProof) {
           alert('Mohon unggah bukti pembayaran transfer.');
@@ -236,6 +273,8 @@ export default function DashboardSiswa() {
       setActiveDetailToPay(null);
       setPaymentProof('');
       setPaymentMeetDate('');
+      setMixedSavingsAmount('');
+      setMixedCashAmount('');
       setPaymentMethod('Transfer');
     } catch (error) {
       console.error("Error submitting payment:", error);
@@ -2358,41 +2397,48 @@ export default function DashboardSiswa() {
         {/* Payment Modal */}
         {showPaymentModal && activeDetailToPay && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-blue-600 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
               <button 
                 onClick={() => { setShowPaymentModal(false); setActiveDetailToPay(null); setPaymentProof(''); }} 
-                className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1"
                 disabled={paymentSubmitting}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
               
               <div className="mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Pembayaran Iuran</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Selesaikan pembayaran untuk tagihan berikut</p>
-              </div>
-
-              <div className="bg-blue-50/50 p-4 rounded-2xl mb-4 border border-blue-100/50">
-                <p className="text-blue-800 text-[10px] font-black uppercase tracking-widest mb-1 opacity-60">Rincian Tagihan</p>
-                <div className="flex justify-between items-baseline">
-                  <p className="text-lg font-bold text-blue-900 truncate mr-2">{activeDetailToPay.name}</p>
-                  <span className="text-xl font-black text-blue-600 whitespace-nowrap">Rp {activeDetailToPay.amount.toLocaleString()}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                    <CreditCard size={14} />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Bayar Iuran</h3>
+                </div>
+                <div className="bg-blue-50/30 p-2.5 rounded-xl border border-blue-100/20 flex justify-between items-center">
+                  <p className="text-xs font-bold text-blue-900 truncate mr-2">{activeDetailToPay.name}</p>
+                  <span className="text-sm font-black text-blue-600 whitespace-nowrap">Rp {activeDetailToPay.amount.toLocaleString()}</span>
                 </div>
               </div>
               
-              <form onSubmit={handleSubmitPayment} className="space-y-4">
+              <form onSubmit={handleSubmitPayment} className="space-y-3.5">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Pilih Metode</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Transfer', 'Tunai', 'Tabungan'].map(method => (
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Metode</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {['Transfer', 'Tunai', 'Tabungan', 'Campuran'].map(method => (
                       <button
                         key={method}
                         type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all border ${
+                        onClick={() => {
+                          setPaymentMethod(method as any);
+                          if (method === 'Campuran') {
+                            setMixedSavingsAmount((userData?.savings || 0).toString());
+                            const remaining = Math.max(0, activeDetailToPay.amount - (userData?.savings || 0));
+                            setMixedCashAmount(remaining.toString());
+                          }
+                        }}
+                        className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black transition-all border ${
                           paymentMethod === method 
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100' 
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                             : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'
                         }`}
                       >
@@ -2402,45 +2448,80 @@ export default function DashboardSiswa() {
                   </div>
                 </div>
 
+                {paymentMethod === 'Campuran' && (
+                  <div className="space-y-2 p-2.5 bg-blue-50/20 rounded-xl border border-blue-100/20 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[8px] font-black text-blue-800/50 uppercase tracking-widest mb-1 ml-1">Tabungan</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-300">Rp</span>
+                          <input 
+                            type="number" 
+                            value={mixedSavingsAmount}
+                            onChange={(e) => {
+                              setMixedSavingsAmount(e.target.value);
+                              const total = activeDetailToPay.amount;
+                              const currentTab = Number(e.target.value) || 0;
+                              setMixedCashAmount(Math.max(0, total - currentTab).toString());
+                            }}
+                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-blue-50 rounded-lg outline-none focus:ring-1 focus:ring-blue-100 text-[10px] font-bold text-blue-900"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[8px] font-black text-blue-800/50 uppercase tracking-widest mb-1 ml-1">Transfer/Cash</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-300">Rp</span>
+                          <input 
+                            type="number" 
+                            value={mixedCashAmount}
+                            onChange={(e) => {
+                              setMixedCashAmount(e.target.value);
+                              const total = activeDetailToPay.amount;
+                              const currentCash = Number(e.target.value) || 0;
+                              setMixedSavingsAmount(Math.max(0, total - currentCash).toString());
+                            }}
+                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-blue-50 rounded-lg outline-none focus:ring-1 focus:ring-blue-100 text-[10px] font-bold text-blue-900"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {paymentMethod === 'Transfer' && (
                   <div className="animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100/50 mb-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
-                          <CreditCard size={14} />
-                        </div>
-                        <p className="font-black text-[10px] text-blue-900 uppercase tracking-wide">Rekening Pembayaran</p>
-                      </div>
+                    <div className="bg-blue-50/30 p-2.5 rounded-xl border border-blue-100/20 mb-3">
                       <div className="flex justify-between items-center px-1">
                         <div>
-                          <p className="font-bold text-blue-800 text-xs">BANK BRI</p>
-                          <p className="text-[9px] text-blue-600/70 font-bold uppercase tracking-tight">GIAN DWI WAHYUNI</p>
+                          <p className="font-bold text-blue-800 text-[10px]">BANK BRI</p>
+                          <p className="text-[8px] text-blue-500 uppercase font-black">GIAN DWI WAHYUNI</p>
                         </div>
-                        <p className="font-black text-blue-700 text-sm tracking-widest">415001003649509</p>
+                        <p className="font-black text-blue-700 text-xs tracking-widest">415001003649509</p>
                       </div>
                     </div>
                     
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Upload Bukti</label>
+                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Upload Bukti</label>
                     <div 
                       onClick={() => {
                         const input = document.getElementById('payment-proof-input');
                         input?.click();
                       }}
-                      className="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
+                      className="w-full h-24 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
                     >
                       {paymentProof ? (
                         <>
-                          <img src={paymentProof} alt="Bukti Transfer" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="text-white" size={24} />
+                          <img src={paymentProof} alt="Bukti Transfer" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white" size={18} />
                           </div>
                         </>
                       ) : (
-                        <div className="text-center p-4">
-                          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 mx-auto mb-2">
-                            <Upload size={20} />
-                          </div>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-tight">Ketuk untuk unggah bukti transfer</span>
+                        <div className="text-center p-2">
+                          <Upload size={16} className="text-gray-300 mx-auto mb-1" />
+                          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Tap Upload</span>
                         </div>
                       )}
                     </div>
@@ -2449,37 +2530,27 @@ export default function DashboardSiswa() {
                 )}
 
                 {paymentMethod === 'Tunai' && (
-                  <div className="p-3 bg-orange-50 border border-orange-100/50 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
-                    <p className="text-[10px] text-orange-700 leading-tight font-bold mb-3">Pilih jadwal pertemuan dengan bendahara sekolah untuk pembayaran secara langsung.</p>
-                    <div>
-                      <label className="block text-[9px] font-black text-orange-800/60 uppercase tracking-widest mb-1.5 ml-1">Tanggal Pertemuan</label>
-                      <input 
-                        type="date" 
-                        value={paymentMeetDate}
-                        onChange={(e) => setPaymentMeetDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full p-3 bg-white border border-orange-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-200 text-xs font-bold text-orange-900"
-                        required
-                      />
-                    </div>
+                  <div className="p-2.5 bg-orange-50/30 border border-orange-100/30 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                    <p className="text-[9px] text-orange-700 leading-tight font-bold mb-2">Simpan tanggal pertemuan untuk bayar di sekolah.</p>
+                    <input 
+                      type="date" 
+                      value={paymentMeetDate}
+                      onChange={(e) => setPaymentMeetDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full p-2 bg-white border border-orange-100 rounded-lg outline-none focus:ring-1 focus:ring-orange-200 text-[10px] font-bold text-orange-900"
+                      required
+                    />
                   </div>
                 )}
                 
                 {paymentMethod === 'Tabungan' && (
-                  <div className="p-3 bg-green-50 border border-green-100/50 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shrink-0">
-                        <CreditCard size={18} />
+                  <div className="p-2.5 bg-green-50/30 border border-green-100/30 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={14} className="text-green-500" />
+                        <span className="text-[9px] font-black text-green-800 uppercase tracking-wide">Saldo Anda</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-black text-green-800/60 uppercase tracking-widest leading-none mb-1">Saldo Saat Ini</p>
-                        <div className="flex justify-between items-baseline">
-                          <p className="text-base font-black text-green-600">Rp {(userData?.savings || 0).toLocaleString()}</p>
-                          {(userData?.savings || 0) < activeDetailToPay.amount && (
-                            <p className="text-[10px] text-red-500 font-bold">Saldo kurang!</p>
-                          )}
-                        </div>
-                      </div>
+                      <span className="text-[11px] font-black text-green-600">Rp {(userData?.savings || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 )}
@@ -2487,14 +2558,14 @@ export default function DashboardSiswa() {
                 <button 
                   type="submit" 
                   disabled={paymentSubmitting || (paymentMethod === 'Tabungan' && (userData?.savings || 0) < activeDetailToPay.amount)}
-                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-base hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all mt-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {paymentSubmitting ? (
                     'Memproses...'
                   ) : (
                     <>
-                      <CheckCircle size={20} />
-                      {paymentMethod === 'Tabungan' ? 'Potong Tabungan' : 'Kirim Pembayaran'}
+                      <CheckCircle size={16} />
+                      {paymentMethod === 'Tabungan' ? 'Potong Tabungan' : 'Konfirmasi Bayar'}
                     </>
                   )}
                 </button>

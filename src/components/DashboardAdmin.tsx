@@ -38,9 +38,11 @@ export default function DashboardAdmin() {
   const [showIuranModal, setShowIuranModal] = useState(false);
   const [showDeleteIuranModal, setShowDeleteIuranModal] = useState(false);
   const [showPayConfirmModal, setShowPayConfirmModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
+  const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan' | 'Campuran'>('Tunai');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentProof, setPaymentProof] = useState('');
+  const [mixedSavingsAmount, setMixedSavingsAmount] = useState('');
+  const [mixedCashAmount, setMixedCashAmount] = useState('');
   const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
   const [activeStudentForPayment, setActiveStudentForPayment] = useState<any>(null);
   const paymentProofRef = useRef<HTMLInputElement>(null);
@@ -786,7 +788,7 @@ export default function DashboardAdmin() {
       const student = activeStudentForPayment;
       const detailToPay = activeDetailToPay;
 
-      // Special logic for Tabungan
+      // Logic for Tabungan and Mixed
       if (paymentMethod === 'Tabungan') {
         const currentSavings = student.savings || 0;
         if (currentSavings < detailToPay.amount) {
@@ -796,10 +798,49 @@ export default function DashboardAdmin() {
         
         const newSavings = currentSavings - detailToPay.amount;
         await updateDoc(doc(db, 'users', student.id), { savings: newSavings });
+      } else if (paymentMethod === 'Campuran') {
+        const savingsAmount = Number(mixedSavingsAmount) || 0;
+        const cashAmount = Number(mixedCashAmount) || 0;
+        
+        if (savingsAmount > (student.savings || 0)) {
+          alert('Input nominal tabungan melebihi saldo yang ada.');
+          return;
+        }
+
+        if (savingsAmount + cashAmount < detailToPay.amount) {
+          if (!window.confirm('Nominal total kurang dari jumlah tagihan. Tetap proses sebagai pembayaran sebagian?')) {
+            return;
+          }
+        }
+
+        // Deduct from savings
+        if (savingsAmount > 0) {
+          const newSavings = (student.savings || 0) - savingsAmount;
+          await updateDoc(doc(db, 'users', student.id), { savings: newSavings });
+        }
       }
 
-      const newDetails = (student.arrears_details || []).filter((d: any) => d.id !== detailToPay.id);
-      const newArrears = Math.max(0, (student.arrears || 0) - detailToPay.amount);
+      const totalPaid = paymentMethod === 'Campuran' 
+        ? (Number(mixedSavingsAmount) || 0) + (Number(mixedCashAmount) || 0)
+        : detailToPay.amount;
+
+      let newArrears = student.arrears || 0;
+      let newDetails = student.arrears_details || [];
+
+      if (totalPaid >= detailToPay.amount) {
+        // Fully paid
+        newDetails = newDetails.filter((d: any) => d.id !== detailToPay.id);
+        newArrears = Math.max(0, (student.arrears || 0) - detailToPay.amount);
+      } else {
+        // Partially paid
+        newDetails = newDetails.map((d: any) => {
+          if (d.id === detailToPay.id) {
+            return { ...d, amount: d.amount - totalPaid };
+          }
+          return d;
+        });
+        newArrears = Math.max(0, (student.arrears || 0) - totalPaid);
+      }
       
       await updateDoc(doc(db, 'users', student.id), {
         arrears: newArrears,
@@ -809,34 +850,41 @@ export default function DashboardAdmin() {
       // Log to payments history
       await addDoc(collection(db, 'payments'), {
         studentId: student.id,
-        amount: detailToPay.amount,
-        description: `Pelunasan: ${detailToPay.name}${paymentNote ? ` (${paymentNote})` : ''}`,
+        amount: totalPaid,
+        description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()} & Tunai/Transfer Rp ${Number(mixedCashAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
         type: 'iuran',
         method: paymentMethod,
         proof: paymentProof || null,
         date: new Date().toISOString().split('T')[0],
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        mixedDetails: paymentMethod === 'Campuran' ? {
+          fromSavings: Number(mixedSavingsAmount) || 0,
+          fromCash: Number(mixedCashAmount) || 0
+        } : null
       });
       
       if (selectedStudentForFinance && selectedStudentForFinance.id === student.id) {
-        // Refresh local student data if needed
         const updatedStudent = {
           ...student,
           arrears: newArrears,
           arrears_details: newDetails,
-          savings: paymentMethod === 'Tabungan' ? (student.savings || 0) - detailToPay.amount : student.savings
+          savings: paymentMethod === 'Tabungan' 
+            ? (student.savings || 0) - detailToPay.amount 
+            : paymentMethod === 'Campuran'
+              ? (student.savings || 0) - (Number(mixedSavingsAmount) || 0)
+              : student.savings
         };
         setSelectedStudentForFinance(updatedStudent);
-        
-        // Also update allUsers list to stay in sync
         setAllUsers(prev => prev.map(u => u.id === student.id ? updatedStudent : u));
       }
       
-      alert('Pelunasan berhasil dicatat!');
+      alert(totalPaid >= detailToPay.amount ? 'Pelunasan berhasil dicatat!' : 'Pembayaran sebagian berhasil dicatat!');
       setShowPayConfirmModal(false);
       setPaymentNote('');
       setPaymentMethod('Tunai');
       setPaymentProof('');
+      setMixedSavingsAmount('');
+      setMixedCashAmount('');
       setActiveDetailToPay(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${activeStudentForPayment.id}`);
@@ -1180,7 +1228,7 @@ export default function DashboardAdmin() {
     if (!window.confirm(`Verifikasi pembayaran ${pay.method} ini? Tindakan ini akan mengupdate status menjadi lunas dan mengurangi tunggakan siswa.`)) return;
     try {
       const studentId = pay.studentId;
-      const amount = pay.amount;
+      const amountPaid = pay.amount;
       const arrearDetailId = pay.arrearDetailId;
       const payId = pay.id;
       
@@ -1188,25 +1236,47 @@ export default function DashboardAdmin() {
       if (student) {
         const updates: any = {};
         
-        // Only modify arrears if it was a payment for a specific arrear
+        // Handle Arrears (Full or Partial)
         if (arrearDetailId) {
           const currentArrears = student.arrears || 0;
-          const newArrears = Math.max(0, currentArrears - amount);
           const currentDetails = student.arrears_details || [];
-          const newDetails = currentDetails.filter((d: any) => d.id !== arrearDetailId);
+          const targetDetail = currentDetails.find((d: any) => d.id === arrearDetailId);
           
-          updates.arrears = newArrears;
-          updates.arrears_details = newDetails;
+          if (targetDetail) {
+            if (amountPaid >= targetDetail.amount) {
+              // Full payment
+              updates.arrears = Math.max(0, currentArrears - targetDetail.amount);
+              updates.arrears_details = currentDetails.filter((d: any) => d.id !== arrearDetailId);
+            } else {
+              // Partial payment
+              updates.arrears = Math.max(0, currentArrears - amountPaid);
+              updates.arrears_details = currentDetails.map((d: any) => {
+                if (d.id === arrearDetailId) {
+                  return { ...d, amount: d.amount - amountPaid };
+                }
+                return d;
+              });
+            }
+          }
         }
 
-        // If it's a Savings request, deduct the savings
+        // Handle Savings deduction
         if (pay.method === 'Tabungan') {
           const currentSavings = student.savings || 0;
-          if (currentSavings < amount) {
+          if (currentSavings < amountPaid) {
             alert('Saldo tabungan siswa tidak mencukupi saat divalidasi. Validasi dibatalkan.');
             return;
           }
-          updates.savings = currentSavings - amount;
+          updates.savings = currentSavings - amountPaid;
+        } else if (pay.method === 'Campuran' && pay.mixedDetails) {
+          const currentSavings = student.savings || 0;
+          const fromSavings = pay.mixedDetails.fromSavings || 0;
+          
+          if (currentSavings < fromSavings) {
+            alert('Saldo tabungan siswa tidak mencukupi untuk porsi tabungan pada pembayaran campuran ini. Validasi dibatalkan.');
+            return;
+          }
+          updates.savings = currentSavings - fromSavings;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -5361,47 +5431,52 @@ export default function DashboardAdmin() {
 
         {showPayConfirmModal && activeDetailToPay && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
               <button 
                 onClick={() => {
                   setShowPayConfirmModal(false);
                   setPaymentProof('');
                   setPaymentNote('');
                 }} 
-                className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
               
               <div className="mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Konfirmasi Pembayaran</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Selesaikan pelunasan untuk tagihan berikut</p>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-2xl mb-4 border border-blue-100/50">
-                <p className="text-blue-800 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Rincian Tagihan</p>
-                <div className="flex justify-between items-baseline">
-                  <p className="text-lg font-bold text-blue-900 truncate mr-2">{activeDetailToPay.name}</p>
-                  <span className="text-xl font-black text-blue-600 whitespace-nowrap">Rp {activeDetailToPay.amount.toLocaleString()}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                    <CheckCircle size={14} />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight">Konfirmasi Lunas</h3>
+                </div>
+                <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/30 flex justify-between items-center">
+                  <p className="text-xs font-bold text-blue-900 truncate mr-2">{activeDetailToPay.name}</p>
+                  <span className="text-sm font-black text-blue-600 whitespace-nowrap">Rp {activeDetailToPay.amount.toLocaleString()}</span>
                 </div>
               </div>
 
-              <form onSubmit={handlePelunasan} className="space-y-4">
+              <form onSubmit={handlePelunasan} className="space-y-3.5">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Metode Pembayaran</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Tunai', 'Transfer', 'Tabungan'].map((method) => (
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Pilih Metode</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    {['Tunai', 'Transfer', 'Tabungan', 'Campuran'].map((method) => (
                       <button
                         key={method}
                         type="button"
                         onClick={() => {
                           setPaymentMethod(method as any);
-                          if (method !== 'Transfer') setPaymentProof('');
+                          if (method !== 'Transfer' && method !== 'Campuran') setPaymentProof('');
+                          if (method === 'Campuran') {
+                            setMixedSavingsAmount((activeStudentForPayment?.savings || 0).toString());
+                            const remaining = Math.max(0, activeDetailToPay.amount - (activeStudentForPayment?.savings || 0));
+                            setMixedCashAmount(remaining.toString());
+                          }
                         }}
-                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all border ${
+                        className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black transition-all border ${
                           paymentMethod === method 
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100' 
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                             : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'
                         }`}
                       >
@@ -5411,26 +5486,71 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                {paymentMethod === 'Transfer' && (
+                {paymentMethod === 'Campuran' && (
+                  <div className="space-y-2 p-2.5 bg-blue-50/30 rounded-xl border border-blue-100/30 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[8px] font-black text-blue-800/50 uppercase tracking-widest mb-1 ml-1">Tabungan</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-300">Rp</span>
+                          <input 
+                            type="number" 
+                            value={mixedSavingsAmount}
+                            onChange={(e) => {
+                              setMixedSavingsAmount(e.target.value);
+                              const total = activeDetailToPay.amount;
+                              const currentTab = Number(e.target.value) || 0;
+                              setMixedCashAmount(Math.max(0, total - currentTab).toString());
+                            }}
+                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-blue-50 rounded-lg outline-none focus:ring-1 focus:ring-blue-100 text-[10px] font-bold text-blue-900"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[8px] font-black text-blue-800/50 uppercase tracking-widest mb-1 ml-1">Cash/Transfer</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-blue-300">Rp</span>
+                          <input 
+                            type="number" 
+                            value={mixedCashAmount}
+                            onChange={(e) => {
+                              setMixedCashAmount(e.target.value);
+                              const total = activeDetailToPay.amount;
+                              const currentCash = Number(e.target.value) || 0;
+                              setMixedSavingsAmount(Math.max(0, total - currentCash).toString());
+                            }}
+                            className="w-full pl-6 pr-2 py-1.5 bg-white border border-blue-50 rounded-lg outline-none focus:ring-1 focus:ring-blue-100 text-[10px] font-bold text-blue-900"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center px-1 font-black text-[9px]">
+                      <span className="text-blue-400 uppercase tracking-tighter">Total Periksa</span>
+                      <span className="text-blue-600">Rp {(Number(mixedSavingsAmount) + Number(mixedCashAmount)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+
+                {(paymentMethod === 'Transfer' || paymentMethod === 'Campuran') && (
                   <div className="animate-in fade-in slide-in-from-top-1 duration-300">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Bukti Transfer</label>
+                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Bukti Bayar</label>
                     <div 
                       onClick={() => paymentProofRef.current?.click()}
-                      className="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
+                      className="w-full h-24 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
                     >
                       {paymentProof ? (
                         <>
-                          <img src={paymentProof} alt="Bukti Transfer" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="text-white" size={24} />
+                          <img src={paymentProof} alt="Bukti Transfer" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white" size={18} />
                           </div>
                         </>
                       ) : (
-                        <div className="text-center p-4">
-                          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 mx-auto mb-2">
-                            <Upload size={20} />
-                          </div>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-tight">Ketuk untuk unggah bukti transfer</span>
+                        <div className="text-center p-2">
+                          <Upload size={16} className="text-gray-300 mx-auto mb-1" />
+                          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-tight block">Upload Bukti</span>
                         </div>
                       )}
                     </div>
@@ -5439,41 +5559,34 @@ export default function DashboardAdmin() {
                 )}
 
                 {paymentMethod === 'Tabungan' && (
-                  <div className="p-3 bg-orange-50 border border-orange-100/50 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shrink-0">
-                        <CreditCard size={18} />
+                  <div className="p-2.5 bg-orange-50/50 border border-orange-100/50 rounded-xl animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={14} className="text-orange-500" />
+                        <span className="text-[9px] font-black text-orange-800 uppercase tracking-wide">Saldo Tabungan</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-black text-orange-800/60 uppercase tracking-widest leading-none mb-1">Saldo Saat Ini</p>
-                        <div className="flex justify-between items-baseline">
-                          <p className="text-base font-black text-orange-600">Rp {(activeStudentForPayment?.savings || 0).toLocaleString()}</p>
-                          {(activeStudentForPayment?.savings || 0) < activeDetailToPay.amount && (
-                            <p className="text-[10px] text-red-500 font-bold">Saldo kurang!</p>
-                          )}
-                        </div>
-                      </div>
+                      <span className="text-[11px] font-black text-orange-600">Rp {(activeStudentForPayment?.savings || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Keterangan (Opsional)</label>
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Keterangan</label>
                   <input 
                     type="text" 
                     value={paymentNote} 
                     onChange={(e) => setPaymentNote(e.target.value)} 
-                    className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-xs font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium" 
-                    placeholder="Contoh: Titipan orang tua"
+                    className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-lg outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-500 transition-all text-[10px] font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium" 
+                    placeholder="Catatan tambahan..."
                   />
                 </div>
 
                 <button 
                   type="submit" 
                   disabled={paymentMethod === 'Tabungan' && (activeStudentForPayment?.savings || 0) < activeDetailToPay.amount}
-                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-base hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all mt-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <CheckCircle size={20} /> Konfirmasi Lunas
+                  <CheckCircle size={16} /> Konfirmasi Lunas
                 </button>
               </form>
             </div>
