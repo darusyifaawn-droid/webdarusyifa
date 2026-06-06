@@ -5361,37 +5361,48 @@ export default function DashboardAdmin() {
 
         {showPayConfirmModal && activeDetailToPay && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-              <button onClick={() => setShowPayConfirmModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 z-10"><X /></button>
+            <div className="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-500 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+              <button 
+                onClick={() => {
+                  setShowPayConfirmModal(false);
+                  setPaymentProof('');
+                  setPaymentNote('');
+                }} 
+                className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <X size={20} />
+              </button>
               
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-800">Konfirmasi Pembayaran</h3>
-                <p className="text-sm text-gray-500 mt-1">Selesaikan pelunasan untuk tagihan berikut</p>
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Konfirmasi Pembayaran</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Selesaikan pelunasan untuk tagihan berikut</p>
               </div>
 
-              <div className="bg-blue-50 p-6 rounded-3xl mb-6 border border-blue-100">
-                <p className="text-blue-800 text-xs font-bold uppercase tracking-wider mb-2">Rincian Tagihan</p>
-                <p className="text-xl font-bold text-blue-900">{activeDetailToPay.name}</p>
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-blue-200/50">
-                  <span className="text-sm font-medium text-blue-700">Total Bayar</span>
-                  <span className="text-2xl font-black text-blue-600">Rp {activeDetailToPay.amount.toLocaleString()}</span>
+              <div className="bg-blue-50 p-4 rounded-2xl mb-4 border border-blue-100/50">
+                <p className="text-blue-800 text-[10px] font-black uppercase tracking-widest mb-1 opacity-70">Rincian Tagihan</p>
+                <div className="flex justify-between items-baseline">
+                  <p className="text-lg font-bold text-blue-900 truncate mr-2">{activeDetailToPay.name}</p>
+                  <span className="text-xl font-black text-blue-600 whitespace-nowrap">Rp {activeDetailToPay.amount.toLocaleString()}</span>
                 </div>
               </div>
 
-              <form onSubmit={handlePelunasan} className="space-y-5">
+              <form onSubmit={handlePelunasan} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Metode Pembayaran</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Metode Pembayaran</label>
                   <div className="grid grid-cols-3 gap-2">
                     {['Tunai', 'Transfer', 'Tabungan'].map((method) => (
                       <button
                         key={method}
                         type="button"
-                        onClick={() => setPaymentMethod(method as any)}
-                        className={`py-3 px-2 rounded-2xl text-xs font-bold transition-all border ${
+                        onClick={() => {
+                          setPaymentMethod(method as any);
+                          if (method !== 'Transfer') setPaymentProof('');
+                        }}
+                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all border ${
                           paymentMethod === method 
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100' 
-                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100' 
+                            : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'
                         }`}
                       >
                         {method}
@@ -5401,26 +5412,26 @@ export default function DashboardAdmin() {
                 </div>
 
                 {paymentMethod === 'Transfer' && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Bukti Transfer</label>
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Bukti Transfer</label>
                     <div 
                       onClick={() => paymentProofRef.current?.click()}
-                      className="w-full aspect-video bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
+                      className="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-all overflow-hidden relative group"
                     >
                       {paymentProof ? (
                         <>
                           <img src={paymentProof} alt="Bukti Transfer" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="text-white" size={32} />
+                            <Camera className="text-white" size={24} />
                           </div>
                         </>
                       ) : (
-                        <>
-                          <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-gray-400 mb-2">
-                            <Upload size={24} />
+                        <div className="text-center p-4">
+                          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 mx-auto mb-2">
+                            <Upload size={20} />
                           </div>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center px-4">Ketuk untuk unggah bukti transfer</span>
-                        </>
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-tight">Ketuk untuk unggah bukti transfer</span>
+                        </div>
                       )}
                     </div>
                     <input type="file" ref={paymentProofRef} onChange={handlePaymentProofChange} accept="image/*" className="hidden" />
@@ -5428,29 +5439,31 @@ export default function DashboardAdmin() {
                 )}
 
                 {paymentMethod === 'Tabungan' && (
-                  <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex gap-3">
+                  <div className="p-3 bg-orange-50 border border-orange-100/50 rounded-2xl animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex gap-3 items-center">
                       <div className="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shrink-0">
                         <CreditCard size={18} />
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black text-orange-800 uppercase tracking-widest">Saldo Tabungan Saat Ini</p>
-                        <p className="text-lg font-black text-orange-600">Rp {(activeStudentForPayment?.savings || 0).toLocaleString()}</p>
-                        { (activeStudentForPayment?.savings || 0) < activeDetailToPay.amount && (
-                          <p className="text-[10px] text-red-500 font-bold mt-1">Saldo tidak cukup!</p>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-black text-orange-800/60 uppercase tracking-widest leading-none mb-1">Saldo Saat Ini</p>
+                        <div className="flex justify-between items-baseline">
+                          <p className="text-base font-black text-orange-600">Rp {(activeStudentForPayment?.savings || 0).toLocaleString()}</p>
+                          {(activeStudentForPayment?.savings || 0) < activeDetailToPay.amount && (
+                            <p className="text-[10px] text-red-500 font-bold">Saldo kurang!</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2 ml-1">Keterangan (Opsional)</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Keterangan (Opsional)</label>
                   <input 
                     type="text" 
                     value={paymentNote} 
                     onChange={(e) => setPaymentNote(e.target.value)} 
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium placeholder:text-gray-300" 
+                    className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-xs font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium" 
                     placeholder="Contoh: Titipan orang tua"
                   />
                 </div>
@@ -5458,9 +5471,9 @@ export default function DashboardAdmin() {
                 <button 
                   type="submit" 
                   disabled={paymentMethod === 'Tabungan' && (activeStudentForPayment?.savings || 0) < activeDetailToPay.amount}
-                  className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-bold text-lg hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-base hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <CheckCircle size={22} /> Konfirmasi Lunas
+                  <CheckCircle size={20} /> Konfirmasi Lunas
                 </button>
               </form>
             </div>
