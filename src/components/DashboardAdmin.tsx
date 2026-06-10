@@ -48,6 +48,11 @@ export default function DashboardAdmin() {
   const paymentProofRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [iuranCategories, setIuranCategories] = useState<any[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
   const importTabunganInputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +102,7 @@ export default function DashboardAdmin() {
   
   // Manage Finance Modal States
   const [filterFinanceIuranName, setFilterFinanceIuranName] = useState('');
+  const [filterFinanceCategory, setFilterFinanceCategory] = useState('');
   const [filterFinanceStartDate, setFilterFinanceStartDate] = useState('');
   const [filterFinanceEndDate, setFilterFinanceEndDate] = useState('');
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
@@ -165,7 +171,18 @@ export default function DashboardAdmin() {
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
 
-  const isFinanceFiltered = filterFinanceIuranName || filterFinanceStartDate || filterFinanceEndDate;
+  const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate;
+  
+  // Available Iurans for filtering (categorized)
+  const availableIuranDetails = Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => JSON.stringify({ name: d.name, category: d.category || 'Umum' })))))
+    .map(s => JSON.parse(s));
+
+  const filteredAvailableIuranNames = Array.from(new Set(
+    availableIuranDetails
+      .filter(d => !filterFinanceCategory || d.category === filterFinanceCategory)
+      .map(d => d.name)
+  )).sort();
+
   const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
     if (u.role !== 'siswa') return u;
 
@@ -174,6 +191,10 @@ export default function DashboardAdmin() {
     details.forEach((d: any) => {
       let match = true;
       if (filterFinanceIuranName && !d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+      if (filterFinanceCategory) {
+        const catName = d.category || 'Umum';
+        if (catName !== filterFinanceCategory) match = false;
+      }
       if (filterFinanceStartDate && d.date < filterFinanceStartDate) match = false;
       if (filterFinanceEndDate && d.date > filterFinanceEndDate) match = false;
       if (match) filteredArrears += d.amount;
@@ -183,6 +204,14 @@ export default function DashboardAdmin() {
     payments.forEach(p => {
       if (p.studentId !== u.id) return;
       let match = true;
+      if (filterFinanceCategory) {
+        const pCat = p.iuranCategory || 'Umum';
+        if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
+        // Tabungan typically doesn't have a category in the same sense, 
+        // but if we are filtering by category, we might want to hide savings 
+        // unless specified. For now, let's keep savings accurate to the user's total 
+        // unless it's a specific payment record filter.
+      }
       if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
       if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
       if (!match) return;
@@ -190,7 +219,7 @@ export default function DashboardAdmin() {
       else if (p.method === 'Tabungan') filteredSavings -= Number(p.amount || 0);
     });
 
-    if (filterFinanceIuranName && !filterFinanceStartDate && !filterFinanceEndDate) {
+    if ((filterFinanceIuranName || filterFinanceCategory) && !filterFinanceStartDate && !filterFinanceEndDate) {
       filteredSavings = u.savings || 0;
     }
 
@@ -222,6 +251,15 @@ export default function DashboardAdmin() {
       return () => unsub();
     }
   }, [showManageFinanceModal, selectedStudentForFinance]);
+
+  useEffect(() => {
+    if (filterFinanceCategory && filterFinanceIuranName) {
+      const isValidForCategory = availableIuranDetails.some(d => d.name === filterFinanceIuranName && d.category === filterFinanceCategory);
+      if (!isValidForCategory) {
+        setFilterFinanceIuranName('');
+      }
+    }
+  }, [filterFinanceCategory, availableIuranDetails, filterFinanceIuranName]);
 
   const handlePrintReceipt = (pay: any) => {
     const student = allUsers.find(u => u.id === pay.studentId);
@@ -378,6 +416,10 @@ export default function DashboardAdmin() {
       setHafalanData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
+    const unsubCategories = onSnapshot(query(collection(db, 'iuran_categories'), orderBy('name', 'asc')), (snapshot) => {
+      setIuranCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {});
+
     return () => {
       unsubUsers();
       unsubAttendance();
@@ -390,6 +432,7 @@ export default function DashboardAdmin() {
       unsubKaldik();
       unsubMaterials();
       unsubHafalan();
+      unsubCategories();
     };
   }, [user]);
 
@@ -512,6 +555,33 @@ export default function DashboardAdmin() {
       alert('User berhasil dihapus!');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${userToDelete.id}`);
+    }
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName) return;
+    try {
+      await addDoc(collection(db, 'iuran_categories'), {
+        name: newCategoryName,
+        description: newCategoryDescription,
+        createdAt: serverTimestamp()
+      });
+      setNewCategoryName('');
+      setNewCategoryDescription('');
+      alert('Kategori iuran berhasil ditambahkan!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'iuran_categories');
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm('Hapus kategori iuran ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'iuran_categories', id));
+      alert('Kategori iuran berhasil dihapus!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `iuran_categories/${id}`);
     }
   };
 
@@ -1101,6 +1171,7 @@ export default function DashboardAdmin() {
     try {
       const amount = Number(financeAmount);
       let targetStudents = [];
+      const selectedCategory = iuranCategories.find(c => c.id === selectedCategoryId);
       
       if (financeIuranTarget === 'all') {
         targetStudents = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
@@ -1117,17 +1188,27 @@ export default function DashboardAdmin() {
         if (student) targetStudents.push(student);
       }
 
+      if (targetStudents.length === 0) {
+        alert('Tidak ada siswa yang terpilih sebagai target tagihan.');
+        return;
+      }
+
+      const categoryName = selectedCategory?.name || 'Umum';
+
       const newArrearDetail = {
         id: Date.now().toString() + Math.random().toString(36).substring(7),
         name: financeIuranName,
+        category: categoryName,
+        categoryId: selectedCategoryId || null,
         amount: amount,
         date: new Date().toISOString().split('T')[0],
         dueDate: financeDueDate || null
       };
 
       for (const student of targetStudents) {
-        const newArrears = (student.arrears || 0) + amount;
         const currentDetails = student.arrears_details || [];
+        const newArrears = (student.arrears || 0) + amount;
+        
         await updateDoc(doc(db, 'users', student.id), { 
           arrears: newArrears,
           arrears_details: [...currentDetails, newArrearDetail]
@@ -1137,8 +1218,9 @@ export default function DashboardAdmin() {
         await addDoc(collection(db, 'payments'), {
           studentId: student.id,
           amount: amount,
-          description: `Tagihan Baru: ${financeIuranName}`,
+          description: `Tagihan Baru [${categoryName}]: ${financeIuranName}`,
           type: 'tagihan',
+          iuranCategory: categoryName,
           date: new Date().toISOString().split('T')[0],
           createdAt: serverTimestamp()
         });
@@ -1149,7 +1231,8 @@ export default function DashboardAdmin() {
       setFinanceAmount('');
       setFinanceIuranTarget('all');
       setFinanceDueDate('');
-      alert('Iuran berhasil ditetapkan!');
+      setSelectedCategoryId('');
+      alert(`Iuran ${categoryName} berhasil ditetapkan untuk ${targetStudents.length} siswa!`);
     } catch (error) {
       alert('Gagal menetapkan iuran.');
       console.error(error);
@@ -1599,9 +1682,21 @@ export default function DashboardAdmin() {
       "Total Tunggakan (Rp)": isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0)
     }));
 
-    // 2. Riwayat Pembayaran & Transaksi
-    const transactionsData = payments.map((pay: any) => {
-      const student = allUsers.find(u => u.id === pay.studentId);
+    // 2. Riwayat Pembayaran & Transaksi (Filtered to match view)
+    const transactionsData = payments
+      .filter(p => {
+        if (!isFinanceFiltered) return true;
+        let match = true;
+        if (filterFinanceCategory) {
+          const pCat = p.iuranCategory || 'Umum';
+          if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
+        }
+        if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+        if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+        return match;
+      })
+      .map((pay: any) => {
+        const student = allUsers.find(u => u.id === pay.studentId);
       let dateText = '-';
       if (pay.createdAt) {
         try {
@@ -1615,6 +1710,7 @@ export default function DashboardAdmin() {
         "Waktu Transaksi": dateText,
         "Nama Siswa": student?.name || 'Siswa tidak ditemukan',
         "Kelas": student?.kelas || '-',
+        "Kategori": pay.iuranCategory || 'Umum',
         "Keterangan / Item": pay.description || (pay.type === 'tabungan' ? 'Setor Tabungan' : pay.type === 'tabungan_keluar' ? 'Tarik Tabungan' : 'Pembayaran'),
         "Nominal (Rp)": pay.amount || 0,
         "Metode Pembayaran": pay.method || (pay.type === 'tabungan' || pay.type === 'tabungan_keluar' ? 'Tabungan (Tunai)' : '-'),
@@ -1631,6 +1727,10 @@ export default function DashboardAdmin() {
           let match = true;
           if (isFinanceFiltered) {
             if (filterFinanceIuranName && !detail.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+            if (filterFinanceCategory) {
+              const catName = detail.category || 'Umum';
+              if (catName !== filterFinanceCategory) match = false;
+            }
             if (filterFinanceStartDate && detail.date < filterFinanceStartDate) match = false;
             if (filterFinanceEndDate && detail.date > filterFinanceEndDate) match = false;
           }
@@ -1638,6 +1738,7 @@ export default function DashboardAdmin() {
             arrearsListData.push({
               "Nama Siswa": s.name,
               "Kelas": s.kelas || '',
+              "Kategori": detail.category || 'Umum',
               "Tanggal Tagihan": detail.date || '',
               "Nama Tagihan / Iuran": detail.name || '',
               "Nominal Tagihan (Rp)": detail.amount || 0
@@ -3866,27 +3967,51 @@ export default function DashboardAdmin() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-indigo-100/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-indigo-100/40">
                     <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Nama Tagihan Spesifik</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[9px] font-bold text-indigo-500 uppercase">Kategori Tagihan</label>
+                        {filterFinanceCategory && (
+                          <button onClick={() => setFilterFinanceCategory('')} className="text-[8px] font-bold text-indigo-400 hover:text-red-500 transition-colors uppercase">Reset</button>
+                        )}
+                      </div>
+                      <select 
+                        value={filterFinanceCategory} 
+                        onChange={(e) => setFilterFinanceCategory(e.target.value)} 
+                        className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-bold ${filterFinanceCategory ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`}
+                      >
+                        <option value="">Semua Kategori</option>
+                        {iuranCategories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                        <option value="Umum">Umum (Tidak terdata)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[9px] font-bold text-indigo-500 uppercase">Item Spesifik</label>
+                        {filterFinanceIuranName && (
+                          <button onClick={() => setFilterFinanceIuranName('')} className="text-[8px] font-bold text-indigo-400 hover:text-red-500 transition-colors uppercase">Reset</button>
+                        )}
+                      </div>
                       <select 
                         value={filterFinanceIuranName} 
                         onChange={(e) => setFilterFinanceIuranName(e.target.value)} 
-                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                        className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-bold ${filterFinanceIuranName ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`}
                       >
-                        <option value="">Semua Tagihan</option>
-                        {Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => d.name)))).sort().map((name: any) => (
+                        <option value="">{filterFinanceCategory ? `Semua Tagihan ${filterFinanceCategory}` : 'Semua Tagihan'}</option>
+                        {filteredAvailableIuranNames.map((name: any) => (
                           <option key={name} value={name}>{name}</option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Mulai Tanggal</label>
-                      <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+                      <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-medium ${filterFinanceStartDate ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`} />
                     </div>
                     <div>
                       <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Sampai Tanggal</label>
-                      <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" />
+                      <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-medium ${filterFinanceEndDate ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`} />
                     </div>
                   </div>
                 </div>
@@ -4989,14 +5114,41 @@ export default function DashboardAdmin() {
               <h3 className="text-2xl font-bold text-gray-800 mb-6">Penetapan Iuran</h3>
               <form onSubmit={handleAddIuran} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Iuran (Group)</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase">Kategori Iuran</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowCategoryModal(true)}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Manajemen Kategori
+                    </button>
+                  </div>
+                  <select 
+                    value={selectedCategoryId} 
+                    onChange={(e) => {
+                      setSelectedCategoryId(e.target.value);
+                      const cat = iuranCategories.find(c => c.id === e.target.value);
+                      if (cat) setFinanceIuranName(cat.name);
+                    }} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                    required
+                  >
+                    <option value="">-- Pilih Kategori --</option>
+                    {iuranCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Deskripsi Iuran</label>
                   <input 
                     type="text" 
                     list="existing-iurans"
                     value={financeIuranName} 
                     onChange={(e) => setFinanceIuranName(e.target.value)} 
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
-                    placeholder="Contoh: SPP Bulan Juli" 
+                    placeholder="Contoh: SPP Bulan Juli 2024" 
                     required 
                   />
                   <datalist id="existing-iurans">
@@ -5589,6 +5741,86 @@ export default function DashboardAdmin() {
                   <CheckCircle size={16} /> Konfirmasi Lunas
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Category Management Modal */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto translate-z-0">
+              <button onClick={() => setShowCategoryModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 bg-gray-50 rounded-full transition-colors"><X size={20} /></button>
+              
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shadow-sm">
+                    <BookOpen size={20} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kategori Iuran</h3>
+                </div>
+                <p className="text-sm text-gray-500 font-medium">Kelola kategori untuk mengorganisir tagihan siswa secara rapih.</p>
+              </div>
+
+              <form onSubmit={handleSaveCategory} className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 shadow-inner">
+                <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Plus size={12} strokeWidth={4} /> Tambah Kategori Baru
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[9px] font-black text-blue-800/60 uppercase tracking-widest mb-1.5 ml-1">Nama Kategori</label>
+                    <input 
+                      type="text" 
+                      value={newCategoryName} 
+                      onChange={(e) => setNewCategoryName(e.target.value)} 
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-sm font-bold transition-all placeholder:text-blue-200" 
+                      placeholder="Contoh: SPP Bulanan" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black text-blue-800/60 uppercase tracking-widest mb-1.5 ml-1">Keterangan (Opsional)</label>
+                    <input 
+                      type="text" 
+                      value={newCategoryDescription} 
+                      onChange={(e) => setNewCategoryDescription(e.target.value)} 
+                      className="w-full p-3 bg-white border border-blue-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-sm font-bold transition-all placeholder:text-blue-200" 
+                      placeholder="Misal: Tagihan rutin setiap bulan..." 
+                    />
+                  </div>
+                  <button type="submit" className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <Save size={16} /> Simpan Kategori
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1 mb-2">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Daftar Kategori ({iuranCategories.length})</h4>
+                </div>
+                {iuranCategories.length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-100">
+                    <img src="https://illustrations.popsy.co/gray/folder-is-empty.svg" alt="Empty" className="w-32 h-32 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs font-black text-gray-300 uppercase tracking-widest">Belum ada kategori iuran</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {iuranCategories.map((cat) => (
+                      <div key={cat.id} className="p-4 bg-white border border-gray-100 rounded-2xl flex justify-between items-center group hover:border-blue-200 hover:shadow-lg hover:shadow-blue-50 transition-all duration-300">
+                        <div className="min-w-0 pr-4">
+                          <p className="font-black text-gray-800 text-sm uppercase tracking-tight group-hover:text-blue-700 transition-colors">{cat.name}</p>
+                          {cat.description && <p className="text-[10px] text-gray-400 font-bold truncate leading-none mt-1">{cat.description}</p>}
+                        </div>
+                        <button 
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100 shadow-sm"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
