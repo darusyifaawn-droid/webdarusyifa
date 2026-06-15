@@ -101,6 +101,9 @@ export default function DashboardAdmin() {
   const [scheduleClass, setScheduleClass] = useState('Semua Kelas');
   
   // Manage Finance Modal States
+  const [filterFinanceStudentName, setFilterFinanceStudentName] = useState('');
+  const [filterFinanceClass, setFilterFinanceClass] = useState('');
+  const [filterFinanceMethod, setFilterFinanceMethod] = useState('');
   const [filterFinanceIuranName, setFilterFinanceIuranName] = useState('');
   const [filterFinanceCategory, setFilterFinanceCategory] = useState('');
   const [filterFinanceStartDate, setFilterFinanceStartDate] = useState('');
@@ -134,7 +137,8 @@ export default function DashboardAdmin() {
   const [studentPaymentHistory, setStudentPaymentHistory] = useState<any[]>([]);
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
   const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
-  const [financeSubTab, setFinanceSubTab] = useState<'siswa' | 'validasi' | 'riwayat'>('siswa');
+  const [financeSubTab, setFinanceSubTab] = useState<'siswa' | 'validasi' | 'riwayat' | 'setelan'>('siswa');
+  const [financeIuranStudentIds, setFinanceIuranStudentIds] = useState<string[]>([]);
   const [filterFinanceKelas, setFilterFinanceKelas] = useState('');
   const [filterLogStatus, setFilterLogStatus] = useState<'semua' | 'pending' | 'lunas' | 'ditolak'>('semua');
   const [filterLogStartDate, setFilterLogStartDate] = useState('');
@@ -171,7 +175,7 @@ export default function DashboardAdmin() {
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
 
-  const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate;
+  const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate || filterFinanceStudentName || filterFinanceClass;
   
   // Available Iurans for filtering (categorized)
   const availableIuranDetails = Array.from(new Set(allUsers.filter(u => u.role === 'siswa').flatMap(u => (u.arrears_details || []).map((d: any) => JSON.stringify({ name: d.name, category: d.category || 'Umum' })))))
@@ -185,6 +189,14 @@ export default function DashboardAdmin() {
 
   const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
     if (u.role !== 'siswa') return u;
+
+    // Apply basic user filters first
+    if (filterFinanceStudentName && !u.name.toLowerCase().includes(filterFinanceStudentName.toLowerCase())) {
+        return { ...u, viewArrears: 0, viewSavings: 0, hideByFilter: true };
+    }
+    if (filterFinanceClass && u.kelas !== filterFinanceClass) {
+        return { ...u, viewArrears: 0, viewSavings: 0, hideByFilter: true };
+    }
 
     let filteredArrears = 0;
     const details = u.arrears_details || [];
@@ -207,11 +219,8 @@ export default function DashboardAdmin() {
       if (filterFinanceCategory) {
         const pCat = p.iuranCategory || 'Umum';
         if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
-        // Tabungan typically doesn't have a category in the same sense, 
-        // but if we are filtering by category, we might want to hide savings 
-        // unless specified. For now, let's keep savings accurate to the user's total 
-        // unless it's a specific payment record filter.
       }
+      if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
       if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
       if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
       if (!match) return;
@@ -226,9 +235,10 @@ export default function DashboardAdmin() {
     return {
       ...u,
       viewArrears: filteredArrears,
-      viewSavings: filteredSavings
+      viewSavings: filteredSavings,
+      hideByFilter: false
     };
-  }) : allUsers;
+  }).filter(u => u.role === 'siswa' && !u.hideByFilter) : allUsers.filter(u => u.role === 'siswa');
 
   const displayTotalTunggakan = isFinanceFiltered 
     ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
@@ -463,6 +473,59 @@ export default function DashboardAdmin() {
       } catch (error) {
         handleFirestoreError(error, OperationType.DELETE, `kaldik/${id}`);
       }
+    }
+  };
+
+  const handleResetAllFinance = async () => {
+    if (!window.confirm('⚠️ PERINGATAN KRITIS: Tindakan ini akan MENGHAPUS PERMANEN seluruh Saldo Tabungan, Daftar Tunggakan, dan Riwayat Pembayaran SEMUA siswa. Pastikan Anda sudah mengekspor data penting ke Excel. Lanjutkan?')) return;
+    if (!window.confirm('KONFIRMASI TERAKHIR: Anda yakin ingin mengosongkan seluruh buku keuangan sekolah dan memulai dari awal?')) return;
+    
+    setLoading(true);
+    try {
+      const { writeBatch } = await import('firebase/firestore');
+      let batch = writeBatch(db);
+      let count = 0;
+
+      // 1. Reset Students Data
+      const siswaUsers = allUsers.filter(u => u.role === 'siswa');
+      for (const s of siswaUsers) {
+        batch.update(doc(db, 'users', s.id), {
+          arrears: 0,
+          arrears_details: [],
+          savings: 0
+        });
+        count++;
+        if (count >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+        count = 0;
+      }
+
+      // 2. Clear Payments Collection
+      const paymentsSnap = await getDocs(collection(db, 'payments'));
+      for (const p of paymentsSnap.docs) {
+        batch.delete(doc(db, 'payments', p.id));
+        count++;
+        if (count >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) await batch.commit();
+
+      alert('Seluruh data keuangan siswa berhasil di-reset ke nol!');
+    } catch (error) {
+      console.error('Reset error:', error);
+      alert('Gagal melakukan reset data keuangan. Periksa koneksi atau izin anda.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1167,7 +1230,16 @@ export default function DashboardAdmin() {
 
   const handleAddIuran = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!financeIuranName || !financeAmount) return;
+    if (!financeIuranName || !financeAmount) {
+      alert('Mohon isi nama iuran dan nominal.');
+      return;
+    }
+    
+    if (financeIuranStudentIds.length === 0 && financeIuranTarget === 'specific') {
+      alert('Mohon pilih minimal satu siswa.');
+      return;
+    }
+
     try {
       const amount = Number(financeAmount);
       let targetStudents = [];
@@ -1175,6 +1247,8 @@ export default function DashboardAdmin() {
       
       if (financeIuranTarget === 'all') {
         targetStudents = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
+      } else if (financeIuranTarget === 'specific') {
+        targetStudents = allUsers.filter(u => financeIuranStudentIds.includes(u.id));
       } else if (financeIuranTarget.startsWith('kelas_')) {
         const targetKelas = financeIuranTarget.replace('kelas_', '').toLowerCase();
         targetStudents = allUsers.filter(u => {
@@ -1183,9 +1257,6 @@ export default function DashboardAdmin() {
           const k = (u.kelas || '').toLowerCase();
           return k === targetKelas || k === `kelas ${targetKelas}` || k.includes(targetKelas);
         });
-      } else {
-        const student = allUsers.find(u => u.id === financeIuranTarget);
-        if (student) targetStudents.push(student);
       }
 
       if (targetStudents.length === 0) {
@@ -1194,27 +1265,32 @@ export default function DashboardAdmin() {
       }
 
       const categoryName = selectedCategory?.name || 'Umum';
+      const batchId = Date.now().toString();
 
-      const newArrearDetail = {
-        id: Date.now().toString() + Math.random().toString(36).substring(7),
+      const newArrearDetailBase = {
         name: financeIuranName,
         category: categoryName,
         categoryId: selectedCategoryId || null,
         amount: amount,
         date: new Date().toISOString().split('T')[0],
-        dueDate: financeDueDate || null
+        dueDate: financeDueDate || null,
+        batchId: batchId
       };
 
       for (const student of targetStudents) {
         const currentDetails = student.arrears_details || [];
         const newArrears = (student.arrears || 0) + amount;
         
+        const specificDetail = {
+          ...newArrearDetailBase,
+          id: Date.now().toString() + Math.random().toString(36).substring(7)
+        };
+
         await updateDoc(doc(db, 'users', student.id), { 
           arrears: newArrears,
-          arrears_details: [...currentDetails, newArrearDetail]
+          arrears_details: [...currentDetails, specificDetail]
         });
 
-        // Log to payments history (Notification of new charge)
         await addDoc(collection(db, 'payments'), {
           studentId: student.id,
           amount: amount,
@@ -1230,6 +1306,7 @@ export default function DashboardAdmin() {
       setFinanceIuranName('');
       setFinanceAmount('');
       setFinanceIuranTarget('all');
+      setFinanceIuranStudentIds([]);
       setFinanceDueDate('');
       setSelectedCategoryId('');
       alert(`Iuran ${categoryName} berhasil ditetapkan untuk ${targetStudents.length} siswa!`);
@@ -1664,22 +1741,15 @@ export default function DashboardAdmin() {
   };
 
   const exportFinanceToExcel = () => {
-    // 1. Ringkasan & Tabungan
-    const students = filteredUsersForFinance.filter((u: any) => {
-      const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
-      const matchKelas = !filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase();
-      const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
-      return matchBase && matchKelas && matchName && matchStatus;
-    });
+    // 1. Ringkasan & Tabungan (Filtered students already computed in filteredUsersForFinance)
+    const students = filteredUsersForFinance;
 
     const summaryData = students.map((s: any) => ({
       "Nama Siswa": s.name,
       "Kelas": s.kelas || '',
       "Status": s.status || 'Aktif',
-      "Total Tabungan (Rp)": isFinanceFiltered ? (s.viewSavings || 0) : (s.savings || 0),
-      "Total Tunggakan (Rp)": isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0)
+      "Total Tabungan (Rp)": (s.viewSavings || 0),
+      "Total Tunggakan (Rp)": (s.viewArrears || 0)
     }));
 
     // 2. Riwayat Pembayaran & Transaksi (Filtered to match view)
@@ -1691,8 +1761,14 @@ export default function DashboardAdmin() {
           const pCat = p.iuranCategory || 'Umum';
           if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
         }
+        if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
         if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
         if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+        
+        const student = allUsers.find(u => u.id === p.studentId);
+        if (filterFinanceStudentName && student && !student.name.toLowerCase().includes(filterFinanceStudentName.toLowerCase())) match = false;
+        if (filterFinanceClass && student && student.kelas !== filterFinanceClass) match = false;
+        
         return match;
       })
       .map((pay: any) => {
@@ -2171,6 +2247,12 @@ export default function DashboardAdmin() {
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
         <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-500'} /> Profil Admin
+      </button>
+      <button 
+        onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'settings' ? 'bg-slate-600 text-white shadow-lg shadow-slate-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <Settings size={20} className={activeTab === 'settings' ? 'text-white' : 'text-gray-500'} /> Pengaturan
       </button>
     </nav>
   );
@@ -3761,166 +3843,103 @@ export default function DashboardAdmin() {
 
         {activeTab === 'finance' && (
           <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl md:text-2xl font-black text-gray-800 tracking-tight">Administrasi & Keuangan</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Laporan Real-time, Validasi Pembayaran, & Log Transaksi</p>
+                <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                  <CreditCard className="text-indigo-600" size={28} />
+                  Daftar Transaksi Iuran Siswa
+                </h3>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1 opacity-70">Monitor arus kas, tabungan, & penagihan iuran secara real-time</p>
               </div>
 
-              {/* Terapkan Tab Navigation */}
-              <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 self-start md:self-center">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  type="button"
-                  onClick={() => setFinanceSubTab('siswa')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'siswa' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                  onClick={exportFinanceToExcel}
+                  className="bg-indigo-600 text-white px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-200 hover:bg-slate-900 flex items-center justify-center gap-2 active:scale-95"
                 >
-                  <Users size={14} /> Daftar Siswa
+                  <Download size={18} /> Download Export Rekap Keuangan Lengkap
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFinanceSubTab('validasi')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 relative ${financeSubTab === 'validasi' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  <Clock size={14} /> Validasi
-                  {payments.filter(p => p.status === 'pending').length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
-                      {payments.filter(p => p.status === 'pending').length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFinanceSubTab('riwayat')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'riwayat' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  <FileText size={14} /> Riwayat Log
-                </button>
-              </div>
-            </div>
-
-            {/* Consolidated & Ultra-Clean Actions Panel */}
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 rounded-[28px] border border-slate-800 shadow-xl relative overflow-hidden">
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/15 rounded-full blur-3xl"></div>
-              <div className="absolute left-1/3 -top-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
-              
-              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                  <h4 className="text-lg font-black tracking-tight flex items-center gap-2">
-                    <Shield size={20} className="text-indigo-400" /> Ekspor & Pengaturan Finansial
-                  </h4>
-                  <p className="text-xs text-indigo-200 mt-1 max-w-xl">Unduh satu dokumen excel lengkap berisi: data ringkasan tabungan, seluruh riwayat transaksi pembayaran digital/tunai, serta rincian tunggakan spesifik per siswa untuk laporan yang profesional.</p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-                  <button 
-                    onClick={exportFinanceToExcel}
-                    className="bg-indigo-500 text-white hover:bg-indigo-600 px-6 py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
+                
+                <div className="bg-slate-100 p-1 rounded-2xl flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFinanceSubTab('siswa')}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'siswa' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
                   >
-                    <Download size={18} /> Export Rekap Keuangan Lengkap
+                    <Users size={14} /> Status Siswa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFinanceSubTab('validasi')}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 relative ${financeSubTab === 'validasi' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    <Clock size={14} /> Validasi
+                    {payments.filter(p => p.status === 'pending').length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
+                        {payments.filter(p => p.status === 'pending').length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFinanceSubTab('riwayat')}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'riwayat' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    <FileText size={14} /> Riwayat Log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFinanceSubTab('setelan')}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${financeSubTab === 'setelan' ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    <Settings size={14} /> Setelan
                   </button>
                 </div>
               </div>
-
-              {/* Secondary Clean Actions Row */}
-              <div className="border-t border-slate-800/80 mt-6 pt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <button
-                  onClick={() => setShowIuranModal(true)}
-                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
-                >
-                  <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg"><Plus size={16} /></div>
-                  <div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Iuran Siswa</p>
-                    <p className="text-xs leading-none mt-0.5">Buat Tagihan</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setShowImportTabunganModal(true)}
-                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
-                >
-                  <div className="p-2 bg-purple-500/15 text-purple-400 rounded-lg"><Upload size={16} /></div>
-                  <div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tabungan</p>
-                    <p className="text-xs leading-none mt-0.5">Impor Massal</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                      const ws = XLSX.utils.json_to_sheet([{ Nama: "Contoh Siswa", "Nominal Tabungan": 150000 }]);
-                      const wb = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(wb, ws, "Format Tabungan");
-                      XLSX.writeFile(wb, "Format_Import_Tabungan.xlsx");
-                  }}
-                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left"
-                >
-                  <div className="p-2 bg-slate-500/15 text-slate-300 rounded-lg"><Download size={16} /></div>
-                  <div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Format Impor</p>
-                    <p className="text-xs leading-none mt-0.5">Unduh Template</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setShowDeleteIuranModal(true)}
-                  className="bg-slate-800/50 border border-slate-750 text-slate-200 hover:bg-slate-800 p-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition-all text-left hover:border-red-610 group hover:bg-red-500/10"
-                >
-                  <div className="p-2 bg-red-500/15 text-red-400 group-hover:bg-red-500/25 group-hover:text-red-300 rounded-lg"><Trash2 size={16} /></div>
-                  <div>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider group-hover:text-red-300">Penghapusan</p>
-                    <p className="text-xs leading-none mt-0.5 group-hover:text-white">Hapus Iuran Massal</p>
-                  </div>
-                </button>
-              </div>
             </div>
 
-            {/* Visual KPI Cards Grid */}
+            {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 w-16 h-16 bg-green-50 rounded-full blur-xl z-0"></div>
-                <div className="relative z-10 w-11 h-11 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shrink-0">
-                  <CreditCard size={20} />
+              <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-[2rem] flex items-center gap-4 group transition-all hover:bg-emerald-100/50">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                  <CreditCard size={24} />
                 </div>
-                <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Tabungan</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 w-16 h-16 bg-red-50 rounded-full blur-xl z-0"></div>
-                <div className="relative z-10 w-11 h-11 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
-                  <AlertCircle size={20} />
-                </div>
-                <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Tunggakan</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5 text-red-600">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                <div>
+                  <p className="text-[10px] font-black text-emerald-700/60 uppercase tracking-widest mb-0.5">Total Tabungan</p>
+                  <h4 className="text-xl font-black text-emerald-900 tracking-tight">Rp {displayTotalTabungan.toLocaleString('id-ID')}</h4>
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 w-16 h-16 bg-blue-50 rounded-full blur-xl z-0"></div>
-                <div className="relative z-10 w-11 h-11 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-                  <Shield size={20} />
+              <div className="bg-red-50 border border-red-100 p-5 rounded-[2rem] flex items-center gap-4 group transition-all hover:bg-red-100/50">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-red-600 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                  <AlertCircle size={24} />
                 </div>
-                <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Pendapatan Online</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">
+                <div>
+                  <p className="text-[10px] font-black text-red-700/60 uppercase tracking-widest mb-0.5">Total Tunggakan</p>
+                  <h4 className="text-xl font-black text-red-900 tracking-tight">Rp {displayTotalTunggakan.toLocaleString('id-ID')}</h4>
+                </div>
+              </div>
+
+              <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-[2rem] flex items-center gap-4 group transition-all hover:bg-indigo-100/50">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                  <TrendingUp size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black text-indigo-700/60 uppercase tracking-widest mb-0.5">Terbayar (Online)</p>
+                  <h4 className="text-xl font-black text-indigo-900 tracking-tight truncate">
                     Rp {payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0).toLocaleString('id-ID')}
                   </h4>
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 w-16 h-16 bg-orange-50 rounded-full blur-xl z-0"></div>
-                <div className="relative z-10 w-11 h-11 bg-orange-150 rounded-2xl flex items-center justify-center text-orange-600 shrink-0">
-                  <Clock size={20} />
+              <div className="bg-slate-900 text-white p-5 rounded-[2rem] flex items-center gap-4 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-[0.03] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0 group-hover:bg-white group-hover:text-slate-900 transition-all duration-300">
+                  <Plus size={24} />
                 </div>
-                <div className="relative z-10 min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Antrean Validasi</p>
-                  <h4 className="text-base sm:text-lg font-black text-gray-800 tracking-tight mt-0.5">
-                    {payments.filter(p => p.status === 'pending').length} Permintaan
-                  </h4>
+                <div className="cursor-pointer" onClick={() => setShowIuranModal(true)}>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Buat Tagihan</p>
+                  <h4 className="text-sm font-black text-white hover:text-indigo-300 transition-colors">Tambah Iuran Massal</h4>
                 </div>
               </div>
             </div>
@@ -3928,218 +3947,229 @@ export default function DashboardAdmin() {
             {/* Sub Tab: Daftar Siswa */}
             {financeSubTab === 'siswa' && (
               <div className="space-y-6">
-                {/* Filter Spesifik Keuangan */}
-                <div className="bg-indigo-50/50 border border-indigo-100/50 rounded-3xl p-5">
-                  <h4 className="text-sm font-black text-indigo-800 tracking-tight mb-3">Pencarian & Penyaringan Khusus</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Cari Nama</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ketik nama siswa..." 
-                        value={searchFinanceList} 
-                        onChange={(e) => setSearchFinanceList(e.target.value)} 
-                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium" 
-                      />
+                {/* Clean Filter Grid */}
+                <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                      <Settings size={16} />
                     </div>
-                    <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Status Keuangan</label>
-                      <select 
-                        value={filterKeuanganStatus} 
-                        onChange={(e) => setFilterKeuanganStatus(e.target.value as any)} 
-                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
-                      >
-                        <option value="semua">Semua Status</option>
-                        <option value="menunggak">Menunggak</option>
-                        <option value="lunas">Lunas</option>
-                      </select>
+                    <h4 className="text-sm font-black text-gray-800 tracking-tight">Penyaringan Data Keuangan Siswa</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Nama Siswa</label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                        <input 
+                          type="text" 
+                          placeholder="Cari nama..." 
+                          value={searchFinanceList} 
+                          onChange={(e) => setSearchFinanceList(e.target.value)} 
+                          className="w-full text-xs pl-9 pr-4 py-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700" 
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Kelas</label>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Kelas</label>
                       <select 
                         value={filterFinanceKelas} 
                         onChange={(e) => setFilterFinanceKelas(e.target.value)} 
-                        className="w-full text-xs p-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                        className="w-full text-xs p-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700 cursor-pointer"
                       >
                         <option value="">Semua Kelas</option>
                         {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-indigo-100/40">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[9px] font-bold text-indigo-500 uppercase">Kategori Tagihan</label>
-                        {filterFinanceCategory && (
-                          <button onClick={() => setFilterFinanceCategory('')} className="text-[8px] font-bold text-indigo-400 hover:text-red-500 transition-colors uppercase">Reset</button>
-                        )}
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Grup Iuran</label>
                       <select 
                         value={filterFinanceCategory} 
                         onChange={(e) => setFilterFinanceCategory(e.target.value)} 
-                        className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-bold ${filterFinanceCategory ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`}
+                        className="w-full text-xs p-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700 cursor-pointer"
                       >
                         <option value="">Semua Kategori</option>
                         {iuranCategories.map(cat => (
                           <option key={cat.id} value={cat.name}>{cat.name}</option>
                         ))}
-                        <option value="Umum">Umum (Tidak terdata)</option>
+                        <option value="Umum">Umum</option>
                       </select>
                     </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[9px] font-bold text-indigo-500 uppercase">Item Spesifik</label>
-                        {filterFinanceIuranName && (
-                          <button onClick={() => setFilterFinanceIuranName('')} className="text-[8px] font-bold text-indigo-400 hover:text-red-500 transition-colors uppercase">Reset</button>
-                        )}
-                      </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Metode Bayar</label>
                       <select 
-                        value={filterFinanceIuranName} 
-                        onChange={(e) => setFilterFinanceIuranName(e.target.value)} 
-                        className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-bold ${filterFinanceIuranName ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`}
+                        value={filterFinanceMethod} 
+                        onChange={(e) => setFilterFinanceMethod(e.target.value)} 
+                        className="w-full text-xs p-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700 cursor-pointer"
                       >
-                        <option value="">{filterFinanceCategory ? `Semua Tagihan ${filterFinanceCategory}` : 'Semua Tagihan'}</option>
-                        {filteredAvailableIuranNames.map((name: any) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
+                        <option value="">Semua Metode</option>
+                        <option value="Tunai">Tunai</option>
+                        <option value="Transfer">Transfer</option>
+                        <option value="Tabungan">Tabungan</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Mulai Tanggal</label>
-                      <input type="date" value={filterFinanceStartDate} onChange={(e) => setFilterFinanceStartDate(e.target.value)} className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-medium ${filterFinanceStartDate ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`} />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Tanggal Awal</label>
+                      <input 
+                        type="date" 
+                        value={filterFinanceStartDate} 
+                        onChange={(e) => setFilterFinanceStartDate(e.target.value)} 
+                        className="w-full text-xs p-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700" 
+                      />
                     </div>
-                    <div>
-                      <label className="block text-[9px] font-bold text-indigo-500 uppercase mb-1">Sampai Tanggal</label>
-                      <input type="date" value={filterFinanceEndDate} onChange={(e) => setFilterFinanceEndDate(e.target.value)} className={`w-full text-xs p-3 border rounded-xl outline-none transition-all font-medium ${filterFinanceEndDate ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-indigo-100 text-gray-700 focus:ring-2 focus:ring-indigo-500'}`} />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Tanggal Akhir</label>
+                      <input 
+                        type="date" 
+                        value={filterFinanceEndDate} 
+                        onChange={(e) => setFilterFinanceEndDate(e.target.value)} 
+                        className="w-full text-xs p-3 bg-slate-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700" 
+                      />
                     </div>
                   </div>
+
+                  {isFinanceFiltered && (
+                    <div className="mt-4 flex justify-end">
+                      <button 
+                        onClick={() => {
+                          setSearchFinanceList('');
+                          setFilterFinanceKelas('');
+                          setFilterFinanceCategory('');
+                          setFilterFinanceMethod('');
+                          setFilterFinanceStartDate('');
+                          setFilterFinanceEndDate('');
+                          setFilterFinanceIuranName('');
+                        }}
+                        className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1 hover:text-red-700 transition-colors"
+                      >
+                        <X size={14} /> Bersihkan Semua Filter
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Table & Mobile Card layouts */}
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Desktop Table View */}
+                {/* Enhanced List Section */}
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+                  {/* Desktop View */}
                   <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left whitespace-nowrap min-w-[700px]">
-                      <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                        <tr>
-                          <th className="px-6 py-4">Nama Siswa</th>
-                          <th className="px-6 py-4">Kelas</th>
-                          <th className="px-6 py-4">Total Tabungan</th>
-                          <th className="px-6 py-4">Total Tunggakan</th>
-                          <th className="px-6 py-4 text-right">Aksi</th>
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/50 border-b border-gray-100">
+                          <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Siswa & Kelas</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Tabungan</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Tunggakan</th>
+                          <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Manajemen</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredUsersForFinance.filter(u => {
-                          const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
-                          const matchKelas = !filterFinanceKelas || (u.kelas || '').toLowerCase() === filterFinanceKelas.toLowerCase();
-                          const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-                          const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-                          const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
-                          return matchBase && matchKelas && matchName && matchStatus;
-                        }).map((u) => {
-                          const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-                          const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
-                          return (
-                            <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4 font-bold text-gray-800">{u.name}</td>
-                              <td className="px-6 py-4 text-gray-500 text-sm">{u.kelas || '-'}</td>
-                              <td className="px-6 py-4 font-bold text-green-600">Rp {displaySavings.toLocaleString()}</td>
-                              <td className="px-6 py-4 font-bold text-red-600">Rp {displayArrears.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  {u.whatsapp && (displayArrears > 0) && (
+                      <tbody className="divide-y divide-gray-50">
+                        {filteredUsersForFinance.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-8 py-20 text-center">
+                              <div className="flex flex-col items-center gap-2 opacity-30">
+                                <Users size={40} />
+                                <p className="font-black text-xs uppercase tracking-widest">Data tidak ditemukan</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsersForFinance.map((u) => {
+                            const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
+                            const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
+                            return (
+                              <tr key={u.id} className="hover:bg-slate-50/30 transition-colors group">
+                                <td className="px-8 py-5">
+                                  <div className="flex flex-col">
+                                    <span className="font-black text-gray-800 text-sm">{u.name}</span>
+                                    <span className="text-[10px] font-bold text-indigo-500/60 uppercase tracking-wider mt-0.5">{u.kelas || 'N/A'}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <span className="font-black text-emerald-600 text-sm">Rp {displaySavings.toLocaleString('id-ID')}</span>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <span className={`font-black text-sm ${displayArrears > 0 ? 'text-red-500' : 'text-gray-300'}`}>
+                                    Rp {displayArrears.toLocaleString('id-ID')}
+                                  </span>
+                                </td>
+                                <td className="px-8 py-5 text-right">
+                                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {u.whatsapp && (displayArrears > 0) && (
+                                      <button 
+                                        onClick={() => {
+                                          let firstArrear = u.arrears_details?.[0];
+                                          if (isFinanceFiltered && filterFinanceIuranName) {
+                                            firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
+                                          }
+                                          if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
+                                        }}
+                                        className="bg-green-50 text-green-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-600 hover:text-white transition-all flex items-center gap-1.5"
+                                      >
+                                        <Megaphone size={14} /> Tagih WA
+                                      </button>
+                                    )}
                                     <button 
                                       onClick={() => {
-                                        let firstArrear = u.arrears_details?.[0];
-                                        if (isFinanceFiltered && filterFinanceIuranName) {
-                                          firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
-                                        }
-                                        if (firstArrear) {
-                                          handleWhatsAppFollowUp(u, firstArrear);
-                                        } else {
-                                          alert("Tidak ada rincian tunggakan spesifik.");
-                                        }
+                                        setSelectedStudentForFinance(u);
+                                        setShowManageFinanceModal(true);
                                       }}
-                                      className="bg-green-50 text-green-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-green-600 hover:text-white transition-all flex items-center gap-1"
-                                      title="Follow up via WA"
+                                      className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5"
                                     >
-                                      <Megaphone size={14} /> Tagih WA
+                                      Detail <ChevronDown size={14} />
                                     </button>
-                                  )}
-                                  <button 
-                                    onClick={() => {
-                                      setSelectedStudentForFinance(u);
-                                      setShowManageFinanceModal(true);
-                                    }}
-                                    className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
-                                  >
-                                    Kelola Keuangan
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* Responsive Mobile Card List */}
-                  <div className="md:hidden divide-y divide-gray-100">
-                    {filteredUsersForFinance.filter(u => {
-                      const matchBase = u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif';
-                      const matchKelas = !filterFinanceKelas || (u.kelas || '').toLowerCase() === filterFinanceKelas.toLowerCase();
-                      const matchName = !searchFinanceList || u.name.toLowerCase().includes(searchFinanceList.toLowerCase());
-                      const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
-                      const matchStatus = filterKeuanganStatus === 'semua' ? true : (filterKeuanganStatus === 'menunggak' ? (displayArrears > 0) : (displayArrears === 0));
-                      return matchBase && matchKelas && matchName && matchStatus;
-                    }).map((u) => {
+                  {/* Mobile View */}
+                  <div className="md:hidden divide-y divide-gray-50 uppercase">
+                    {filteredUsersForFinance.map((u) => {
                       const displayArrears = isFinanceFiltered ? (u.viewArrears || 0) : (u.arrears || 0);
                       const displaySavings = isFinanceFiltered ? (u.viewSavings || 0) : (u.savings || 0);
                       return (
-                        <div key={u.id} className="p-4 hover:bg-slate-50/50 flex flex-col gap-3">
-                          <div className="flex justify-between items-center">
+                        <div key={u.id} className="p-5 space-y-4">
+                          <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-bold text-gray-850">{u.name}</p>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{u.kelas || 'Belum Ditentukan'}</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center bg-gray-55/60 p-3 rounded-xl border border-gray-100/50 text-xs">
-                            <div>
-                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Tabungan</p>
-                              <p className="font-bold text-green-600 mt-0.5">Rp {displaySavings.toLocaleString()}</p>
+                              <p className="font-black text-gray-800">{u.name}</p>
+                              <p className="text-[10px] font-bold text-indigo-400 tracking-widest mt-0.5">{u.kelas}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Tunggakan</p>
-                              <p className="font-bold text-red-650 mt-0.5">Rp {displayArrears.toLocaleString()}</p>
+                              <p className="text-[10px] font-black text-gray-300 tracking-widest">Tunggakan</p>
+                              <p className={`font-black ${displayArrears > 0 ? 'text-red-500' : 'text-gray-300'}`}>Rp {displayArrears.toLocaleString()}</p>
                             </div>
                           </div>
-                          <div className="flex justify-end gap-2 text-xs">
-                            {u.whatsapp && (displayArrears > 0) && (
-                              <button 
-                                onClick={() => {
-                                  let firstArrear = u.arrears_details?.[0];
-                                  if (isFinanceFiltered && filterFinanceIuranName) {
-                                    firstArrear = u.arrears_details?.find((d: any) => d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) || firstArrear;
-                                  }
-                                  if (firstArrear) handleWhatsAppFollowUp(u, firstArrear);
-                                }}
-                                className="flex-1 bg-green-50 text-green-600 px-3 py-2.5 rounded-xl font-bold hover:bg-green-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
-                              >
-                                <Megaphone size={14} /> Tagih WA
-                              </button>
-                            )}
+                          
+                          <div className="flex items-center gap-2">
                             <button 
                               onClick={() => {
                                 setSelectedStudentForFinance(u);
                                 setShowManageFinanceModal(true);
                               }}
-                              className="flex-1 bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold hover:bg-blue-100 transition-colors text-center"
+                              className="flex-1 bg-slate-100 text-slate-800 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
                             >
-                              Kelola Keuangan
+                              Kelola Dana
                             </button>
+                            {u.whatsapp && (displayArrears > 0) && (
+                              <button 
+                                onClick={() => {
+                                  let firstArrear = u.arrears_details?.[0];
+                                  handleWhatsAppFollowUp(u, firstArrear);
+                                }}
+                                className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center"
+                              >
+                                <Megaphone size={18} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -4147,33 +4177,73 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                {/* Monthly Chart Section */}
-                <div className="card-3d p-6 md:p-8 overflow-hidden z-10">
-                  <div className="flex justify-between items-center mb-6">
+                {/* Monthly Analysis Chart */}
+                <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-50"></div>
+                  
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                     <div>
-                      <h4 className="text-lg font-black text-gray-800 tracking-tight">Perkembangan Transaksi Keuangan</h4>
-                      <p className="text-[10px] text-gray-450 font-bold uppercase mt-1">Total Tabungan vs Pelunasan Tagihan (6 Bulan Terakhir)</p>
+                      <h4 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
+                         Analisis Keuangan Digital
+                        <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[10px] rounded-full border border-indigo-500/30">6 BULAN TERAKHIR</span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Perbandingan setoran tabungan dan pelunasan tagihan</p>
                     </div>
-                    <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
-                        <span>Tabungan</span>
+                    
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Tabungan</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></div>
-                        <span>Iuran</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Iuran</span>
                       </div>
                     </div>
                   </div>
-                  <div className="h-72 w-full">
+
+                  <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ReBarChart data={getMonthlyFinanceData()}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} tickFormatter={(val) => `Rp${(val / 1000).toLocaleString()}k`} />
-                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '15px' }} formatter={(value: any) => [`Rp ${value.toLocaleString()}`, '']} />
-                        <Bar dataKey="savings" fill="#10b981" radius={[5, 5, 0, 0]} name="Tabungan" barSize={24} />
-                        <Bar dataKey="arrears" fill="#6366f1" radius={[5, 5, 0, 0]} name="Pelunasan Iuran" barSize={24} />
+                        <defs>
+                          <linearGradient id="barSavings" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
+                            <stop offset="100%" stopColor="#10b981" stopOpacity={0.6}/>
+                          </linearGradient>
+                          <linearGradient id="barArrears" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#6366f1" stopOpacity={1}/>
+                            <stop offset="100%" stopColor="#6366f1" stopOpacity={0.6}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fontWeight: '900', fill: '#64748b' }} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fontWeight: '900', fill: '#64748b' }} 
+                          tickFormatter={(val) => `Rp${(val / 1000).toLocaleString()}k`}
+                        />
+                        <Tooltip 
+                          cursor={{ fill: 'rgba(255,255,255,0.03)' }} 
+                          contentStyle={{ 
+                            backgroundColor: '#0f172a', 
+                            borderRadius: '20px', 
+                            border: '1px solid #1e293b', 
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
+                            padding: '15px' 
+                          }} 
+                          itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                          labelStyle={{ color: '#64748b', fontSize: '10px', fontWeight: 'black', marginBottom: '8px', textTransform: 'uppercase' }}
+                          formatter={(value: any) => [`Rp ${value.toLocaleString()}`, '']} 
+                        />
+                        <Bar dataKey="savings" fill="url(#barSavings)" radius={[6, 6, 0, 0]} name="TOTAL TABUNGAN" barSize={32} />
+                        <Bar dataKey="arrears" fill="url(#barArrears)" radius={[6, 6, 0, 0]} name="PELUNASAN TAGIHAN" barSize={32} />
                       </ReBarChart>
                     </ResponsiveContainer>
                   </div>
@@ -4184,76 +4254,87 @@ export default function DashboardAdmin() {
             {/* Sub Tab: Menunggu Validasi Pembayaran */}
             {financeSubTab === 'validasi' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden text-sm">
+                  <div className="p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <h3 className="font-black text-gray-850 tracking-tight text-lg">Persetujuan & Validasi Keuangan</h3>
-                      <p className="text-xs text-slate-400 mt-1">Siswa telah mengirim pengajuan setoran tabungan, penyelesaian iuran, tunai atau transfer.</p>
+                      <h3 className="font-black text-gray-800 tracking-tight text-xl">Antrean Validasi Keuangan</h3>
+                      <p className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Tinjau setoran tabungan atau pelunasan tagihan yang masuk</p>
                     </div>
-                    <span className="bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-xs font-black">
-                      {payments.filter(p => p.status === 'pending').length} Menunggu Proses
-                    </span>
+                    <div className="px-4 py-2 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-100">
+                      {payments.filter(p => p.status === 'pending').length} TRANSAKSI PENDING
+                    </div>
                   </div>
 
                   {payments.filter(p => p.status === 'pending').length === 0 ? (
-                    <div className="p-12 text-center flex flex-col items-center justify-center">
-                      <div className="w-16 h-16 bg-slate-50 text-slate-450 border border-slate-100 rounded-full flex items-center justify-center mb-4 text-emerald-500 bg-emerald-50">
-                        <CheckCircle size={28} />
+                    <div className="p-20 text-center flex flex-col items-center justify-center">
+                      <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border border-emerald-100">
+                        <CheckCircle size={32} />
                       </div>
-                      <h4 className="font-black text-gray-800 text-lg">Semua Pembayaran Bersih!</h4>
-                      <p className="text-xs text-gray-400 mt-1 max-w-sm">Tidak ada permintaan konfirmasi atau transfer dari siswa yang pending untuk divalidasi hari ini.</p>
+                      <h4 className="font-black text-gray-800 text-lg">Semua Transaksi Selesai</h4>
+                      <p className="text-xs text-gray-400 mt-1 max-w-xs font-bold uppercase tracking-widest leading-loose">Tidak ada permintaan konfirmasi yang tertunda untuk divalidasi hari ini.</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                    <div className="divide-y divide-gray-50 max-h-[700px] overflow-y-auto">
                       {payments.filter(p => p.status === 'pending').map((pay) => {
                         const student = allUsers.find(u => u.id === pay.studentId);
                         return (
-                          <div key={pay.id} className="p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50/50 transition-colors">
-                            <div className="space-y-2 min-w-0 flex-1">
-                              <div>
-                                <p className="font-bold text-gray-805 text-base">{student?.name || 'Siswa tidak ditemukan'}</p>
-                                <p className="text-[10px] text-gray-400 tracking-wider font-extrabold uppercase mt-0.5">{student?.kelas || 'Tanpa Kelas'} • {pay.description || 'Pembayaran'}</p>
+                          <div key={pay.id} className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 hover:bg-slate-50/30 transition-colors">
+                            <div className="flex-1 min-w-0 space-y-4 text-left">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-lg">
+                                  {student?.name?.charAt(0) || '?'}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-black text-gray-800 text-base truncate">{student?.name || 'Siswa tidak ditemukan'}</p>
+                                  <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">{student?.kelas || 'N/A'}</p>
+                                </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              
+                              <div className="flex flex-wrap items-center gap-3">
+                                <div className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-gray-200">
+                                  {pay.description || 'Pembayaran'}
+                                </div>
+                                
                                 {pay.method === 'Transfer' && pay.proofStr && (
                                   <button 
                                     onClick={() => setSelectedPhoto(pay.proofStr)}
-                                    className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors flex items-center gap-1.5 border border-blue-100"
+                                    className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-blue-100"
                                   >
-                                    <ImageIcon size={13} /> Lihat Bukti Transfer
+                                    <ImageIcon size={12} /> BUKA BUKTI
                                   </button>
                                 )}
                                 {pay.method === 'Tunai' && pay.meetDate && (
-                                  <div className="bg-amber-100/50 text-amber-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-amber-100/40">
-                                    <Calendar size={13} /> Janji Temu: {pay.meetDate}
+                                  <div className="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-amber-100">
+                                    <Calendar size={12} /> TEMU: {pay.meetDate}
                                   </div>
                                 )}
                                 {pay.method === 'Tabungan' && (
-                                  <div className="bg-emerald-100/50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-emerald-100/40">
-                                    <CreditCard size={13} /> Bayar Potong Tabungan
+                                  <div className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-emerald-100">
+                                    <CreditCard size={12} /> POTONG TABUNGAN
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                            <div className="flex items-center justify-between md:justify-end gap-10 w-full md:w-auto mt-4 md:mt-0 p-6 md:p-0 bg-slate-50 md:bg-transparent rounded-2xl text-right">
                               <div className="text-left md:text-right">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Jumlah Nominal</p>
-                                <p className="font-black text-indigo-650 text-lg">Rp {(pay.amount || 0).toLocaleString('id-ID')}</p>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nominal</p>
+                                <p className="font-black text-indigo-650 text-2xl">Rp {(pay.amount || 0).toLocaleString('id-ID')}</p>
+                                {pay.date && <p className="text-[9px] font-bold text-gray-400 mt-1 tracking-widest">{pay.date}</p>}
                               </div>
                               
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex flex-col gap-2 shrink-0">
                                 <button 
                                   onClick={() => handleApprovePayment(pay)}
-                                  className="bg-green-600 text-white hover:bg-green-700 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md items-center flex gap-1.5"
+                                  className="bg-emerald-600 text-white hover:bg-emerald-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
                                 >
-                                  <CheckCircle size={14} /> Validasi
+                                  <CheckCircle size={14} /> VALIDASI
                                 </button>
                                 <button 
                                   onClick={() => handleRejectPayment(pay.id)}
-                                  className="bg-red-50 text-red-650 hover:bg-red-100 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all items-center flex gap-1.5"
+                                  className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-red-100"
                                 >
-                                  <X size={14} /> Tolak
+                                  <X size={14} /> TOLAK
                                 </button>
                               </div>
                             </div>
@@ -4269,90 +4350,83 @@ export default function DashboardAdmin() {
             {/* Sub Tab: Riwayat Validasi & Pembayaran */}
             {financeSubTab === 'riwayat' && (
               <div className="space-y-6">
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-black text-gray-850 tracking-tight text-lg">Log Historis Keuangan & Validasi</h3>
-                      <p className="text-xs text-slate-400 mt-1">Daftar lengkap transaksi: Transfer (online), Tunai, atau Tabungan yang telah divalidasi atau ditolak.</p>
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden text-sm">
+                  <div className="p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="text-left">
+                      <h3 className="font-black text-gray-800 tracking-tight text-xl">Arsip Log Keuangan</h3>
+                      <p className="text-xs text-slate-400 mt-1 font-bold uppercase tracking-wider">Jejak rekaman transaksi yang telah difinalisasi</p>
                     </div>
-                    {/* Search Bar untuk Riwayat Logs */}
-                    <div className="relative w-full md:w-72">
+                    
+                    <div className="relative w-full md:w-96 text-left">
+                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                       <input 
                         type="text"
                         placeholder="Cari nama siswa atau transaksi..."
                         value={searchTransactionText}
                         onChange={(e) => setSearchTransactionText(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700"
                       />
-                      <Users className="absolute left-3.5 top-3.5 text-gray-400" size={15} />
                     </div>
                   </div>
 
-                  {/* Advanced Filters: Status & Date Range (Filter Waktu) */}
-                  <div className="bg-slate-50/70 border-b border-gray-150 p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Status Transaksi</label>
+                  {/* Enhanced Log Filters */}
+                  <div className="bg-slate-50/50 p-6 grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-gray-100 text-left">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Status Log</label>
                       <select 
                         value={filterLogStatus} 
                         onChange={(e) => setFilterLogStatus(e.target.value as any)} 
-                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700"
+                        className="w-full text-xs p-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-gray-700"
                       >
-                        <option value="semua">Semua Status Log</option>
-                        <option value="pending">Menunggu Validasi (Pending)</option>
-                        <option value="lunas">Diterima / Lunas</option>
+                        <option value="semua">Semua Status</option>
+                        <option value="pending">Tertunda</option>
+                        <option value="lunas">Diterima</option>
                         <option value="ditolak">Ditolak</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Dari Tanggal (Mulai)</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Dari Tanggal</label>
                       <input 
                         type="date" 
                         value={filterLogStartDate} 
                         onChange={(e) => setFilterLogStartDate(e.target.value)} 
-                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-700" 
+                        className="w-full text-xs p-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-gray-700 font-mono" 
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1.5">Sampai Tanggal (Selesai)</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Sampai Tanggal</label>
                       <input 
                         type="date" 
                         value={filterLogEndDate} 
                         onChange={(e) => setFilterLogEndDate(e.target.value)} 
-                        className="w-full text-xs p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-700" 
+                        className="w-full text-xs p-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-gray-700 font-mono" 
                       />
                     </div>
                     <div className="flex items-end">
                       <button 
-                        type="button"
-                        onClick={() => {
-                          setFilterLogStatus('semua');
-                          setFilterLogStartDate('');
-                          setFilterLogEndDate('');
-                        }}
-                        className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                        onClick={() => { setFilterLogStatus('semua'); setFilterLogStartDate(''); setFilterLogEndDate(''); }}
+                        className="w-full bg-slate-200 text-slate-700 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center justify-center gap-2"
                       >
-                        Reset Saring Waktu
+                        <RefreshCw size={14} /> RESET FILTER
                       </button>
                     </div>
                   </div>
 
-                  {/* Transaction History Log Table */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left whitespace-nowrap">
-                      <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                        <tr>
-                          <th className="px-6 py-4">Waktu Transaksi</th>
-                          <th className="px-6 py-4">Siswa</th>
-                          <th className="px-6 py-4">Nama Tagihan / Transaksi</th>
-                          <th className="px-6 py-4">Nominal</th>
-                          <th className="px-6 py-4">Metode</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-center">Bukti / Aksi</th>
+                    <table className="w-full text-left border-collapse min-w-[900px]">
+                      <thead>
+                        <tr className="bg-slate-50/30 border-b border-gray-100">
+                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Waktu & Transaksi</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Siswa</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nominal</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Metode</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Tindakan</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 text-xs font-semibold">
+                      <tbody className="divide-y divide-gray-50/50">
                         {(() => {
-                          const filteredLogPayments = payments.filter(pay => {
+                           const filteredLogPayments = payments.filter(pay => {
                             const student = allUsers.find(u => u.id === pay.studentId);
                             const studentName = student?.name || '';
                             const desc = pay.description || '';
@@ -4383,17 +4457,16 @@ export default function DashboardAdmin() {
                           });
 
                           if (filteredLogPayments.length === 0) {
-                            return (
-                              <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-bold">
-                                  Belum ada catatan riwayat transaksi pembayaran ditemukan.
-                                </td>
-                              </tr>
-                            );
+                            return <tr><td colSpan={6} className="px-8 py-20 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest">Tidak ada data riwayat</td></tr>;
                           }
 
-                          return filteredLogPayments.map((pay) => {
+                          return filteredLogPayments.map(pay => {
                             const student = allUsers.find(u => u.id === pay.studentId);
+                            let statusColor = 'bg-gray-100 text-gray-500 border-gray-200';
+                            if (pay.status === 'lunas') statusColor = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                            if (pay.status === 'ditolak') statusColor = 'bg-red-50 text-red-600 border-red-100';
+                            if (pay.status === 'pending') statusColor = 'bg-orange-50 text-orange-600 border-orange-100';
+
                             let formattedDate = '-';
                             if (pay.createdAt) {
                               try {
@@ -4403,48 +4476,57 @@ export default function DashboardAdmin() {
                                 formattedDate = String(pay.createdAt);
                               }
                             }
+
                             return (
-                              <tr key={pay.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-6 py-4 text-gray-400 font-mono">{formattedDate}</td>
-                                <td className="px-6 py-4">
-                                  <span className="font-bold text-gray-800 block">{student?.name || 'Siswa tidak ditemukan'}</span>
-                                  <span className="text-[10px] text-gray-400 tracking-wider font-extrabold uppercase mt-0.5">{student?.kelas || 'Tanpa Kelas'}</span>
+                              <tr key={pay.id} className="hover:bg-slate-50/30 transition-colors text-xs font-bold text-gray-700">
+                                <td className="px-8 py-5">
+                                  <div className="flex flex-col text-left">
+                                    <span className="text-gray-400 text-[10px] font-mono tracking-tighter">{formattedDate}</span>
+                                    <span className="font-black text-gray-800 text-[11px] truncate max-w-[200px] mt-0.5">{pay.description || 'Log Transaksi'}</span>
+                                  </div>
                                 </td>
-                                <td className="px-6 py-4 text-gray-700 font-medium">
-                                  {pay.description || (pay.type === 'tabungan' ? 'Setoran Tabungan' : pay.type === 'tabungan_keluar' ? 'Penarikan Tabungan' : 'Pembayaran Iuran')}
+                                <td className="px-6 py-5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500 capitalize">
+                                      {student?.name?.charAt(0) || '?'}
+                                    </div>
+                                    <span className="truncate max-w-[150px]">{student?.name || 'Unknown'}</span>
+                                  </div>
                                 </td>
-                                <td className="px-6 py-4 font-black text-indigo-950">Rp {(pay.amount || 0).toLocaleString()}</td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-5 font-black text-indigo-600">Rp {(pay.amount || 0).toLocaleString('id-ID')}</td>
+                                <td className="px-6 py-5">
                                   {pay.method === 'Transfer' ? (
-                                    <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-blue-100">Transfer Mandiri</span>
+                                    <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-blue-100 font-mono">TF</span>
                                   ) : pay.method === 'Tunai' ? (
-                                    <span className="bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-100">Tunai Langsung</span>
-                                  ) : pay.method === 'Tabungan' ? (
-                                    <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-100">Auto Tabungan</span>
+                                    <span className="bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-amber-100 font-mono">CASH</span>
                                   ) : (
-                                    <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-slate-200">System</span>
+                                    <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-emerald-100 font-mono">SAVE</span>
                                   )}
                                 </td>
-                                <td className="px-6 py-4">
-                                  {pay.status === 'lunas' ? (
-                                    <span className="text-green-600 font-black tracking-widest text-[9.5px] uppercase">● Diterima</span>
-                                  ) : pay.status === 'ditolak' ? (
-                                    <span className="text-red-500 font-black tracking-widest text-[9.5px] uppercase">● Ditolak</span>
-                                  ) : (
-                                    <span className="text-orange-500 font-black tracking-widest text-[9.5px] uppercase animate-pulse">● Pending</span>
-                                  )}
+                                <td className="px-6 py-5">
+                                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusColor}`}>
+                                    {pay.status === 'lunas' ? 'Diterima' : pay.status}
+                                  </span>
                                 </td>
-                                <td className="px-6 py-4 text-center">
-                                  {pay.proofStr ? (
+                                <td className="px-8 py-5 text-center">
+                                  <div className="flex items-center justify-center gap-2">
                                     <button 
-                                      onClick={() => setSelectedPhoto(pay.proofStr)}
-                                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition select-none"
+                                      onClick={() => handlePrintReceipt(pay)}
+                                      className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                                      title="Cetak Kuitansi"
                                     >
-                                      Lihat Bukti
+                                      <Printer size={15} />
                                     </button>
-                                  ) : (
-                                    <span className="text-gray-400">-</span>
-                                  )}
+                                    {pay.proofStr && (
+                                      <button 
+                                        onClick={() => setSelectedPhoto(pay.proofStr)}
+                                        className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                        title="Lihat Bukti"
+                                      >
+                                        <ImageIcon size={15} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -4453,6 +4535,67 @@ export default function DashboardAdmin() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub Tab: Setelan Keuangan */}
+            {financeSubTab === 'setelan' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Category Management Card */}
+                  <div 
+                    onClick={() => setShowCategoryModal(true)}
+                    className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-pointer group"
+                  >
+                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <Settings size={32} />
+                    </div>
+                    <h4 className="text-xl font-black text-gray-800 tracking-tight mb-2">Manajemen Grup Iuran</h4>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Kelola kategori tagihan seperti SPP, Uang Makan, Seragam, dll.
+                    </p>
+                  </div>
+
+                  {/* Reset Finance Card */}
+                  <div 
+                    onClick={handleResetAllFinance}
+                    className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-red-100 transition-all cursor-pointer group"
+                  >
+                    <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <RefreshCw size={32} />
+                    </div>
+                    <h4 className="text-xl font-black text-gray-800 tracking-tight mb-2">Reset Keuangan</h4>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Kosongkan seluruh saldo tabungan dan tunggakan siswa (Hati-hati).
+                    </p>
+                  </div>
+
+                  {/* Backup Data Card */}
+                  <div 
+                    onClick={exportFinanceToExcel}
+                    className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-emerald-100 transition-all cursor-pointer group"
+                  >
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <Download size={32} />
+                    </div>
+                    <h4 className="text-xl font-black text-gray-800 tracking-tight mb-2">Backup Rekap Lengkap</h4>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Unduh seluruh data keuangan ke dalam format Excel (XLSX).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-900 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+                  <div className="relative z-10">
+                    <h4 className="text-2xl font-black tracking-tight mb-2 flex items-center gap-3">
+                      <Shield size={28} className="text-indigo-400" /> Keamanan Database Keuangan
+                    </h4>
+                    <p className="text-indigo-200/70 text-sm max-w-xl font-medium">
+                      Gunakan menu setelan untuk melakukan tutup buku tahunan atau membersihkan data lama. Pastikan Anda melakukan backup data secara rutin sebelum melakukan perubahan besar.
+                    </p>
+                  </div>
+                  <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
                 </div>
               </div>
             )}
@@ -5124,21 +5267,20 @@ export default function DashboardAdmin() {
                       Manajemen Kategori
                     </button>
                   </div>
-                  <select 
-                    value={selectedCategoryId} 
-                    onChange={(e) => {
-                      setSelectedCategoryId(e.target.value);
-                      const cat = iuranCategories.find(c => c.id === e.target.value);
-                      if (cat) setFinanceIuranName(cat.name);
-                    }} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
-                    required
-                  >
-                    <option value="">-- Pilih Kategori --</option>
-                    {iuranCategories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                    <select 
+                      value={selectedCategoryId} 
+                      onChange={(e) => {
+                        setSelectedCategoryId(e.target.value);
+                        const cat = iuranCategories.find(c => c.id === e.target.value);
+                        if (cat) setFinanceIuranName(cat.name);
+                      }} 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" 
+                    >
+                      <option value="">-- Tanpa Kategori (Umum) --</option>
+                      {iuranCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Deskripsi Iuran</label>
@@ -5166,27 +5308,64 @@ export default function DashboardAdmin() {
                   <input type="number" value={financeAmount} onChange={(e) => setFinanceAmount(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 50000" required min="0" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa</label>
-                  <input
-                    type="text"
-                    placeholder="Cari Nama Siswa (untuk pilihan spesifik)..."
-                    value={searchStudentIuran}
-                    onChange={(e) => setSearchStudentIuran(e.target.value)}
-                    className="w-full p-2 mb-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <select value={financeIuranTarget} onChange={(e) => setFinanceIuranTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" required>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Siswa / Penerima Tagihan</label>
+                  <select 
+                    value={financeIuranTarget} 
+                    onChange={(e) => setFinanceIuranTarget(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold mb-3" 
+                    required
+                  >
                     <option value="all">Semua Siswa Aktif</option>
                     {schoolClasses.map(c => (
-                      <option key={`kelas_${c.id}`} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
+                      <option key={`target_kelas_${c.id}`} value={`kelas_${c.name}`}>Satu Kelas: {c.name}</option>
                     ))}
-                    <optgroup label="Pilih Siswa Spesifik (Gunakan pencarian di atas)">
-                      {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentIuran || u.name.toLowerCase().includes(searchStudentIuran.toLowerCase()))).map(u => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.kelas || '-'})</option>
-                      ))}
-                    </optgroup>
+                    <option value="specific">Pilih Siswa Secara Spesifik</option>
                   </select>
+
+                  {financeIuranTarget === 'specific' && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                        <input
+                          type="text"
+                          placeholder="Cari nama siswa..."
+                          value={searchStudentIuran}
+                          onChange={(e) => setSearchStudentIuran(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto bg-gray-50 border border-gray-200 rounded-xl p-2 space-y-1">
+                        {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && (!searchStudentIuran || u.name.toLowerCase().includes(searchStudentIuran.toLowerCase()))).map(u => (
+                          <label key={u.id} className="flex items-center gap-3 p-2.5 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={financeIuranStudentIds.includes(u.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) setFinanceIuranStudentIds([...financeIuranStudentIds, u.id]);
+                                else setFinanceIuranStudentIds(financeIuranStudentIds.filter(id => id !== u.id));
+                              }}
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-gray-800 group-hover:text-blue-700">{u.name}</span>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{u.kelas || 'N/A'}</span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center mt-2 px-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{financeIuranStudentIds.length} Siswa Terpilih</p>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setFinanceIuranStudentIds(allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => u.id))} className="text-[9px] font-black text-blue-600 border-b border-blue-600 uppercase tracking-widest">Pilih Semua</button>
+                          <button type="button" onClick={() => setFinanceIuranStudentIds([])} className="text-[9px] font-black text-red-500 border-b border-red-500 uppercase tracking-widest">Reset</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">Tetapkan Iuran</button>
+                <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-blue-100 transition-all active:scale-95">
+                  Proses & Terbitkan Tagihan
+                </button>
               </form>
             </div>
           </div>
@@ -5820,6 +5999,55 @@ export default function DashboardAdmin() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-6 mb-8">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 shadow-inner">
+                  <Settings size={32} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-gray-800 tracking-tight">Pengaturan Keamanan & Database</h2>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Kelola data krusial dan utilitas sistem</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-8 bg-red-50 border border-red-100 rounded-[2rem] flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-red-800 uppercase tracking-tight mb-2">Reset Total Keuangan</h3>
+                    <p className="text-xs text-red-600 font-medium leading-relaxed opacity-80">
+                      Tindakan ini akan mengosongkan seluruh data tunggakan siswa, saldo tabungan, dan riwayat pembayaran digital maupun tunai secara permanen. Gunakan hanya saat pergantian tahun ajaran baru atau audit total.
+                    </p>
+                  </div>
+                  <div className="mt-8">
+                    <button 
+                      onClick={handleResetAllFinance}
+                      className="w-full py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <RefreshCw size={18} /> Reset Semua Keuangan Siswa
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-slate-50 border border-slate-200 rounded-[2rem] flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">Backup Database Dasar</h3>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed opacity-80">
+                      Selalu lakukan backup berkala dengan mengunduh seluruh data dalam format Excel melalui tombol Export di setiap halaman (User, Absensi, Administrasi).
+                    </p>
+                  </div>
+                  <div className="mt-8">
+                    <div className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 italic text-[10px] font-medium justify-center">
+                      <AlertCircle size={14} /> Gunakan tombol Export di masing-masing menu.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
