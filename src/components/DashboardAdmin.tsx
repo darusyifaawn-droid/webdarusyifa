@@ -1513,8 +1513,40 @@ export default function DashboardAdmin() {
     if (!window.confirm('Hapus kategori iuran ini?')) return;
     try {
       await deleteDoc(doc(db, 'iuran_categories', id));
+      alert('Grup iuran berhasil dihapus!');
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleSaveIuranCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIuranCategoryName || !newIuranCategoryAmount) {
+      alert('Mohon isi nama dan nominal grup iuran.');
+      return;
+    }
+    try {
+      const data = {
+        name: newIuranCategoryName,
+        amount: Number(newIuranCategoryAmount),
+        updatedAt: serverTimestamp()
+      };
+      if (editingIuranCategory) {
+        await updateDoc(doc(db, 'iuran_categories', editingIuranCategory.id), data);
+      } else {
+        await addDoc(collection(db, 'iuran_categories'), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+      }
+      setShowIuranCategoryModal(false);
+      setEditingIuranCategory(null);
+      setNewIuranCategoryName('');
+      setNewIuranCategoryAmount('');
+      alert('Grup iuran berhasil disimpan!');
+    } catch (error) {
+      console.error(error);
+      alert('Gagal menyimpan grup iuran.');
     }
   };
 
@@ -4030,7 +4062,7 @@ export default function DashboardAdmin() {
                 <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0 group-hover:bg-white group-hover:text-slate-900 transition-all duration-300">
                   <Plus size={24} />
                 </div>
-                <div className="cursor-pointer" onClick={() => setShowIuranModal(true)}>
+                <div className="cursor-pointer" onClick={() => setFinanceSubTab('penetapan')}>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Buat Tagihan</p>
                   <h4 className="text-sm font-black text-white hover:text-indigo-300 transition-colors">Tambah Iuran Massal</h4>
                 </div>
@@ -5603,7 +5635,7 @@ export default function DashboardAdmin() {
                     <label className="block text-xs font-bold text-gray-500 uppercase">Kategori Iuran</label>
                     <button 
                       type="button" 
-                      onClick={() => setShowCategoryModal(true)}
+                      onClick={() => setShowIuranCategoryModal(true)}
                       className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
                     >
                       Manajemen Kategori
@@ -5614,13 +5646,16 @@ export default function DashboardAdmin() {
                       onChange={(e) => {
                         setSelectedCategoryId(e.target.value);
                         const cat = iuranCategories.find(c => c.id === e.target.value);
-                        if (cat) setFinanceIuranName(cat.name);
+                        if (cat) {
+                          setFinanceIuranName(cat.name);
+                          if (cat.amount) setFinanceAmount(cat.amount.toString());
+                        }
                       }} 
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" 
                     >
                       <option value="">-- Tanpa Kategori (Umum) --</option>
                       {iuranCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.id}>{cat.name} {cat.amount ? ` - Rp ${Number(cat.amount).toLocaleString('id-ID')}` : ''}</option>
                       ))}
                     </select>
                 </div>
@@ -6457,6 +6492,57 @@ export default function DashboardAdmin() {
           <div className="relative max-w-4xl w-full flex justify-center">
             <button onClick={() => setSelectedPhoto(null)} className="absolute -top-12 right-0 text-white hover:text-gray-300"><X size={32} /></button>
             <img src={selectedPhoto} alt="Absensi Full" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+          </div>
+        </div>
+      )}
+
+      {/* Iuran Category Modal (GRUP IURAN) */}
+      {showIuranCategoryModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[250] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl relative animate-in fade-in zoom-in duration-300">
+            <button onClick={() => setShowIuranCategoryModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-600 transition-colors">
+              <X size={24} />
+            </button>
+            
+            <div className="mb-8">
+              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                <BookOpen size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight">{editingIuranCategory ? 'Edit Grup Iuran' : 'Tambah Grup Iuran'}</h3>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Grup digunakan untuk kategorisasi & nominal standar</p>
+            </div>
+
+            <form onSubmit={handleSaveIuranCategory} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Grup Iuran</label>
+                <input 
+                  type="text" 
+                  value={newIuranCategoryName} 
+                  onChange={(e) => setNewIuranCategoryName(e.target.value)} 
+                  placeholder="Contoh: SPP BULANAN" 
+                  required 
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-black text-gray-700 placeholder:text-slate-300"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nominal Standar (Rp)</label>
+                <input 
+                  type="number" 
+                  value={newIuranCategoryAmount} 
+                  onChange={(e) => setNewIuranCategoryAmount(e.target.value)} 
+                  placeholder="Contoh: 150000" 
+                  required 
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-black text-gray-700 placeholder:text-slate-300"
+                />
+              </div>
+
+              <div className="pt-4">
+                <button type="submit" className="w-full py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                  <Save size={18} /> Simpan Grup Iuran
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

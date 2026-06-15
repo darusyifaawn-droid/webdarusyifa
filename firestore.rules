@@ -34,7 +34,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      let isBootstrapAdmin = request.auth.token.email == "darusyifa.awn@gmail.com" && isEmailVerified();
+      let isBootstrapAdmin = request.auth.token.email == "darusyifa.awn@gmail.com";
       return isBootstrapAdmin || isRole('admin');
     }
 
@@ -120,6 +120,12 @@ service cloud.firestore {
 
     // Exams (Jadwal Ujian)
     match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Iuran Categories (Grup Iuran)
+    match /iuran_categories/{categoryId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }

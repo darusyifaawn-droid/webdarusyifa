@@ -1,5 +1,6 @@
 {
   "name": "RA Darusyifa Arjawinangun Portal",
   "description": "School Information System and Web Portal for RA Darusyifa Arjawinangun",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
