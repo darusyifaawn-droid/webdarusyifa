@@ -123,6 +123,33 @@ export default function DashboardAdmin() {
   const [financeModalMode, setFinanceModalMode] = useState<'detail' | 'bayar'>('detail');
   const [selectedStudentForFinance, setSelectedStudentForFinance] = useState<any>(null);
 
+  const formatDateForUI = (dateInput: any, options?: Intl.DateTimeFormatOptions) => {
+    if (!dateInput) return '-';
+    try {
+      let d: Date;
+      if (dateInput.toDate && typeof dateInput.toDate === 'function') {
+        d = dateInput.toDate();
+      } else if (dateInput && typeof dateInput === 'object' && 'seconds' in dateInput) {
+        d = new Date(dateInput.seconds * 1000);
+      } else {
+        d = new Date(dateInput);
+      }
+      
+      if (isNaN(d.getTime())) return '-';
+      
+      // Default to date only if no options provided
+      const defaultOptions: Intl.DateTimeFormatOptions = options || { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      };
+      
+      return d.toLocaleString('id-ID', defaultOptions);
+    } catch (e) {
+      return '-';
+    }
+  };
+
   // Profile Edit States
   const [editName, setEditName] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
@@ -1903,7 +1930,7 @@ export default function DashboardAdmin() {
       let dateText = '-';
       if (pay.createdAt) {
         try {
-          const dateObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+          const dateObj = pay.createdAt?.toDate ? pay.createdAt.toDate() : (pay.createdAt ? new Date(pay.createdAt) : new Date());
           dateText = dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' WIB';
         } catch (e) {
           dateText = String(pay.createdAt);
@@ -3012,7 +3039,7 @@ export default function DashboardAdmin() {
                                 <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
                                   <span className="flex items-center gap-1.5 font-bold text-gray-600">
                                     <Calendar size={12} className="text-rose-500" />
-                                    {new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+                                    {formatDateForUI(s.date, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
                                   </span>
                                   <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                   <span className="flex items-center gap-1.5 font-bold text-rose-600">
@@ -3640,7 +3667,7 @@ export default function DashboardAdmin() {
                         <img src={teacher?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher?.name || 'G')}&background=random`} alt="Teacher" className="w-8 h-8 rounded-xl object-cover shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[10px] font-black text-gray-800 truncate uppercase tracking-tight">{teacher?.name || 'Unknown'}</p>
-                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{new Date(mat.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString('id-ID')}</p>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{formatDateForUI(mat.createdAt)}</p>
                         </div>
                       </div>
                     </div>
@@ -3822,7 +3849,7 @@ export default function DashboardAdmin() {
                                           <td className="px-6 py-4 whitespace-normal">
                                             <div className="flex flex-col">
                                               <div className="flex items-center gap-1.5 mb-1"><BookOpen size={11} className="text-blue-500" /><span className="text-[8px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Rapot</span></div>
-                                              <span className="text-xs font-black text-indigo-500">{new Date(p.date || p.createdAt).toLocaleDateString('id-ID')}</span>
+                                              <span className="text-xs font-black text-indigo-500">{formatDateForUI(p.createdAt || p.date)}</span>
                                               <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
                                             </div>
                                           </td>
@@ -3872,7 +3899,7 @@ export default function DashboardAdmin() {
                                           <td className="px-6 py-4 whitespace-normal">
                                             <div className="flex flex-col">
                                               <div className="flex items-center gap-1.5 mb-1"><Star size={11} className="text-yellow-500" /><span className="text-[8px] text-yellow-600 font-bold uppercase tracking-widest bg-yellow-50 px-2 py-0.5 rounded-full">Hafalan</span></div>
-                                              <span className="text-xs font-black text-indigo-500">{h.createdAt ? new Date(h.createdAt?.toDate ? h.createdAt.toDate() : h.createdAt).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID')}</span>
+                                              <span className="text-xs font-black text-indigo-500">{formatDateForUI(h.createdAt)}</span>
                                               <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{h.evaluationSemester || 'Semester'}</span>
                                             </div>
                                           </td>
@@ -4148,7 +4175,7 @@ export default function DashboardAdmin() {
                     <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-400 uppercase font-black tracking-widest">
                       <span className="text-gray-600">{a.author}</span>
                       <span>•</span>
-                      <span>{a.createdAt ? new Date(a.createdAt.seconds * 1000).toLocaleString('id-ID') : ''}</span>
+                      <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                   <div className="flex md:block md:self-start md:mt-2">
@@ -5191,7 +5218,7 @@ export default function DashboardAdmin() {
                                     <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
                                     <div className="flex flex-col">
                                        <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
-                                       <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{new Date(p.timestamp).toLocaleDateString()} - {p.method} {p.description ? `(${p.description})` : ''}</span>
+                                       <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{formatDateForUI(p.createdAt || p.timestamp || p.date)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
                                     </div>
                                  </div>
                                  <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
