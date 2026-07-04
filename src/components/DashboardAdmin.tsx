@@ -120,6 +120,7 @@ export default function DashboardAdmin() {
   const [filterFinanceStartDate, setFilterFinanceStartDate] = useState('');
   const [filterFinanceEndDate, setFilterFinanceEndDate] = useState('');
   const [showManageFinanceModal, setShowManageFinanceModal] = useState(false);
+  const [financeModalMode, setFinanceModalMode] = useState<'detail' | 'bayar'>('detail');
   const [selectedStudentForFinance, setSelectedStudentForFinance] = useState<any>(null);
 
   // Profile Edit States
@@ -3960,14 +3961,6 @@ export default function DashboardAdmin() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFinanceSubTab('penetapan')}
-                    className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${financeSubTab === 'penetapan' ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}
-                  >
-                    <Plus size={14} /> Penetapan
-                  </button>
-                  <div className="w-px h-8 bg-gray-100 mx-1 self-center hidden sm:block"></div>
-                  <button
-                    type="button"
                     onClick={() => setFinanceSubTab('validasi')}
                     className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative ${financeSubTab === 'validasi' ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}
                   >
@@ -3997,7 +3990,7 @@ export default function DashboardAdmin() {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-[2rem] flex items-center gap-4 group transition-all hover:bg-emerald-100/50">
                 <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
                   <CreditCard size={24} />
@@ -4029,20 +4022,9 @@ export default function DashboardAdmin() {
                   </h4>
                 </div>
               </div>
-
-              <div className="bg-slate-900 text-white p-5 rounded-[2rem] flex items-center gap-4 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-[0.03] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
-                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0 group-hover:bg-white group-hover:text-slate-900 transition-all duration-300">
-                  <Plus size={24} />
-                </div>
-                <div className="cursor-pointer" onClick={() => setFinanceSubTab('penetapan')}>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Buat Tagihan</p>
-                  <h4 className="text-sm font-black text-white hover:text-indigo-300 transition-colors">Tambah Iuran Massal</h4>
-                </div>
-              </div>
             </div>
 
-            {/* Sub Tab: Dashboard Iuran */}
+              {/* Sub Tab: Dashboard Iuran */}
             {financeSubTab === 'dashboard' && (
               <FinanceRekapTab
                 filteredUsersForFinance={filteredUsersForFinance}
@@ -4067,6 +4049,7 @@ export default function DashboardAdmin() {
                 filterFinanceStudentName={filterFinanceStudentName}
                 setSelectedStudentForFinance={setSelectedStudentForFinance}
                 setShowManageFinanceModal={setShowManageFinanceModal}
+                setFinanceModalMode={setFinanceModalMode}
                 setEditingUser={setEditingUser}
                 setShowEditUser={setShowEditUser}
                 setUserToDelete={setUserToDelete}
@@ -4087,29 +4070,6 @@ export default function DashboardAdmin() {
                 handleDeleteIuranCategory={handleDeleteIuranCategory}
               />
             )}
-            {/* Sub Tab: Penetapan Iuran */}
-            {financeSubTab === 'penetapan' && (
-              <FinancePenetapanTab
-                allUsers={allUsers}
-                financeIuranStudentIds={financeIuranStudentIds}
-                setFinanceIuranStudentIds={setFinanceIuranStudentIds}
-                filterFinanceKelas={filterFinanceKelas}
-                setFilterFinanceKelas={setFilterFinanceKelas}
-                schoolClasses={schoolClasses}
-                financeIuranName={financeIuranName}
-                setFinanceIuranName={setFinanceIuranName}
-                financeAmount={financeAmount}
-                setFinanceAmount={setFinanceAmount}
-                financeDueDate={financeDueDate}
-                setFinanceDueDate={setFinanceDueDate}
-                selectedCategoryId={selectedCategoryId}
-                setSelectedCategoryId={setSelectedCategoryId}
-                iuranCategories={iuranCategories}
-                handleAddIuran={handleAddIuran}
-                setShowIuranCategoryModal={setShowIuranCategoryModal}
-              />
-            )}
-
             {financeSubTab === 'validasi' && (
               <FinanceValidasiTab
                 payments={payments}
@@ -5028,193 +4988,220 @@ export default function DashboardAdmin() {
                 </button>
               </div>
               
+              {/* Modal Tabs */}
+              <div className="bg-white px-6 md:px-10 border-b border-gray-100 flex items-center gap-1 shrink-0">
+                <button 
+                  onClick={() => setFinanceModalMode('detail')}
+                  className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${financeModalMode === 'detail' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                  Detail & Riwayat
+                </button>
+                <button 
+                  onClick={() => setFinanceModalMode('bayar')}
+                  className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${financeModalMode === 'bayar' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                  Setoran & Bayar
+                </button>
+              </div>
+              
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-5 md:p-10 space-y-8 md:space-y-10 custom-scrollbar">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  {/* Tabungan Panel */}
-                  <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saldo Tabungan</p>
-                        <h4 className="text-xl md:text-3xl font-black text-emerald-600 tracking-tight">Rp {(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')}</h4>
+                {financeModalMode === 'bayar' ? (
+                  /* Stats Grid (Bayar Mode) */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    {/* Tabungan Panel */}
+                    <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saldo Tabungan</p>
+                          <h4 className="text-xl md:text-3xl font-black text-emerald-600 tracking-tight">Rp {(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')}</h4>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const newVal = window.prompt("Nominal tabungan baru (Setel ulang):", selectedStudentForFinance.savings?.toString() || "0");
+                            if (newVal !== null && !isNaN(Number(newVal))) {
+                              updateFinance(selectedStudentForFinance.id, 'savings', newVal, "Koreksi saldo admin");
+                              setSelectedStudentForFinance((prev: any) => ({ ...prev, savings: Number(newVal) }));
+                            }
+                          }}
+                          className="w-8 h-8 md:w-9 md:h-9 bg-emerald-50 text-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center active:scale-90 transition-all shadow-sm"
+                        >
+                          <Edit size={14} />
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => {
-                          const newVal = window.prompt("Nominal tabungan baru (Setel ulang):", selectedStudentForFinance.savings?.toString() || "0");
-                          if (newVal !== null && !isNaN(Number(newVal))) {
-                            updateFinance(selectedStudentForFinance.id, 'savings', newVal, "Koreksi saldo admin");
-                            setSelectedStudentForFinance((prev: any) => ({ ...prev, savings: Number(newVal) }));
-                          }
-                        }}
-                        className="w-8 h-8 md:w-9 md:h-9 bg-emerald-50 text-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center active:scale-90 transition-all shadow-sm"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </div>
 
-                    <div className="bg-slate-50 p-5 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 space-y-3">
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"> <PlusCircle size={12} /> Setoran Cepat</p>
-                       <div className="flex flex-col gap-2">
-                          <input 
-                            type="number" id="update-savings" placeholder="Rp"
-                            className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-sans"
-                          />
-                          <button 
-                            onClick={() => {
-                              const val = (document.getElementById('update-savings') as HTMLInputElement).value;
-                              if(val) {
-                                handleAddSingleTabungan(selectedStudentForFinance.id, val, 'Setoran manual');
-                                (document.getElementById('update-savings') as HTMLInputElement).value = '';
-                              }
-                            }}
-                            className="w-full bg-emerald-600 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg active:scale-95 transition-all font-sans"
-                          >
-                            Konfirmasi
-                          </button>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Tunggakan Panel */}
-                  <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan</p>
-                        <h4 className="text-xl md:text-3xl font-black text-red-500 tracking-tight">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString('id-ID')}</h4>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          const newVal = window.prompt("Nominal tunggakan baru (Setel ulang):", selectedStudentForFinance.arrears?.toString() || "0");
-                          if (newVal !== null && !isNaN(Number(newVal))) {
-                            updateFinance(selectedStudentForFinance.id, 'arrears', newVal, "Koreksi tunggakan admin");
-                            setSelectedStudentForFinance((prev: any) => ({ ...prev, arrears: Number(newVal) }));
-                          }
-                        }}
-                        className="w-8 h-8 md:w-9 md:h-9 bg-red-50 text-red-500 rounded-lg md:rounded-xl flex items-center justify-center active:scale-90 transition-all shadow-sm"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </div>
-
-                    <div className="bg-slate-50 p-5 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 space-y-3">
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"> <AlertCircle size={12} /> Buat Tagihan</p>
-                       <div className="flex flex-col gap-2">
-                          <input 
-                            type="number" id="update-arrears" placeholder="Rp"
-                            className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 font-bold font-sans"
-                          />
-                          <input 
-                            type="text" id="update-arrears-desc" placeholder="Keterangan..."
-                            className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 font-bold font-sans"
-                          />
-                          <button 
-                            onClick={() => {
-                              const val = (document.getElementById('update-arrears') as HTMLInputElement).value;
-                              const desc = (document.getElementById('update-arrears-desc') as HTMLInputElement).value;
-                              if(val && desc) {
-                                handleAddSingleTunggakan(selectedStudentForFinance.id, val, desc);
-                                (document.getElementById('update-arrears') as HTMLInputElement).value = '';
-                                (document.getElementById('update-arrears-desc') as HTMLInputElement).value = '';
-                              }
-                            }}
-                            className="w-full bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 transition-all font-sans"
-                          >
-                            Tambah Tagihan
-                          </button>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Arrears Details & Payments */}
-                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
-                   <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-                           <FileText size={16} />
-                        </div>
-                        <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Rincian Komponen Tagihan</h4>
-                      </div>
-                      <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                        {selectedStudentForFinance.arrears_details?.length || 0} ITEM
-                      </span>
-                   </div>
-                   <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto custom-scrollbar">
-                      {(selectedStudentForFinance.arrears_details || []).length === 0 ? (
-                        <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
-                           Tidak ada tagihan aktif
-                        </div>
-                      ) : (
-                        selectedStudentForFinance.arrears_details.map((item: any, i: number) => (
-                           <div key={i} className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400">
-                                    {i + 1}
-                                 </div>
-                                 <div className="flex flex-col">
-                                    <span className="font-black text-gray-800 text-xs uppercase tracking-tighter">{item.name}</span>
-                                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 tracking-widest">{item.date || 'Tagihan Aktif'}</span>
-                                 </div>
-                              </div>
-                              <div className="flex items-center gap-8 text-right">
-                                 <div>
-                                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
-                                    <p className="font-black text-red-500 text-xs uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
-                                 </div>
-                                 <div className="flex items-center gap-2">
-                                    <button 
-                                      onClick={() => handleOneClickPaymentFromTabungan(selectedStudentForFinance, item)}
-                                      disabled={(selectedStudentForFinance.savings || 0) < Number(item.amount)}
-                                      className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30 disabled:grayscale shrink-0 border border-indigo-100"
-                                    >
-                                      Potong Tabungan
-                                    </button>
-                                    <button 
-                                      onClick={() => handleOneClickPayment(selectedStudentForFinance, item)}
-                                      className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
-                                    >
-                                      Bayar Tunai
-                                    </button>
-                                 </div>
-                              </div>
-                           </div>
-                        ))
-                      )}
-                   </div>
-                </div>
-
-                {/* History Section */}
-                <div className="bg-slate-50 border border-gray-100 rounded-[2.5rem] p-8 space-y-6">
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white text-slate-400 rounded-lg flex items-center justify-center border border-slate-100">
-                           <HistoryIcon size={16} />
-                        </div>
-                        <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Terakhir</h4>
-                     </div>
-                   </div>
-                   <div className="space-y-3">
-                      {payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 5).length === 0 ? (
-                        <div className="p-8 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
-                           Belum ada riwayat transaksi
-                        </div>
-                      ) : (
-                        payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 5).map(p => (
-                          <div key={p.id} className="bg-white p-4 rounded-2xl border border-white flex items-center justify-between shadow-sm">
-                             <div className="flex items-center gap-4">
-                                <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
-                                <div className="flex flex-col">
-                                   <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
-                                   <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{new Date(p.timestamp).toLocaleDateString()} - {p.method}</span>
-                                </div>
-                             </div>
-                             <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
+                      <div className="bg-slate-50 p-5 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 space-y-3">
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"> <PlusCircle size={12} /> Setoran Cepat</p>
+                          <div className="flex flex-col gap-2">
+                             <input 
+                               type="number" id="update-savings" placeholder="Nominal Rp"
+                               className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-sans"
+                             />
+                             <input 
+                               type="text" id="update-savings-desc" placeholder="Keterangan setoran..."
+                               className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold font-sans"
+                             />
+                             <button 
+                               onClick={() => {
+                                 const val = (document.getElementById('update-savings') as HTMLInputElement).value;
+                                 const desc = (document.getElementById('update-savings-desc') as HTMLInputElement).value;
+                                 if(val) {
+                                   handleAddSingleTabungan(selectedStudentForFinance.id, val, desc || 'Setoran manual');
+                                   (document.getElementById('update-savings') as HTMLInputElement).value = '';
+                                   (document.getElementById('update-savings-desc') as HTMLInputElement).value = '';
+                                 }
+                               }}
+                               className="w-full bg-emerald-600 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg active:scale-95 transition-all font-sans"
+                             >
+                               Konfirmasi
+                             </button>
                           </div>
-                        ))
-                      )}
-                   </div>
-                </div>
+                      </div>
+                    </div>
+
+                    {/* Tunggakan Panel */}
+                    <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tunggakan</p>
+                          <h4 className="text-xl md:text-3xl font-black text-red-500 tracking-tight">Rp {(selectedStudentForFinance.arrears || 0).toLocaleString('id-ID')}</h4>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const newVal = window.prompt("Nominal tunggakan baru (Setel ulang):", selectedStudentForFinance.arrears?.toString() || "0");
+                            if (newVal !== null && !isNaN(Number(newVal))) {
+                              updateFinance(selectedStudentForFinance.id, 'arrears', newVal, "Koreksi tunggakan admin");
+                              setSelectedStudentForFinance((prev: any) => ({ ...prev, arrears: Number(newVal) }));
+                            }
+                          }}
+                          className="w-8 h-8 md:w-9 md:h-9 bg-red-50 text-red-500 rounded-lg md:rounded-xl flex items-center justify-center active:scale-90 transition-all shadow-sm"
+                        >
+                          <Edit size={14} />
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-50 p-5 md:p-6 rounded-xl md:rounded-2xl border border-slate-100 space-y-3">
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"> <AlertCircle size={12} /> Buat Tagihan</p>
+                         <div className="flex flex-col gap-2">
+                            <input 
+                              type="number" id="update-arrears" placeholder="Rp"
+                              className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 font-bold font-sans"
+                            />
+                            <input 
+                              type="text" id="update-arrears-desc" placeholder="Keterangan..."
+                              className="w-full text-[11px] md:text-xs p-3 md:p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500 font-bold font-sans"
+                            />
+                            <button 
+                              onClick={() => {
+                                const val = (document.getElementById('update-arrears') as HTMLInputElement).value;
+                                const desc = (document.getElementById('update-arrears-desc') as HTMLInputElement).value;
+                                if(val && desc) {
+                                  handleAddSingleTunggakan(selectedStudentForFinance.id, val, desc);
+                                  (document.getElementById('update-arrears') as HTMLInputElement).value = '';
+                                  (document.getElementById('update-arrears-desc') as HTMLInputElement).value = '';
+                                }
+                              }}
+                              className="w-full bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 transition-all font-sans"
+                            >
+                              Tambah Tagihan
+                            </button>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Detail Mode */
+                  <div className="space-y-8 md:space-y-10">
+                    {/* Arrears Details & Payments */}
+                    <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+                       <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                               <FileText size={16} />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Rincian Komponen Tagihan</h4>
+                          </div>
+                          <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                            {selectedStudentForFinance.arrears_details?.length || 0} ITEM
+                          </span>
+                       </div>
+                       <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto custom-scrollbar">
+                          {(selectedStudentForFinance.arrears_details || []).length === 0 ? (
+                            <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
+                               Tidak ada tagihan aktif
+                            </div>
+                          ) : (
+                            selectedStudentForFinance.arrears_details.map((item: any, i: number) => (
+                               <div key={i} className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                                  <div className="flex items-center gap-4">
+                                     <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400">
+                                        {i + 1}
+                                     </div>
+                                     <div className="flex flex-col">
+                                        <span className="font-black text-gray-800 text-xs uppercase tracking-tighter">{item.name}</span>
+                                        <span className="text-[9px] font-bold text-gray-400 mt-0.5 tracking-widest">{item.date || 'Tagihan Aktif'}</span>
+                                     </div>
+                                  </div>
+                                  <div className="flex items-center gap-8 text-right">
+                                     <div>
+                                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
+                                        <p className="font-black text-red-500 text-xs uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
+                                     </div>
+                                     <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={() => handleOneClickPaymentFromTabungan(selectedStudentForFinance, item)}
+                                          disabled={(selectedStudentForFinance.savings || 0) < Number(item.amount)}
+                                          className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30 disabled:grayscale shrink-0 border border-indigo-100"
+                                        >
+                                          Potong Tabungan
+                                        </button>
+                                        <button 
+                                          onClick={() => handleOneClickPayment(selectedStudentForFinance, item)}
+                                          className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
+                                        >
+                                          Bayar Tunai
+                                        </button>
+                                     </div>
+                                  </div>
+                               </div>
+                            ))
+                          )}
+                       </div>
+                    </div>
+
+                    {/* History Section */}
+                    <div className="bg-slate-50 border border-gray-100 rounded-[2.5rem] p-8 space-y-6">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-white text-slate-400 rounded-lg flex items-center justify-center border border-slate-100">
+                               <HistoryIcon size={16} />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Terakhir</h4>
+                         </div>
+                       </div>
+                       <div className="space-y-3">
+                          {payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).length === 0 ? (
+                            <div className="p-8 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
+                               Belum ada riwayat transaksi
+                            </div>
+                          ) : (
+                            payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).map(p => (
+                              <div key={p.id} className="bg-white p-4 rounded-2xl border border-white flex items-center justify-between shadow-sm">
+                                 <div className="flex items-center gap-4">
+                                    <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
+                                    <div className="flex flex-col">
+                                       <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
+                                       <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{new Date(p.timestamp).toLocaleDateString()} - {p.method} {p.description ? `(${p.description})` : ''}</span>
+                                    </div>
+                                 </div>
+                                 <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
+                              </div>
+                            ))
+                          )}
+                       </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Footer Actions */}

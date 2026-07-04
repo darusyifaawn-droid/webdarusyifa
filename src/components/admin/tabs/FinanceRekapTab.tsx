@@ -25,6 +25,7 @@ interface FinanceRekapTabProps {
   filterFinanceStudentName: string;
   setSelectedStudentForFinance: (val: any) => void;
   setShowManageFinanceModal: (val: boolean) => void;
+  setFinanceModalMode: (val: 'detail' | 'bayar') => void;
   setEditingUser: (val: any) => void;
   setShowEditUser: (val: boolean) => void;
   setUserToDelete: (val: any) => void;
@@ -57,6 +58,7 @@ export default function FinanceRekapTab({
   filterFinanceStudentName,
   setSelectedStudentForFinance,
   setShowManageFinanceModal,
+  setFinanceModalMode,
   setEditingUser,
   setShowEditUser,
   setUserToDelete,
@@ -292,14 +294,22 @@ export default function FinanceRekapTab({
                       <td className="px-8 py-5">
                         <div className="flex items-center justify-center gap-2">
                           <button 
-                            onClick={() => { setSelectedStudentForFinance(u); setShowManageFinanceModal(true); }}
+                            onClick={() => { 
+                              setSelectedStudentForFinance(u); 
+                              setFinanceModalMode('detail');
+                              setShowManageFinanceModal(true); 
+                            }}
                             className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                             title="Detail"
                           >
                             <FileText size={16} />
                           </button>
                           <button 
-                            onClick={() => { setSelectedStudentForFinance(u); setShowManageFinanceModal(true); }}
+                            onClick={() => { 
+                              setSelectedStudentForFinance(u); 
+                              setFinanceModalMode('bayar');
+                              setShowManageFinanceModal(true); 
+                            }}
                             className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                             title="Bayar"
                           >
