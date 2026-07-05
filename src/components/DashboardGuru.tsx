@@ -710,6 +710,11 @@ export default function DashboardGuru() {
     if (context) {
       canvasRef.current.width = videoRef.current.videoWidth;
       canvasRef.current.height = videoRef.current.videoHeight;
+      
+      // Mirror the context
+      context.translate(canvasRef.current.width, 0);
+      context.scale(-1, 1);
+      
       context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
       const photoDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.6);
 
@@ -2930,7 +2935,7 @@ export default function DashboardGuru() {
         {showCamera && (
           <div className="fixed inset-0 bg-black z-[200] flex flex-col">
             <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
               <div className="absolute top-10 left-0 right-0 flex justify-center p-4">
                 <div className="bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/30 text-white font-bold text-sm">
                   Status: {attendanceStatus}

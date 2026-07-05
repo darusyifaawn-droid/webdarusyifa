@@ -849,6 +849,11 @@ export default function DashboardSiswa() {
         if (context) {
           canvasRef.current.width = videoRef.current.videoWidth;
           canvasRef.current.height = videoRef.current.videoHeight;
+          
+          // Mirror the context
+          context.translate(canvasRef.current.width, 0);
+          context.scale(-1, 1);
+          
           context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
           photoDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.6); // Compress captured photo
         }
@@ -2623,7 +2628,7 @@ export default function DashboardSiswa() {
                 {attendanceStatus === 'Hadir' && (
                   <div className="space-y-4">
                     <div className="relative aspect-video bg-gray-100 rounded-[32px] overflow-hidden border-2 border-gray-100 shadow-inner">
-                      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                       <canvas ref={canvasRef} className="hidden" />
                       <div className="absolute inset-0 border-2 border-white/20 pointer-events-none rounded-[32px]"></div>
                     </div>
