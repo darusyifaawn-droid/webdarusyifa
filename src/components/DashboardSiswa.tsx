@@ -41,7 +41,16 @@ export default function DashboardSiswa() {
   const [selectedExamDays, setSelectedExamDays] = useState<Record<string, string>>({});
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [quote, setQuote] = useState('');
+
+  useEffect(() => {
+    if (attendance && user) {
+      const today = new Date().toISOString().split('T')[0];
+      const todayAbsence = attendance.find(a => a.date === today);
+      setHasCheckedInToday(!!todayAbsence);
+    }
+  }, [attendance, user]);
   
   // Finance Filter State
   const [filterType, setFilterType] = useState('all');
@@ -1252,7 +1261,7 @@ export default function DashboardSiswa() {
                                  <p className="text-[10px] text-gray-400 font-black uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
                               </div>
                            </div>
-                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${ (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                               {a.status}
                            </span>
                         </div>
@@ -1909,15 +1918,27 @@ export default function DashboardSiswa() {
                      <h3 className="text-2xl md:text-3xl font-black tracking-tight">Presensi Mandiri</h3>
                      <p className="text-blue-100 font-medium">Lakukan absensi harianmu dengan foto wajah sekarang.</p>
                   </div>
-                  <button 
-                    onClick={startCamera}
-                    className="group bg-white text-blue-600 px-10 py-5 rounded-[32px] font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-4 active:scale-95"
-                  >
-                    <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
-                       <Camera size={24} />
-                    </div>
-                    Mulai Absen
-                  </button>
+                  {hasCheckedInToday ? (
+                     <div className="bg-white/20 backdrop-blur-md px-10 py-5 rounded-[32px] border border-white/30 flex items-center gap-4 animate-in fade-in zoom-in duration-300">
+                        <div className="w-10 h-10 bg-white/30 rounded-2xl flex items-center justify-center">
+                           <CheckCircle size={24} className="text-white" />
+                        </div>
+                        <div>
+                           <p className="text-xs font-black uppercase tracking-widest">Sudah Terabsen</p>
+                           <p className="text-[10px] text-blue-50 font-bold">Terima kasih, data sudah tersimpan.</p>
+                        </div>
+                     </div>
+                  ) : (
+                    <button 
+                      onClick={startCamera}
+                      className="group bg-white text-blue-600 px-10 py-5 rounded-[32px] font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-900/20 flex items-center gap-4 active:scale-95"
+                    >
+                      <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                         <Camera size={24} />
+                      </div>
+                      Mulai Absen
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -1952,7 +1973,7 @@ export default function DashboardSiswa() {
                         )}
                       </td>
                       <td className="px-6 py-4 md:px-8 md:py-6">
-                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${ (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
                       </td>
                     </tr>
                   ))}
@@ -1984,7 +2005,7 @@ export default function DashboardSiswa() {
                         <p className="text-xs text-gray-400">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString('id-ID') : '-'}</p>
                      </div>
                    </div>
-                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'masuk' || a.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
+                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${ (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
                  </div>
                ))}
                {attendance.length === 0 && (

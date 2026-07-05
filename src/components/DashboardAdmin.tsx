@@ -55,6 +55,7 @@ export default function DashboardAdmin() {
   const paymentProofRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedAttendanceIds, setSelectedAttendanceIds] = useState<string[]>([]);
   const [iuranCategories, setIuranCategories] = useState<any[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -227,6 +228,20 @@ export default function DashboardAdmin() {
       .map(d => d.name)
   )).sort();
 
+  const filteredAttendance = attendance.filter(a => {
+    const student = allUsers.find(u => u.id === a.studentId);
+    if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
+    if (filterRole !== 'semua' && student.role !== filterRole) return false;
+    if (filterKelas && student.role === 'siswa') {
+      const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!uK.includes(fK) && !fK.includes(uK)) return false;
+    }
+    if (filterDateStart && a.date < filterDateStart) return false;
+    if (filterDateEnd && a.date > filterDateEnd) return false;
+    return true;
+  });
+
   const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
     if (u.role !== 'siswa') return u;
 
@@ -367,6 +382,20 @@ export default function DashboardAdmin() {
     if (win) {
       win.document.write(html);
       win.document.close();
+    }
+  };
+
+  const handleBulkDeleteAttendance = async () => {
+    if (selectedAttendanceIds.length === 0) return;
+    if (window.confirm(`Hapus ${selectedAttendanceIds.length} data absensi yang dipilih?`)) {
+      try {
+        await Promise.all(selectedAttendanceIds.map(id => deleteDoc(doc(db, 'attendance', id))));
+        setSelectedAttendanceIds([]);
+        alert('Data absensi terpilih berhasil dihapus!');
+      } catch (error) {
+        console.error("Error bulk deleting attendance:", error);
+        alert('Gagal menghapus beberapa data.');
+      }
     }
   };
 
@@ -3328,10 +3357,10 @@ export default function DashboardAdmin() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {[
-                { label: 'Hadir', count: attendance.filter(a => a.status === 'masuk').length, color: 'text-green-600', bg: 'bg-green-50' },
-                { label: 'Sakit', count: attendance.filter(a => a.status === 'sakit').length, color: 'text-blue-600', bg: 'bg-blue-50' },
-                { label: 'Izin', count: attendance.filter(a => a.status === 'izin').length, color: 'text-purple-600', bg: 'bg-purple-50' },
-                { label: 'Alpha', count: attendance.filter(a => a.status === 'alpha').length, color: 'text-red-600', bg: 'bg-red-50' },
+                { label: 'Hadir', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'hadir').length, color: 'text-green-600', bg: 'bg-green-50' },
+                { label: 'Sakit', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'sakit').length, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'Izin', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'izin').length, color: 'text-purple-600', bg: 'bg-purple-50' },
+                { label: 'Alpha', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'tk' || (a.status || '').toLowerCase() === 'alpha').length, color: 'text-red-600', bg: 'bg-red-50' },
               ].map((s, i) => (
                 <div key={i} className={`${s.bg} p-6 rounded-[2rem] border border-white flex flex-col items-center justify-center text-center shadow-sm`}>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
@@ -3348,10 +3377,10 @@ export default function DashboardAdmin() {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: 'Hadir', value: attendance.filter(a => a.status === 'masuk').length, color: '#16a34a' },
-                          { name: 'Sakit', value: attendance.filter(a => a.status === 'sakit').length, color: '#2563eb' },
-                          { name: 'Izin', value: attendance.filter(a => a.status === 'izin').length, color: '#9333ea' },
-                          { name: 'Alpha', value: attendance.filter(a => a.status === 'alpha').length, color: '#dc2626' },
+                          { name: 'Hadir', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'hadir').length, color: '#16a34a' },
+                          { name: 'Sakit', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'sakit').length, color: '#2563eb' },
+                          { name: 'Izin', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'izin').length, color: '#9333ea' },
+                          { name: 'Alpha', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'tk' || (a.status || '').toLowerCase() === 'alpha').length, color: '#dc2626' },
                         ]}
                         innerRadius={60}
                         outerRadius={80}
@@ -3386,7 +3415,7 @@ export default function DashboardAdmin() {
                         const dateStr = d.toISOString().split('T')[0];
                         days.push({
                           name: dateStr.split('-').slice(1).reverse().join('/'),
-                          hadir: attendance.filter(a => a.date === dateStr && a.status === 'masuk').length
+                          hadir: attendance.filter(a => a.date === dateStr && (a.status || '').toLowerCase() === 'hadir').length
                         });
                       }
                       return days;
@@ -3416,6 +3445,29 @@ export default function DashboardAdmin() {
                     <input type="date" value={filterDateEnd} onChange={(e) => setFilterDateEnd(e.target.value)} className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                   </div>
                 </div>
+
+                <div className="flex items-center gap-3">
+                  {selectedAttendanceIds.length > 0 && (
+                    <button 
+                      onClick={handleBulkDeleteAttendance}
+                      className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
+                    >
+                      <Trash2 size={14} /> Hapus ({selectedAttendanceIds.length})
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      if (selectedAttendanceIds.length === filteredAttendance.length) {
+                        setSelectedAttendanceIds([]);
+                      } else {
+                        setSelectedAttendanceIds(filteredAttendance.map(a => a.id));
+                      }
+                    }}
+                    className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    {selectedAttendanceIds.length === filteredAttendance.length ? 'Batal Pilih' : 'Pilih Semua'}
+                  </button>
+                </div>
               </div>
 
               {/* Desktop Table View */}
@@ -3423,6 +3475,20 @@ export default function DashboardAdmin() {
                 <table className="w-full text-left">
                   <thead className="bg-gray-100/50 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
                     <tr>
+                      <th className="px-8 py-5 w-10">
+                        <input 
+                          type="checkbox"
+                          checked={filteredAttendance.length > 0 && selectedAttendanceIds.length === filteredAttendance.length}
+                          onChange={() => {
+                            if (selectedAttendanceIds.length === filteredAttendance.length) {
+                              setSelectedAttendanceIds([]);
+                            } else {
+                              setSelectedAttendanceIds(filteredAttendance.map(a => a.id));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
                       <th className="px-8 py-5">Subjek</th>
                       <th className="px-8 py-5">Waktu Presensi</th>
                       <th className="px-8 py-5">Status</th>
@@ -3432,25 +3498,25 @@ export default function DashboardAdmin() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {attendance
-                      .filter(a => {
-                        const student = allUsers.find(u => u.id === a.studentId);
-                        if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
-                        if (filterRole !== 'semua' && student.role !== filterRole) return false;
-                        if (filterKelas && student.role === 'siswa') {
-                          const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                          const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
-                          if (!uK.includes(fK) && !fK.includes(uK)) return false;
-                        }
-                        if (filterDateStart && a.date < filterDateStart) return false;
-                        if (filterDateEnd && a.date > filterDateEnd) return false;
-                        return true;
-                      })
-                      .map((a) => {
-                        const student = allUsers.find(u => u.id === a.studentId);
-                        return (
-                          <tr key={a.id} className="hover:bg-gray-50/50 transition-colors group">
-                            <td className="px-8 py-6">
+                    {filteredAttendance.map((a) => {
+                         const student = allUsers.find(u => u.id === a.studentId);
+                         return (
+                           <tr key={a.id} className={`hover:bg-gray-50/50 transition-colors group ${selectedAttendanceIds.includes(a.id) ? 'bg-blue-50/30' : ''}`}>
+                             <td className="px-8 py-6 w-10">
+                               <input 
+                                 type="checkbox"
+                                 checked={selectedAttendanceIds.includes(a.id)}
+                                 onChange={() => {
+                                   if (selectedAttendanceIds.includes(a.id)) {
+                                     setSelectedAttendanceIds(prev => prev.filter(id => id !== a.id));
+                                   } else {
+                                     setSelectedAttendanceIds(prev => [...prev, a.id]);
+                                   }
+                                 }}
+                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               />
+                             </td>
+                             <td className="px-8 py-6">
                               <div className="font-bold text-gray-800">{student?.name || 'Unknown'}</div>
                               <div className="text-[10px] font-black text-gray-400 uppercase tracking-tight">{student?.role === 'guru' ? 'STAFF GURU' : (student?.kelas || 'SISWA')}</div>
                             </td>
@@ -3460,9 +3526,9 @@ export default function DashboardAdmin() {
                             </td>
                             <td className="px-8 py-6">
                               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                a.status === 'masuk' ? 'bg-green-100 text-green-700' : 
-                                a.status === 'sakit' ? 'bg-blue-100 text-blue-700' :
-                                a.status === 'izin' ? 'bg-purple-100 text-purple-700' :
+                                (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 
+                                (a.status || '').toLowerCase() === 'sakit' ? 'bg-blue-100 text-blue-700' :
+                                (a.status || '').toLowerCase() === 'izin' ? 'bg-purple-100 text-purple-700' :
                                 'bg-red-100 text-red-700'
                               }`}>
                                 {a.status}
@@ -3508,21 +3574,7 @@ export default function DashboardAdmin() {
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-gray-100">
-                {attendance
-                  .filter(a => {
-                    const student = allUsers.find(u => u.id === a.studentId);
-                    if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
-                    if (filterRole !== 'semua' && student.role !== filterRole) return false;
-                    if (filterKelas && student.role === 'siswa') {
-                      const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                      const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
-                      if (!uK.includes(fK) && !fK.includes(uK)) return false;
-                    }
-                    if (filterDateStart && a.date < filterDateStart) return false;
-                    if (filterDateEnd && a.date > filterDateEnd) return false;
-                    return true;
-                  })
-                  .map((a) => {
+                {filteredAttendance.map((a) => {
                     const student = allUsers.find(u => u.id === a.studentId);
                     return (
                       <div key={a.id} className="p-5 flex flex-col gap-4">
@@ -3532,9 +3584,9 @@ export default function DashboardAdmin() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">{student?.role === 'guru' ? 'STAFF GURU' : (student?.kelas || 'SISWA')}</p>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${
-                            a.status === 'masuk' ? 'bg-green-100 text-green-700' : 
-                            a.status === 'sakit' ? 'bg-blue-100 text-blue-700' :
-                            a.status === 'izin' ? 'bg-purple-100 text-purple-700' :
+                            (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 
+                            (a.status || '').toLowerCase() === 'sakit' ? 'bg-blue-100 text-blue-700' :
+                            (a.status || '').toLowerCase() === 'izin' ? 'bg-purple-100 text-purple-700' :
                             'bg-red-100 text-red-700'
                           }`}>
                             {a.status}

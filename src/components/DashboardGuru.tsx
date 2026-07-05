@@ -71,7 +71,16 @@ export default function DashboardGuru() {
   // Camera States
   const [showCamera, setShowCamera] = useState(false);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir'); // Hadir, Sakit, Izin, TK
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (attendance && user) {
+      const today = new Date().toISOString().split('T')[0];
+      const todayAbsence = attendance.find(a => a.date === today && a.studentId === user.uid);
+      setHasCheckedInToday(!!todayAbsence);
+    }
+  }, [attendance, user]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   const [searchStudentProgress, setSearchStudentProgress] = useState('');
@@ -2232,8 +2241,9 @@ export default function DashboardGuru() {
                 {['Hadir', 'Izin', 'Sakit', 'TK'].map((status) => (
                   <button 
                     key={status}
+                    disabled={hasCheckedInToday}
                     onClick={() => setAttendanceStatus(status)}
-                    className={`py-3 rounded-2xl font-bold transition-all ${attendanceStatus === status ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                    className={`py-3 rounded-2xl font-bold transition-all ${attendanceStatus === status ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'} ${hasCheckedInToday ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {status}
                   </button>
@@ -2241,12 +2251,24 @@ export default function DashboardGuru() {
               </div>
             </div>
 
-            <button 
-              onClick={startCamera}
-              className="w-24 h-24 bg-blue-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-blue-200 hover:scale-110 transition-transform active:scale-95 group mb-12"
-            >
-              <Camera size={40} className="group-hover:rotate-12 transition-transform" />
-            </button>
+            {hasCheckedInToday ? (
+               <div className="flex flex-col items-center gap-4 mb-12 animate-in fade-in zoom-in duration-300">
+                  <div className="w-24 h-24 bg-green-50 rounded-[32px] flex items-center justify-center text-green-600 shadow-xl shadow-green-100">
+                     <CheckCircle size={40} />
+                  </div>
+                  <div className="text-center">
+                     <p className="text-sm font-black uppercase tracking-widest text-green-700">Sudah Terabsen</p>
+                     <p className="text-xs text-gray-400 font-bold">Terima kasih, data Anda sudah kami terima hari ini.</p>
+                  </div>
+               </div>
+            ) : (
+              <button 
+                onClick={startCamera}
+                className="w-24 h-24 bg-blue-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-blue-200 hover:scale-110 transition-transform active:scale-95 group mb-12"
+              >
+                <Camera size={40} className="group-hover:rotate-12 transition-transform" />
+              </button>
+            )}
             
             <div className="w-full text-left">
               <h4 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -2273,7 +2295,7 @@ export default function DashboardGuru() {
                             {a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : '-'}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${a.status === 'Hadir' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${ (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
                               {a.status}
                             </span>
                           </td>
@@ -2312,7 +2334,7 @@ export default function DashboardGuru() {
                           <p className="font-bold text-gray-800 text-sm">{a.date}</p>
                           <p className="text-xs text-gray-500">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : '-'}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${a.status === 'Hadir' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${ (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
                           {a.status}
                         </span>
                       </div>
