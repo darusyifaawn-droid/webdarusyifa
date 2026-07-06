@@ -80,6 +80,8 @@ export default function DashboardAdmin() {
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
   const [announceTarget, setAnnounceTarget] = useState('all');
+  const [announceAttachments, setAnnounceAttachments] = useState<any[]>([]);
+  const announceFileRef = useRef<HTMLInputElement>(null);
   
   // Finance Form States
   const [financeStudentIds, setFinanceStudentIds] = useState<string[]>([]);
@@ -813,17 +815,45 @@ export default function DashboardAdmin() {
         title: announceTitle,
         content: announceContent,
         target: announceTarget,
+        attachments: announceAttachments,
         createdAt: serverTimestamp(),
         author: user.displayName || 'Admin'
       });
       setAnnounceTitle('');
       setAnnounceContent('');
       setAnnounceTarget('all');
+      setAnnounceAttachments([]);
       setShowAnnounceModal(false);
       alert('Pengumuman berhasil dikirim!');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'announcements');
     }
+  };
+
+  const handleAnnounceFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newAttachments = [...announceAttachments];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 800 * 1024) {
+        alert(`File ${file.name} terlalu besar (max 800KB)`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setAnnounceAttachments(prev => [...prev, {
+          name: file.name,
+          type: file.type,
+          data: dataUrl
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+    if (announceFileRef.current) announceFileRef.current.value = '';
   };
 
   const handleTarikTabungan = async (userId: string, amountTarik: string, desc?: string) => {
@@ -4191,64 +4221,102 @@ export default function DashboardAdmin() {
         )}
 
         {activeTab === 'announcements' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-lg font-bold text-gray-800">Broadcast & Pengumuman</h3>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="space-y-8 pb-20">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+               <div>
+                  <h3 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">Manajemen Informasi</h3>
+                  <p className="text-sm text-gray-400 font-medium">Kelola semua broadcast dan pengumuman sekolah.</p>
+               </div>
+               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button 
                   onClick={() => setShowBroadcastPulangModal(true)}
-                  className="w-full sm:w-auto bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-all text-sm border border-blue-200"
+                  className="flex-1 sm:flex-none bg-blue-50 text-blue-600 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
                 >
-                  <Megaphone size={18} /> Broadcast Kepulangan (WA)
+                  <Megaphone size={18} /> Broadcast Pulang
                 </button>
                 <button 
                   onClick={() => setShowAnnounceModal(true)}
-                  className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-sm"
+                  className="flex-1 sm:flex-none bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all"
                 >
-                  <Plus size={18} /> Buat Info Baru
+                  <Plus size={18} /> Info Baru
                 </button>
               </div>
             </div>
-            <div className="grid gap-4">
+
+            <div className="grid gap-8">
               {announcements.map(a => (
-                <div key={a.id} className="bg-white p-5 md:p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative group">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                      <h4 className="font-black text-gray-800 text-lg md:text-xl uppercase tracking-tight">{a.title}</h4>
-                      {a.target && a.target !== 'all' && (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-black uppercase tracking-widest rounded-full">
-                          Target: {a.target.startsWith('kelas_') ? 'Kelas ' + a.target.replace('kelas_', '').toUpperCase() : a.target.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="markdown-body mt-2 text-sm text-gray-600 line-clamp-3 md:line-clamp-none">
-                      <ReactMarkdown>{a.content}</ReactMarkdown>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-400 uppercase font-black tracking-widest">
-                      <span className="text-gray-600">{a.author}</span>
-                      <span>•</span>
-                      <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-                  <div className="flex md:block md:self-start md:mt-2">
-                    <button onClick={async () => {
-                      if(window.confirm('Hapus pengumuman ini?')) {
-                        try {
-                          await deleteDoc(doc(db, 'announcements', a.id));
-                          alert('Pengumuman berhasil dihapus!');
-                        } catch (error) {
-                          handleFirestoreError(error, OperationType.DELETE, `announcements/${a.id}`);
-                        }
-                      }
-                    }} className="text-red-400 hover:text-red-600 p-3 bg-red-50 hover:bg-red-100 rounded-2xl active:scale-95 transition-all outline-none">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                <div key={a.id} className="relative group">
+                   <div className="absolute inset-0 bg-gray-100 rounded-[2.5rem] translate-y-2 transition-transform group-hover:translate-y-3"></div>
+                   <div className="relative bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between gap-8">
+                      <div className="flex-1 min-w-0">
+                         <div className="flex flex-wrap items-center gap-3 mb-6">
+                            <span className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center border border-blue-100">
+                               <Megaphone size={20} />
+                            </span>
+                            <h4 className="font-black text-gray-800 text-xl uppercase tracking-tight">{a.title}</h4>
+                            {a.target && a.target !== 'all' && (
+                               <span className="px-3 py-1.5 bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-[0.2em] rounded-full border border-amber-100">
+                                  Target: {a.target.startsWith('kelas_') ? 'Kelas ' + a.target.replace('kelas_', '').toUpperCase() : a.target.toUpperCase()}
+                               </span>
+                            )}
+                         </div>
+
+                         <div className="markdown-body formal-doc-content text-sm text-gray-600 line-clamp-3 md:line-clamp-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-50 italic">
+                            <ReactMarkdown>{a.content}</ReactMarkdown>
+                         </div>
+
+                         {a.attachments && a.attachments.length > 0 && (
+                            <div className="mt-6 flex flex-wrap gap-2">
+                               {a.attachments.map((file: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500">
+                                     {file.type.includes('image') ? <ImageIcon size={12} className="text-blue-400" /> : <FileText size={12} className="text-red-400" />}
+                                     <span className="max-w-[120px] truncate">{file.name}</span>
+                                  </div>
+                               ))}
+                            </div>
+                         )}
+
+                         <div className="mt-8 flex items-center gap-4 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">
+                            <div className="flex items-center gap-2">
+                               <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
+                                  <User size={12} />
+                               </div>
+                               <span>{a.author}</span>
+                            </div>
+                            <span>•</span>
+                            <div className="flex items-center gap-2">
+                               <Calendar size={12} />
+                               <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center md:flex-col justify-end gap-3 shrink-0">
+                         <button 
+                           onClick={async () => {
+                             if(window.confirm('Hapus pengumuman ini?')) {
+                               try {
+                                 await deleteDoc(doc(db, 'announcements', a.id));
+                                 alert('Pengumuman berhasil dihapus!');
+                               } catch (error) {
+                                 handleFirestoreError(error, OperationType.DELETE, `announcements/${a.id}`);
+                               }
+                             }
+                           }} 
+                           className="w-14 h-14 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-red-100"
+                         >
+                            <Trash2 size={24} />
+                         </button>
+                      </div>
+                   </div>
                 </div>
               ))}
               {announcements.length === 0 && (
-                <div className="bg-white p-12 rounded-3xl border border-dashed border-gray-200 text-center text-gray-400">
-                  Belum ada pengumuman yang dikirim.
+                <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-gray-100 text-center flex flex-col items-center justify-center gap-4">
+                   <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-200">
+                      <Megaphone size={40} />
+                   </div>
+                   <p className="text-gray-400 font-black text-sm uppercase tracking-widest">Belum ada pengumuman yang dikirim</p>
                 </div>
               )}
             </div>
@@ -5344,29 +5412,95 @@ export default function DashboardAdmin() {
 
         {showAnnounceModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+            <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setShowAnnounceModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Buat Pengumuman</h3>
-              <form onSubmit={handleAddAnnouncement} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target</label>
-                  <select value={announceTarget} onChange={(e) => setAnnounceTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500">
-                    <option value="all">Semua Pengguna</option>
-                    <option value="guru">Khusus Guru</option>
-                    {schoolClasses.map(c => (
-                      <option key={c.id} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
-                    ))}
-                  </select>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Buat Pengumuman Baru</h3>
+              <p className="text-xs text-gray-400 mb-6 font-medium uppercase tracking-widest">Format dokumen resmi sekolah</p>
+              
+              <form onSubmit={handleAddAnnouncement} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Penerima / Target</label>
+                     <select value={announceTarget} onChange={(e) => setAnnounceTarget(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
+                       <option value="all">Semua Pengguna</option>
+                       <option value="guru">Khusus Guru</option>
+                       {schoolClasses.map(c => (
+                         <option key={c.id} value={`kelas_${c.name}`}>Khusus Kelas: {c.name}</option>
+                       ))}
+                     </select>
+                   </div>
+                   <div>
+                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Judul Pengumuman</label>
+                     <input 
+                       type="text" 
+                       value={announceTitle} 
+                       onChange={(e) => setAnnounceTitle(e.target.value)} 
+                       className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm" 
+                       placeholder="Contoh: Pemberitahuan Libur Semester"
+                       required 
+                     />
+                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Judul</label>
-                  <input type="text" value={announceTitle} onChange={(e) => setAnnounceTitle(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500" required />
+                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Isi Pengumuman (Word Style)</label>
+                   <div className="bg-gray-50 rounded-2xl border border-gray-100 p-1">
+                      <div className="flex items-center gap-1 p-2 border-b border-gray-100 bg-white rounded-t-xl mb-2">
+                         <div className="text-[10px] font-bold text-gray-400 px-3 border-r border-gray-100 mr-2">Markdown Support</div>
+                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '**Teks Tebal**')} className="p-1.5 hover:bg-gray-50 rounded text-xs font-bold text-gray-600">B</button>
+                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '*Teks Miring*')} className="p-1.5 hover:bg-gray-50 rounded text-xs italic text-gray-600">I</button>
+                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '\n- Daftar Item\n')} className="p-1.5 hover:bg-gray-50 rounded text-xs text-gray-600">List</button>
+                      </div>
+                      <textarea 
+                        value={announceContent} 
+                        onChange={(e) => setAnnounceContent(e.target.value)} 
+                        className="w-full p-6 bg-transparent outline-none min-h-[300px] resize-y font-serif text-sm leading-relaxed" 
+                        placeholder="Tulis pengumuman di sini..." 
+                        required 
+                      />
+                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Isi Pengumuman</label>
-                  <textarea value={announceContent} onChange={(e) => setAnnounceContent(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 h-64 resize-y" placeholder="Ketik pengumuman di sini... (Spasi dan baris baru akan dipertahankan agar rapi)" required />
+                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Lampiran (Gambar/PDF)</label>
+                   <div className="flex flex-wrap gap-3 mb-3">
+                      {announceAttachments.map((file, idx) => (
+                         <div key={idx} className="bg-blue-50 text-blue-600 px-3 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 border border-blue-100 group">
+                            {file.type.includes('image') ? <ImageIcon size={14} /> : <FileText size={14} />}
+                            <span className="max-w-[100px] truncate">{file.name}</span>
+                            <button 
+                              type="button" 
+                              onClick={() => setAnnounceAttachments(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-blue-300 hover:text-red-500 transition-colors"
+                            >
+                               <X size={14} />
+                            </button>
+                         </div>
+                      ))}
+                   </div>
+                   <input 
+                     type="file" 
+                     ref={announceFileRef} 
+                     onChange={handleAnnounceFileChange} 
+                     className="hidden" 
+                     accept="image/*,application/pdf"
+                     multiple
+                   />
+                   <button 
+                     type="button"
+                     onClick={() => announceFileRef.current?.click()}
+                     className="flex items-center gap-2 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all text-xs font-bold"
+                   >
+                      <Plus size={16} /> Tambah Lampiran (Max 800KB)
+                   </button>
                 </div>
-                <button type="submit" className="w-full px-6 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-xl shadow-green-200 transition-all mt-4">Kirim Broadcast</button>
+
+                <div className="flex items-center gap-4 pt-4">
+                   <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 px-6 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Batal</button>
+                   <button type="submit" className="flex-[2] px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-2">
+                      <Megaphone size={16} /> Kirim Pengumuman
+                   </button>
+                </div>
               </form>
             </div>
           </div>
