@@ -59,28 +59,38 @@ body {
 
   .formal-doc-content {
   font-family: "Inter", "Times New Roman", serif;
+  color: #374151;
 }
 
-.formal-doc-content h1, .formal-doc-content h2, .formal-doc-content h3 {
-  font-family: "Outfit", sans-serif;
-  font-weight: 800;
-  color: #1f2937;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-}
+.formal-doc-content h1 { font-size: 2rem; font-weight: 800; color: #111827; margin: 2rem 0 1.5rem; }
+.formal-doc-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 1.75rem 0 1.25rem; }
+.formal-doc-content h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin: 1.5rem 0 1rem; }
 
 .formal-doc-content p {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
   line-height: 1.8;
+  text-align: justify;
 }
 
 .formal-doc-content ul, .formal-doc-content ol {
-  margin-bottom: 1.25rem;
-  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-left: 2rem;
 }
 
 .formal-doc-content li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.formal-doc-content b, .formal-doc-content strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.formal-doc-content hr {
+  border: 0;
+  border-top: 2px solid #f3f4f6;
+  margin: 2.5rem 0;
 }
 
 .card-3d {

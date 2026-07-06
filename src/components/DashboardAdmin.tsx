@@ -81,6 +81,7 @@ export default function DashboardAdmin() {
   const [announceContent, setAnnounceContent] = useState('');
   const [announceTarget, setAnnounceTarget] = useState('all');
   const [announceAttachments, setAnnounceAttachments] = useState<any[]>([]);
+  const [editingAnnounceId, setEditingAnnounceId] = useState<string | null>(null);
   const announceFileRef = useRef<HTMLInputElement>(null);
   
   // Finance Form States
@@ -810,23 +811,37 @@ export default function DashboardAdmin() {
 
   const handleAddAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
     try {
-      await addDoc(collection(db, 'announcements'), {
+      const announceData = {
         title: announceTitle,
         content: announceContent,
         target: announceTarget,
         attachments: announceAttachments,
-        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         author: user.displayName || 'Admin'
-      });
+      };
+
+      if (editingAnnounceId) {
+        await updateDoc(doc(db, 'announcements', editingAnnounceId), announceData);
+        alert('Pengumuman berhasil diperbarui!');
+      } else {
+        await addDoc(collection(db, 'announcements'), {
+          ...announceData,
+          createdAt: serverTimestamp(),
+        });
+        alert('Pengumuman berhasil dikirim!');
+      }
+
       setAnnounceTitle('');
       setAnnounceContent('');
       setAnnounceTarget('all');
       setAnnounceAttachments([]);
+      setEditingAnnounceId(null);
       setShowAnnounceModal(false);
-      alert('Pengumuman berhasil dikirim!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'announcements');
+      handleFirestoreError(error, editingAnnounceId ? OperationType.UPDATE : OperationType.CREATE, editingAnnounceId ? `announcements/${editingAnnounceId}` : 'announcements');
     }
   };
 
@@ -4235,7 +4250,14 @@ export default function DashboardAdmin() {
                   <Megaphone size={18} /> Broadcast Pulang
                 </button>
                 <button 
-                  onClick={() => setShowAnnounceModal(true)}
+                  onClick={() => {
+                    setEditingAnnounceId(null);
+                    setAnnounceTitle('');
+                    setAnnounceContent('');
+                    setAnnounceTarget('all');
+                    setAnnounceAttachments([]);
+                    setShowAnnounceModal(true);
+                  }}
                   className="flex-1 sm:flex-none bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all"
                 >
                   <Plus size={18} /> Info Baru
@@ -4292,6 +4314,19 @@ export default function DashboardAdmin() {
                       </div>
 
                       <div className="flex items-center md:flex-col justify-end gap-3 shrink-0">
+                         <button 
+                           onClick={() => {
+                             setEditingAnnounceId(a.id);
+                             setAnnounceTitle(a.title);
+                             setAnnounceContent(a.content);
+                             setAnnounceTarget(a.target || 'all');
+                             setAnnounceAttachments(a.attachments || []);
+                             setShowAnnounceModal(true);
+                           }}
+                           className="w-14 h-14 bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-blue-100"
+                         >
+                            <Edit size={24} />
+                         </button>
                          <button 
                            onClick={async () => {
                              if(window.confirm('Hapus pengumuman ini?')) {
@@ -5414,7 +5449,7 @@ export default function DashboardAdmin() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
               <button onClick={() => setShowAnnounceModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Buat Pengumuman Baru</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{editingAnnounceId ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}</h3>
               <p className="text-xs text-gray-400 mb-6 font-medium uppercase tracking-widest">Format dokumen resmi sekolah</p>
               
               <form onSubmit={handleAddAnnouncement} className="space-y-6">
@@ -5496,9 +5531,12 @@ export default function DashboardAdmin() {
                 </div>
 
                 <div className="flex items-center gap-4 pt-4">
-                   <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 px-6 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Batal</button>
+                   <button type="button" onClick={() => {
+                     setShowAnnounceModal(false);
+                     setEditingAnnounceId(null);
+                   }} className="flex-1 px-6 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all">Batal</button>
                    <button type="submit" className="flex-[2] px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-2">
-                      <Megaphone size={16} /> Kirim Pengumuman
+                      <Megaphone size={16} /> {editingAnnounceId ? 'Perbarui Pengumuman' : 'Kirim Pengumuman'}
                    </button>
                 </div>
               </form>

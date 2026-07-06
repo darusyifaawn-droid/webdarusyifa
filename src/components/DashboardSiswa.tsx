@@ -2286,32 +2286,45 @@ export default function DashboardSiswa() {
                    {/* Shadow stack effect for "Paper" look */}
                    <div className="absolute inset-0 bg-gray-200/50 rounded-[2rem] translate-y-2 translate-x-1 group-hover:translate-y-3 group-hover:translate-x-2 transition-transform duration-300"></div>
                    
-                   <div className="relative bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col min-h-[400px]">
-                      {/* Formal Letter Header */}
-                      <div className="p-8 md:p-12 border-b border-gray-50 bg-gray-50/30 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                         <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-gray-100 shadow-sm shrink-0">
-                               <img src={settings?.logoUrl || '/logo.png'} alt="Logo" className="w-12 h-12 object-contain" />
+                   <div className="relative bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col min-h-[500px]">
+                      {/* Formal Letter Header - Enhanced */}
+                      <div className="p-8 md:p-12 border-b-4 border-double border-gray-100 bg-white flex flex-col items-center text-center gap-6">
+                         <div className="flex flex-col items-center gap-4">
+                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border border-gray-50 shadow-sm shrink-0">
+                               <img src={settings?.logoUrl || '/logo.png'} alt="Logo" className="w-16 h-16 object-contain" />
                             </div>
                             <div>
-                               <h4 className="text-xl font-black text-gray-800 tracking-tight leading-tight mb-1">{ann.title}</h4>
-                               <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                  <span className="flex items-center gap-1.5"><Calendar size={12} /> {ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}</span>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  <span className="flex items-center gap-1.5"><User size={12} /> {ann.author || 'Pihak Sekolah'}</span>
-                               </div>
+                               <h4 className="text-xl font-black text-gray-900 tracking-tight uppercase mb-1">{settings?.schoolName || 'RA DARUSYIFA ARJAWINANGUN'}</h4>
+                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em]">Surat Pengumuman Resmi Sekolah</p>
                             </div>
                          </div>
-                         <div className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] self-start md:self-center shadow-lg shadow-blue-100">
-                            Official News
+                         
+                         <div className="w-full flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
+                            <div className="flex items-center gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
+                               <Calendar size={12} className="text-blue-500" /> {ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                            </div>
+                            <div className="text-[14px] md:text-xl font-black text-gray-800 uppercase tracking-tight">
+                               {ann.title}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-full border border-blue-100 shadow-sm">
+                               Official Info
+                            </div>
                          </div>
                       </div>
 
                       {/* Content Section (Word Style) */}
-                      <div className="flex-1 p-8 md:p-16">
-                         <div className="max-w-3xl mx-auto">
+                      <div className="flex-1 p-8 md:p-16 lg:p-24 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
+                         <div className="max-w-3xl mx-auto bg-white p-8 md:p-12 shadow-[0_0_50px_-12px_rgba(0,0,0,0.05)] rounded-2xl border border-gray-50">
                             <div className="markdown-body formal-doc-content text-gray-700 leading-relaxed text-sm md:text-base font-serif">
                                <ReactMarkdown>{ann.content}</ReactMarkdown>
+                            </div>
+                            
+                            <div className="mt-16 pt-8 border-t border-gray-50 flex flex-col items-end">
+                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-12">Tertanda,</p>
+                               <div className="text-right">
+                                  <p className="text-sm font-black text-gray-800">{ann.author || 'Pihak Sekolah'}</p>
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manajemen Sekolah</p>
+                               </div>
                             </div>
                          </div>
                       </div>
