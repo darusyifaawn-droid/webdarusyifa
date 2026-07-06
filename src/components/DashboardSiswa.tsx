@@ -2278,92 +2278,50 @@ export default function DashboardSiswa() {
                </div>
             </div>
 
-            <div className="space-y-12">
+            <div className="grid gap-6">
               {announcements
                 .filter(ann => !ann.target || ann.target === 'all' || ann.target === `kelas_${userData?.kelas || ''}`)
                 .map((ann) => (
-                <div key={ann.id} className="relative group">
-                   {/* Shadow stack effect for "Paper" look */}
-                   <div className="absolute inset-0 bg-gray-200/50 rounded-[2rem] translate-y-2 translate-x-1 group-hover:translate-y-3 group-hover:translate-x-2 transition-transform duration-300"></div>
-                   
-                   <div className="relative bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden flex flex-col min-h-[500px]">
-                      {/* Formal Letter Header - Enhanced */}
-                      <div className="p-8 md:p-12 border-b-4 border-double border-gray-100 bg-white flex flex-col items-center text-center gap-6">
-                         <div className="flex flex-col items-center gap-4">
-                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border border-gray-50 shadow-sm shrink-0">
-                               <img src={settings?.logoUrl || '/logo.png'} alt="Logo" className="w-16 h-16 object-contain" />
+                <div key={ann.id} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col gap-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="text-lg md:text-xl font-bold text-gray-800">{ann.title}</h4>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString() : ''}</span>
+                  </div>
+                  
+                  <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: ann.content }}>
+                  </div>
+
+                  {ann.attachments && ann.attachments.length > 0 && (
+                    <div className="mt-2 pt-4 border-t border-gray-50">
+                      <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Lampiran:</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {ann.attachments.map((file: any, idx: number) => (
+                          <div key={idx} className="group/file bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-2xl p-3 transition-all flex items-center gap-3 cursor-pointer" onClick={() => {
+                            if (file.type.includes('image')) {
+                              setSelectedPhoto(file.data);
+                            } else if (file.type.includes('pdf')) {
+                              const link = document.createElement('a');
+                              link.href = file.data;
+                              link.download = file.name;
+                              link.click();
+                            }
+                          }}>
+                            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center border border-gray-100 group-hover/file:border-blue-100 transition-colors shadow-sm">
+                              {file.type.includes('image') ? <ImageIcon size={16} className="text-blue-500" /> : <FileText size={16} className="text-red-500" />}
                             </div>
-                            <div>
-                               <h4 className="text-xl font-black text-gray-900 tracking-tight uppercase mb-1">{settings?.schoolName || 'RA DARUSYIFA ARJAWINANGUN'}</h4>
-                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em]">Surat Pengumuman Resmi Sekolah</p>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[10px] font-bold text-gray-700 truncate">{file.name}</span>
                             </div>
-                         </div>
-                         
-                         <div className="w-full flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
-                            <div className="flex items-center gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
-                               <Calendar size={12} className="text-blue-500" /> {ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-                            </div>
-                            <div className="text-[14px] md:text-xl font-black text-gray-800 uppercase tracking-tight">
-                               {ann.title}
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-full border border-blue-100 shadow-sm">
-                               Official Info
-                            </div>
-                         </div>
+                            <Download size={12} className="ml-auto text-gray-300 group-hover/file:text-blue-500 transition-colors" />
+                          </div>
+                        ))}
                       </div>
+                    </div>
+                  )}
 
-                      {/* Content Section (Word Style) */}
-                      <div className="flex-1 p-8 md:p-16 lg:p-24 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]">
-                         <div className="max-w-3xl mx-auto bg-white p-8 md:p-12 shadow-[0_0_50px_-12px_rgba(0,0,0,0.05)] rounded-2xl border border-gray-50">
-                            <div className="markdown-body formal-doc-content text-gray-700 leading-relaxed text-sm md:text-base font-serif">
-                               <ReactMarkdown>{ann.content}</ReactMarkdown>
-                            </div>
-                            
-                            <div className="mt-16 pt-8 border-t border-gray-50 flex flex-col items-end">
-                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-12">Tertanda,</p>
-                               <div className="text-right">
-                                  <p className="text-sm font-black text-gray-800">{ann.author || 'Pihak Sekolah'}</p>
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manajemen Sekolah</p>
-                               </div>
-                            </div>
-                         </div>
-                      </div>
-
-                      {/* Attachments Section */}
-                      {ann.attachments && ann.attachments.length > 0 && (
-                         <div className="px-8 md:px-16 pb-12">
-                            <div className="max-w-3xl mx-auto pt-8 border-t border-gray-100">
-                               <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Lampiran Dokumen:</h5>
-                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                  {ann.attachments.map((file: any, idx: number) => (
-                                     <div key={idx} className="group/file bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-2xl p-4 transition-all flex items-center gap-4 cursor-pointer" onClick={() => {
-                                        if (file.type.includes('image')) {
-                                          setSelectedPhoto(file.data);
-                                        } else if (file.type.includes('pdf')) {
-                                          const link = document.createElement('a');
-                                          link.href = file.data;
-                                          link.download = file.name;
-                                          link.click();
-                                        }
-                                     }}>
-                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100 group-hover/file:border-blue-100 transition-colors shadow-sm">
-                                           {file.type.includes('image') ? <ImageIcon size={20} className="text-blue-500" /> : <FileText size={20} className="text-red-500" />}
-                                        </div>
-                                        <div className="flex flex-col min-w-0">
-                                           <span className="text-[11px] font-black text-gray-700 truncate group-hover/file:text-blue-700">{file.name}</span>
-                                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{file.type.split('/')[1]} File</span>
-                                        </div>
-                                        <Download size={14} className="ml-auto text-gray-300 group-hover/file:text-blue-500 transition-colors" />
-                                     </div>
-                                  ))}
-                               </div>
-                            </div>
-                         </div>
-                      )}
-
-                      {/* Footer Decoration */}
-                      <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600"></div>
-                   </div>
+                  <div className="mt-2 text-[9px] text-gray-400 uppercase font-bold tracking-widest">
+                    Oleh: {ann.author || 'Pihak Sekolah'}
+                  </div>
                 </div>
               ))}
               {announcements.filter(ann => !ann.target || ann.target === 'all' || ann.target === `kelas_${userData?.kelas || ''}`).length === 0 && (

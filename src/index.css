@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Amiri:wght@400;700&display=swap');
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -57,43 +58,7 @@ body {
     @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.05)];
   }
 
-  .formal-doc-content {
-  font-family: "Inter", "Times New Roman", serif;
-  color: #374151;
-}
-
-.formal-doc-content h1 { font-size: 2rem; font-weight: 800; color: #111827; margin: 2rem 0 1.5rem; }
-.formal-doc-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 1.75rem 0 1.25rem; }
-.formal-doc-content h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin: 1.5rem 0 1rem; }
-
-.formal-doc-content p {
-  margin-bottom: 1.5rem;
-  line-height: 1.8;
-  text-align: justify;
-}
-
-.formal-doc-content ul, .formal-doc-content ol {
-  margin-bottom: 1.5rem;
-  padding-left: 2rem;
-}
-
-.formal-doc-content li {
-  margin-bottom: 0.75rem;
-  position: relative;
-}
-
-.formal-doc-content b, .formal-doc-content strong {
-  color: #111827;
-  font-weight: 700;
-}
-
-.formal-doc-content hr {
-  border: 0;
-  border-top: 2px solid #f3f4f6;
-  margin: 2.5rem 0;
-}
-
-.card-3d {
+  .card-3d {
     @apply bg-white border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-300;
   }
 
@@ -133,4 +98,47 @@ body {
     min-height: 100vh;
     min-height: 100svh;
   }
+
+  /* Quill Editor Customization */
+  .quill-editor .ql-toolbar {
+    @apply border-none bg-gray-50/50 p-3 border-b border-gray-100! flex flex-wrap gap-1;
+  }
+
+  .quill-editor .ql-container {
+    @apply border-none min-h-[350px] text-base font-serif;
+  }
+
+  .quill-editor .ql-editor {
+    @apply p-8 md:p-12 leading-relaxed text-gray-700;
+  }
+
+  .quill-editor .ql-editor.ql-blank::before {
+    @apply text-gray-300 font-sans italic left-8 md:left-12;
+  }
+
+  .quill-editor .ql-toolbar .ql-formats {
+    @apply mr-2 border-r border-gray-100 pr-2 last:mr-0 last:border-0 last:pr-0 flex items-center gap-1;
+  }
+
+  .quill-editor .ql-toolbar button, 
+  .quill-editor .ql-toolbar .ql-picker {
+    @apply hover:bg-white hover:shadow-sm rounded-lg transition-all duration-200! flex items-center justify-center;
+  }
+
+  .quill-editor .ql-toolbar button {
+    @apply w-8 h-8;
+  }
+
+  .quill-editor .ql-toolbar .ql-active {
+    @apply bg-white shadow-sm text-blue-600!;
+  }
+
+  .quill-editor .ql-toolbar .ql-active .ql-stroke {
+    @apply stroke-blue-600!;
+  }
+
+  /* Quill Alignment Classes */
+  .ql-align-center { text-align: center; }
+  .ql-align-right { text-align: right; }
+  .ql-align-justify { text-align: justify; }
 }

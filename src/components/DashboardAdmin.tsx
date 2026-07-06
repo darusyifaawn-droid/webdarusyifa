@@ -6,6 +6,8 @@ import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc,
 import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, ArrowRight, Search, PlusCircle, History as HistoryIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
@@ -4265,85 +4267,68 @@ export default function DashboardAdmin() {
               </div>
             </div>
 
-            <div className="grid gap-8">
+            <div className="grid gap-6">
               {announcements.map(a => (
-                <div key={a.id} className="relative group">
-                   <div className="absolute inset-0 bg-gray-100 rounded-[2.5rem] translate-y-2 transition-transform group-hover:translate-y-3"></div>
-                   <div className="relative bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between gap-8">
-                      <div className="flex-1 min-w-0">
-                         <div className="flex flex-wrap items-center gap-3 mb-6">
-                            <span className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center border border-blue-100">
-                               <Megaphone size={20} />
-                            </span>
-                            <h4 className="font-black text-gray-800 text-xl uppercase tracking-tight">{a.title}</h4>
-                            {a.target && a.target !== 'all' && (
-                               <span className="px-3 py-1.5 bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-[0.2em] rounded-full border border-amber-100">
-                                  Target: {a.target.startsWith('kelas_') ? 'Kelas ' + a.target.replace('kelas_', '').toUpperCase() : a.target.toUpperCase()}
-                               </span>
-                            )}
-                         </div>
+                <div key={a.id} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative group">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <h4 className="font-black text-gray-800 text-lg md:text-xl uppercase tracking-tight">{a.title}</h4>
+                      {a.target && a.target !== 'all' && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-black uppercase tracking-widest rounded-full">
+                          Target: {a.target.startsWith('kelas_') ? 'Kelas ' + a.target.replace('kelas_', '').toUpperCase() : a.target.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="prose prose-sm max-w-none text-gray-600" dangerouslySetInnerHTML={{ __html: a.content }}>
+                    </div>
 
-                         <div className="markdown-body formal-doc-content text-sm text-gray-600 line-clamp-3 md:line-clamp-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-50 italic">
-                            <ReactMarkdown>{a.content}</ReactMarkdown>
-                         </div>
-
-                         {a.attachments && a.attachments.length > 0 && (
-                            <div className="mt-6 flex flex-wrap gap-2">
-                               {a.attachments.map((file: any, idx: number) => (
-                                  <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500">
-                                     {file.type.includes('image') ? <ImageIcon size={12} className="text-blue-400" /> : <FileText size={12} className="text-red-400" />}
-                                     <span className="max-w-[120px] truncate">{file.name}</span>
-                                  </div>
-                               ))}
-                            </div>
-                         )}
-
-                         <div className="mt-8 flex items-center gap-4 text-[10px] text-gray-400 uppercase font-black tracking-[0.2em]">
-                            <div className="flex items-center gap-2">
-                               <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
-                                  <User size={12} />
-                               </div>
-                               <span>{a.author}</span>
-                            </div>
-                            <span>•</span>
-                            <div className="flex items-center gap-2">
-                               <Calendar size={12} />
-                               <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                         </div>
+                    {a.attachments && a.attachments.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {a.attachments.map((file: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500">
+                            {file.type.includes('image') ? <ImageIcon size={12} className="text-blue-400" /> : <FileText size={12} className="text-red-400" />}
+                            <span className="max-w-[120px] truncate">{file.name}</span>
+                          </div>
+                        ))}
                       </div>
+                    )}
 
-                      <div className="flex items-center md:flex-col justify-end gap-3 shrink-0">
-                         <button 
-                           onClick={() => {
-                             setEditingAnnounceId(a.id);
-                             setAnnounceTitle(a.title);
-                             setAnnounceContent(a.content);
-                             setAnnounceTarget(a.target || 'all');
-                             setAnnounceAttachments(a.attachments || []);
-                             setShowAnnounceModal(true);
-                           }}
-                           className="w-14 h-14 bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-blue-100"
-                         >
-                            <Edit size={24} />
-                         </button>
-                         <button 
-                           onClick={async () => {
-                             if(window.confirm('Hapus pengumuman ini?')) {
-                               try {
-                                 await deleteDoc(doc(db, 'announcements', a.id));
-                                 alert('Pengumuman berhasil dihapus!');
-                               } catch (error) {
-                                 handleFirestoreError(error, OperationType.DELETE, `announcements/${a.id}`);
-                               }
-                             }
-                           }} 
-                           className="w-14 h-14 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-red-100"
-                         >
-                            <Trash2 size={24} />
-                         </button>
-                      </div>
-                   </div>
+                    <div className="mt-6 flex items-center gap-2 text-[9px] text-gray-400 uppercase font-black tracking-widest">
+                      <span className="text-gray-600">{a.author}</span>
+                      <span>•</span>
+                      <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                  <div className="flex md:flex-col gap-2 shrink-0">
+                    <button 
+                      onClick={() => {
+                        setEditingAnnounceId(a.id);
+                        setAnnounceTitle(a.title);
+                        setAnnounceContent(a.content);
+                        setAnnounceTarget(a.target || 'all');
+                        setAnnounceAttachments(a.attachments || []);
+                        setShowAnnounceModal(true);
+                      }}
+                      className="w-12 h-12 bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-blue-100"
+                    >
+                      <Edit size={20} />
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if(window.confirm('Hapus pengumuman ini?')) {
+                          try {
+                            await deleteDoc(doc(db, 'announcements', a.id));
+                            alert('Pengumuman berhasil dihapus!');
+                          } catch (error) {
+                            handleFirestoreError(error, OperationType.DELETE, `announcements/${a.id}`);
+                          }
+                        }
+                      }} 
+                      className="w-12 h-12 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-red-100"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
               ))}
               {announcements.length === 0 && (
@@ -5479,19 +5464,23 @@ export default function DashboardAdmin() {
 
                 <div>
                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Isi Pengumuman (Word Style)</label>
-                   <div className="bg-gray-50 rounded-2xl border border-gray-100 p-1">
-                      <div className="flex items-center gap-1 p-2 border-b border-gray-100 bg-white rounded-t-xl mb-2">
-                         <div className="text-[10px] font-bold text-gray-400 px-3 border-r border-gray-100 mr-2">Markdown Support</div>
-                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '**Teks Tebal**')} className="p-1.5 hover:bg-gray-50 rounded text-xs font-bold text-gray-600">B</button>
-                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '*Teks Miring*')} className="p-1.5 hover:bg-gray-50 rounded text-xs italic text-gray-600">I</button>
-                         <button type="button" onClick={() => setAnnounceContent(prev => prev + '\n- Daftar Item\n')} className="p-1.5 hover:bg-gray-50 rounded text-xs text-gray-600">List</button>
-                      </div>
-                      <textarea 
-                        value={announceContent} 
-                        onChange={(e) => setAnnounceContent(e.target.value)} 
-                        className="w-full p-6 bg-transparent outline-none min-h-[300px] resize-y font-serif text-sm leading-relaxed" 
-                        placeholder="Tulis pengumuman di sini..." 
-                        required 
+                   <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden quill-container">
+                      <ReactQuill 
+                        theme="snow"
+                        value={announceContent}
+                        onChange={setAnnounceContent}
+                        placeholder="Tulis pengumuman di sini..."
+                        className="quill-editor"
+                        modules={{
+                          toolbar: [
+                            [{ 'header': [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'align': [] }],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'color': [] }, { 'background': [] }],
+                            ['link', 'clean']
+                          ],
+                        }}
                       />
                    </div>
                 </div>
