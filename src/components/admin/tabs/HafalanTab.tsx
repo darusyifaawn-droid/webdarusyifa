@@ -39,15 +39,24 @@ export default function HafalanTab() {
       clearTimeout(timeoutId);
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HafalanMaterial));
       
+      console.log(`Fetched ${docs.length} hafalan materials`);
+      
       // Sort client-side
       const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
       
       setMaterials(sortedDocs);
       setLoading(false);
-    }, (error) => {
+    }, (error: any) => {
       clearTimeout(timeoutId);
       console.error("Error fetching hafalan materials:", error);
-      handleFirestoreError(error, OperationType.LIST, 'hafalan_materials');
+      
+      // Fallback to static data if permission denied or other error
+      if (error.message?.includes('permission') || error.code === 'permission-denied') {
+        console.warn("Using static fallback for hafalan materials due to permission error");
+        setMaterials([...staticHafalanMaterials]);
+      } else {
+        handleFirestoreError(error, OperationType.LIST, 'hafalan_materials');
+      }
       setLoading(false);
     });
 
@@ -58,14 +67,15 @@ export default function HafalanTab() {
   }, []);
 
   const handleSyncData = async () => {
-    if (!confirm('Pindahkan data hafalan statis ke database? Ini hanya akan menambah data yang belum ada.')) return;
+    if (!confirm('Pindahkan data hafalan statis ke database? Ini akan menambah data yang belum ada.')) return;
     
     try {
       setLoading(true);
       const batch = writeBatch(db);
       
-      // Check existing IDs
-      const existingIds = materials.map(m => m.id);
+      // Check existing IDs by fetching fresh copy to be sure
+      const snap = await getDocs(collection(db, 'hafalan_materials'));
+      const existingIds = snap.docs.map(doc => doc.id);
       
       let count = 0;
       for (const m of staticHafalanMaterials) {
@@ -83,9 +93,10 @@ export default function HafalanTab() {
         await batch.commit();
         alert(`Berhasil menyinkronkan ${count} materi ke database!`);
       } else {
-        alert('Semua data sudah tersinkronkan.');
+        alert('Semua data statis sudah ada di database.');
       }
     } catch (error) {
+      console.error("Sync error:", error);
       handleFirestoreError(error, OperationType.CREATE, 'hafalan_materials_sync');
     } finally {
       setLoading(false);
@@ -137,10 +148,11 @@ export default function HafalanTab() {
   };
 
   const filteredMaterials = materials.filter(m => {
-    const matchSearch = (m.judul || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const searchStr = (searchTerm || '').toLowerCase();
+    const judulMatch = (m.judul || '').toLowerCase().includes(searchStr);
     const matchKelas = filterKelas === 'Semua' || m.kelas === filterKelas;
     const matchCategory = filterCategory === 'Semua' || m.kategori === filterCategory;
-    return matchSearch && matchKelas && matchCategory;
+    return judulMatch && matchKelas && matchCategory;
   });
 
   return (

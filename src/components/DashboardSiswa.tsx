@@ -84,14 +84,20 @@ export default function DashboardSiswa() {
     setQuote(randomQuote);
 
     // Fetch Hafalan Materials from Firestore
-    const q = query(collection(db, 'hafalan_materials'), orderBy('urutan', 'asc'));
+    const q = query(collection(db, 'hafalan_materials'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setHafalanMaterials(docs);
-      }
-    }, (error) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort client-side
+      const sortedDocs = [...docs].sort((a: any, b: any) => (a.urutan || 0) - (b.urutan || 0));
+      setHafalanMaterials(sortedDocs);
+    }, (error: any) => {
       console.error("Error fetching hafalan materials for student:", error);
+      if (error.message?.includes('permission') || error.code === 'permission-denied') {
+        // Fallback to static data
+        import('../data/hafalanData').then(({ staticHafalanMaterials }) => {
+          setHafalanMaterials([...staticHafalanMaterials]);
+        });
+      }
     });
     return () => unsubscribe();
   }, []);

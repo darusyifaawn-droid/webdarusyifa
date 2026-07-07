@@ -233,13 +233,19 @@ export default function DashboardGuru() {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
-    const unsubHafalanMaterials = onSnapshot(query(collection(db, 'hafalan_materials'), orderBy('urutan', 'asc')), (snapshot) => {
-      if (!snapshot.empty) {
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        setHafalanMaterials(docs);
-      }
-    }, (error) => {
+    const unsubHafalanMaterials = onSnapshot(query(collection(db, 'hafalan_materials')), (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      // Sort client-side
+      const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+      setHafalanMaterials(sortedDocs);
+    }, (error: any) => {
       console.error("Error fetching hafalan materials for guru:", error);
+      if (error.message?.includes('permission') || error.code === 'permission-denied') {
+        // Fallback to static data
+        import('../data/hafalanData').then(({ staticHafalanMaterials }) => {
+          setHafalanMaterials([...staticHafalanMaterials]);
+        });
+      }
     });
 
     return () => {
