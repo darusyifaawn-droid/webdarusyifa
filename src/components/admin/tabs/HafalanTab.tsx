@@ -46,17 +46,10 @@ export default function HafalanTab() {
       
       setMaterials(sortedDocs);
       setLoading(false);
-    }, (error: any) => {
+    }, (error) => {
       clearTimeout(timeoutId);
       console.error("Error fetching hafalan materials:", error);
-      
-      // Fallback to static data if permission denied or other error
-      if (error.message?.includes('permission') || error.code === 'permission-denied') {
-        console.warn("Using static fallback for hafalan materials due to permission error");
-        setMaterials([...staticHafalanMaterials]);
-      } else {
-        handleFirestoreError(error, OperationType.LIST, 'hafalan_materials');
-      }
+      handleFirestoreError(error, OperationType.LIST, 'hafalan_materials');
       setLoading(false);
     });
 

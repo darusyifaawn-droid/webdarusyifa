@@ -1,117 +1,178 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: name (string), email (string), role (string: admin|guru|siswa)
+    //
+    // Collection: progress
+    // Fields: studentId (string), teacherId (string), description (string), score (number), date (string)
+    //
+    // Collection: attendance
+    // Fields: studentId (string), date (string), timestamp (timestamp), location (map), status (string)
+    // ===============================================================
+
     // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'darusyifa.awn@gmail.com' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'admin')
-      );
+      if (!isSignedIn()) return false;
+      if (request.auth.token.email == "darusyifa.awn@gmail.com") return true;
+      
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.role == 'admin';
     }
 
     function isGuru() {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             getUserData().role == 'guru';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'guru';
     }
 
     function isSiswa() {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             getUserData().role == 'siswa';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'siswa';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // GLOBAL ADMIN OVERRIDE
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
 
     // Rules for Users
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isAdmin() || isGuru();
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // Rules for Hafalan
-    match /hafalan_materials/{id} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isGuru();
-    }
-
-    match /hafalan_progress/{id} {
+    // Rules for Progress
+    match /progress/{progressId} {
       allow read: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && request.auth.uid == resource.data.studentId)
+        (isSiswa() && request.auth.uid == resource.data.studentId) || 
+        isGuru() || 
+        isAdmin()
       );
-      allow create: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && request.auth.uid == request.resource.data.studentId)
-      );
-      allow update: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && request.auth.uid == resource.data.studentId)
-      );
-      allow delete: if isAdmin() || isGuru();
+      
+      allow create: if isGuru() || isAdmin();
+      allow update: if isGuru() || isAdmin();
+      allow delete: if isGuru() || isAdmin();
     }
 
-    // Rules for General Collections
-    match /announcements/{id} {
+    // Rules for Attendance
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn() && (
+        (isSiswa() && request.auth.uid == resource.data.studentId) || 
+        isGuru() || 
+        isAdmin()
+      );
+      
+      allow create: if isSignedIn() && (isSiswa() || isGuru());
+      allow update: if isGuru() || isAdmin();
+      allow delete: if isSignedIn() && (request.auth.uid == resource.data.studentId || isAdmin());
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
     
-    match /settings/{id} {
+    // Settings
+    match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /classes/{id} {
+    // Classes (Kategori Kelas)
+    match /classes/{classId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    match /subjects/{id} {
+    // Subjects (Mata Pelajaran)
+    match /subjects/{subjectId} {
       allow read: if isSignedIn();
       allow write: if isGuru() || isAdmin();
     }
 
-    match /kaldik/{id} {
+    // Kaldik (Kalender Pendidikan)
+    match /kaldik/{kaldikId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    match /materials/{id} {
+    // Materials (Materi / Bahan Ajar)
+    match /materials/{materialId} {
       allow read: if isSignedIn();
       allow write: if isGuru() || isAdmin();
     }
 
-    match /exams/{id} {
+    // Exams (Jadwal Ujian)
+    match /exams/{examId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    match /iuran_categories/{id} {
+    // Iuran Categories (Grup Iuran)
+    match /iuran_categories/{categoryId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    match /payments/{id} {
-      allow read: if isSignedIn() && (isAdmin() || (isSiswa() && request.auth.uid == resource.data.studentId));
-      allow create: if isSignedIn() && (isAdmin() || (isSiswa() && request.resource.data.studentId == request.auth.uid));
+    // Payments (Financial History)
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        (isSiswa() && request.auth.uid == resource.data.studentId)
+      );
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (isSiswa() && request.resource.data.studentId == request.auth.uid)
+      );
       allow update, delete: if isAdmin();
     }
-
-    match /progress/{id} {
-      allow read: if isSignedIn() && (isAdmin() || isGuru() || (isSiswa() && request.auth.uid == resource.data.studentId));
-      allow write: if isAdmin() || isGuru();
+    // Rules for Hafalan Progress
+    match /hafalan_progress/{progressId} {
+      allow read: if isSignedIn() && (
+        (isSiswa() && request.auth.uid == resource.data.studentId) || 
+        isGuru() || 
+        isAdmin()
+      );
+      
+      allow create: if isSignedIn() && (
+        isGuru() || 
+        isAdmin() || 
+        (isSiswa() && request.auth.uid == request.resource.data.studentId)
+      );
+      
+      allow update: if isSignedIn() && (
+        isGuru() || 
+        isAdmin() || 
+        (isSiswa() && request.auth.uid == resource.data.studentId && request.auth.uid == request.resource.data.studentId)
+      );
+      
+      allow delete: if isAdmin() || isGuru();
     }
 
-    match /attendance/{id} {
-      allow read: if isSignedIn() && (isAdmin() || isGuru() || (isSiswa() && request.auth.uid == resource.data.studentId));
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin() || isGuru();
+    // Hafalan Materials (Modul Hafalan)
+    match /hafalan_materials/{materialId} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
     }
   }
 }

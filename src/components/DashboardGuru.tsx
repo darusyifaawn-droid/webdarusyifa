@@ -238,14 +238,8 @@ export default function DashboardGuru() {
       // Sort client-side
       const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
       setHafalanMaterials(sortedDocs);
-    }, (error: any) => {
+    }, (error) => {
       console.error("Error fetching hafalan materials for guru:", error);
-      if (error.message?.includes('permission') || error.code === 'permission-denied') {
-        // Fallback to static data
-        import('../data/hafalanData').then(({ staticHafalanMaterials }) => {
-          setHafalanMaterials([...staticHafalanMaterials]);
-        });
-      }
     });
 
     return () => {
