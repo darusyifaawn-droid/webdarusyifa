@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download } from 'lucide-react';
-import { hafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
+import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -30,6 +30,7 @@ export default function DashboardSiswa() {
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  const [hafalanMaterials, setHafalanMaterials] = useState<any[]>(initialHafalanMaterials);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
@@ -77,35 +78,22 @@ export default function DashboardSiswa() {
   const [paymentMeetDate, setPaymentMeetDate] = useState('');
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
-  // Audio State
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const toggleAudio = (id: string, url: string | undefined) => {
-    if (!url) {
-      alert("Audio tidak tersedia untuk materi ini.");
-      return;
-    }
-    
-    if (playingAudioId === id) {
-      audioRef.current?.pause();
-      setPlayingAudioId(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.play().catch(e => {
-          console.error("Audio play error:", e);
-          alert("Gagal memutar audio. Pastikan link audio benar.");
-        });
-        setPlayingAudioId(id);
-      }
-    }
-  };
-
   useEffect(() => {
     // Select a random quote on component mount
     const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
     setQuote(randomQuote);
+
+    // Fetch Hafalan Materials from Firestore
+    const q = query(collection(db, 'hafalan_materials'), orderBy('urutan', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setHafalanMaterials(docs);
+      }
+    }, (error) => {
+      console.error("Error fetching hafalan materials for student:", error);
+    });
+    return () => unsubscribe();
   }, []);
 
   const getScoreGradeInfo = (score: number) => {
@@ -1550,37 +1538,19 @@ export default function DashboardSiswa() {
                          )}
                        </div>
 
-                       {/* Audio Player */}
-                       <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                         <button 
-                           onClick={() => toggleAudio(material.id, material.audioUrl)}
-                           className={`flex items-center gap-2 text-sm font-bold w-full sm:w-auto justify-center sm:justify-start transition-colors ${playingAudioId === material.id ? 'text-red-500' : 'text-blue-600 hover:text-blue-700'}`}
-                         >
-                           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingAudioId === material.id ? 'bg-red-100 scale-110 shadow-lg shadow-red-100' : 'bg-blue-100 shadow-lg shadow-blue-50'}`}>
-                             {playingAudioId === material.id ? (
-                               <div className="flex gap-1">
-                                 <div className="w-1 h-3 bg-red-500 animate-pulse"></div>
-                                 <div className="w-1 h-4 bg-red-500 animate-pulse delay-75"></div>
-                                 <div className="w-1 h-3 bg-red-500 animate-pulse delay-150"></div>
-                               </div>
-                             ) : (
-                               <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-blue-600 border-b-[6px] border-b-transparent ml-1"></div>
-                             )}
-                           </div> 
-                           {playingAudioId === material.id ? 'Berhenti Audio' : 'Dengarkan Audio'}
-                         </button>
-                         <button 
-                           onClick={() => {
-                             setActiveMaterialForSetoran({ material, status, prog });
-                             setSubmissionMethod('Google Drive');
-                             setShowSetoranModal(true);
-                           }}
-                           className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100 disabled:opacity-50"
-                           disabled={status === 'Mumtaz (Lulus)' || prog?.isReadyForTest}
-                         >
-                           {status === 'Mumtaz (Lulus)' ? 'Sudah Lulus' : prog?.isReadyForTest ? 'Menunggu Guru' : 'Siap Setoran'}
-                         </button>
-                       </div>
+                        <div className="mt-4 flex justify-end">
+                          <button 
+                            onClick={() => {
+                              setActiveMaterialForSetoran({ material, status, prog });
+                              setSubmissionMethod('Google Drive');
+                              setShowSetoranModal(true);
+                            }}
+                            className="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-100 disabled:opacity-50"
+                            disabled={status === 'Mumtaz (Lulus)' || prog?.isReadyForTest}
+                          >
+                            {status === 'Mumtaz (Lulus)' ? 'Sudah Lulus' : prog?.isReadyForTest ? 'Menunggu Guru' : 'Siap Setoran'}
+                          </button>
+                        </div>
                        
                        {prog?.catatanGuru && (
                          <div className="mt-4 p-4 bg-orange-50 border border-orange-100 rounded-xl">
@@ -1593,14 +1563,6 @@ export default function DashboardSiswa() {
                 });
               })()}
             </div>
-            <audio 
-              ref={audioRef} 
-              className="hidden" 
-              onEnded={() => setPlayingAudioId(null)}
-              onError={() => {
-                setPlayingAudioId(null);
-              }}
-            />
           </div>
         )}
 

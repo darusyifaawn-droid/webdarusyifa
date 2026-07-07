@@ -3,12 +3,13 @@ import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter, Image as ImageIcon, FileText, Download } from 'lucide-react';
-import { hafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
+import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
+import HafalanTab from './admin/tabs/HafalanTab';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 export default function DashboardGuru() {
@@ -19,6 +20,7 @@ export default function DashboardGuru() {
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
   const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
+  const [hafalanMaterials, setHafalanMaterials] = useState<any[]>(initialHafalanMaterials);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
@@ -48,6 +50,7 @@ export default function DashboardGuru() {
   const [evaluateHafalan, setEvaluateHafalan] = useState<StudentHafalanProgress | null>(null);
   const [showHafalanModal, setShowHafalanModal] = useState(false);
   const [hafalanEvalStars, setHafalanEvalStars] = useState<number>(0);
+  const [hafalanSubTab, setHafalanSubTab] = useState<'eval' | 'modul'>('eval');
   const [hafalanEvalNotes, setHafalanEvalNotes] = useState('');
   const [hafalanEvalStatus, setHafalanEvalStatus] = useState<HafalanStatus>('Sedang Menghafal');
   const [hafalanEvalSemester, setHafalanEvalSemester] = useState<any>('PTS Ganjil');
@@ -230,6 +233,15 @@ export default function DashboardGuru() {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {});
 
+    const unsubHafalanMaterials = onSnapshot(query(collection(db, 'hafalan_materials'), orderBy('urutan', 'asc')), (snapshot) => {
+      if (!snapshot.empty) {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        setHafalanMaterials(docs);
+      }
+    }, (error) => {
+      console.error("Error fetching hafalan materials for guru:", error);
+    });
+
     return () => {
       unsubStudents();
       unsubProgress();
@@ -242,6 +254,7 @@ export default function DashboardGuru() {
       unsubSettings();
       unsubKaldik();
       unsubMaterials();
+      unsubHafalanMaterials();
     };
   }, [user, userData?.assignedClass, userData?.kelas]);
 
@@ -891,7 +904,7 @@ export default function DashboardGuru() {
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Modul Hafalan
+        <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Hafalan & Modul
       </button>
       <button 
         onClick={() => { setActiveTab('penilaian-kelas'); setIsSidebarOpen(false); }}
@@ -1459,13 +1472,30 @@ export default function DashboardGuru() {
 
         {activeTab === 'hafalan' && (
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
-            <div className="card-3d p-6 md:p-8">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <div>
-                  <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">Evaluasi Hafalan</h3>
-                  <p className="text-sm text-gray-400 font-medium">Nilai hafalan surat, hadist, dan doa siswa.</p>
+            <div className="flex gap-2 mb-6">
+              <button 
+                onClick={() => setHafalanSubTab('eval')}
+                className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${hafalanSubTab === 'eval' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                Evaluasi Setoran
+              </button>
+              <button 
+                onClick={() => setHafalanSubTab('modul')}
+                className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${hafalanSubTab === 'modul' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                Kelola Modul
+              </button>
+            </div>
+
+            {hafalanSubTab === 'eval' ? (
+              <>
+                <div className="card-3d p-6 md:p-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                  <div>
+                    <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">Evaluasi Hafalan</h3>
+                    <p className="text-sm text-gray-400 font-medium">Nilai hafalan surat, hadist, dan doa siswa.</p>
+                  </div>
                 </div>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <select value={filterKelasHafalan} onChange={e => setFilterKelasHafalan(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
                   <option value="">Semua Kelas</option>
@@ -1706,8 +1736,12 @@ export default function DashboardGuru() {
                 </div>
               )}
             </div>
-          </div>
+          </>
+        ) : (
+          <HafalanTab />
         )}
+      </div>
+    )}
 
         {activeTab === 'penilaian-kelas' && (
           <div className="space-y-6">
@@ -2666,7 +2700,7 @@ export default function DashboardGuru() {
                                 });
                                 // Automatically unlock next material if 'Mumtaz (Lulus)'
                                 if (hafalanEvalStatus === 'Mumtaz (Lulus)' && mat) {
-                                  const nextId = getNextMaterialId(mat.id, mat.kelas);
+                                  const nextId = getNextMaterialId(mat.id, mat.kelas, hafalanMaterials);
                                   if (nextId) {
                                     const nextRef = doc(db, 'hafalan_progress', `${evaluateHafalan.studentId}_${nextId}`);
                                     await setDoc(nextRef, {

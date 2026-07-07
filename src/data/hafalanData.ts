@@ -8,7 +8,6 @@ export interface HafalanMaterial {
   arab?: string;
   latin?: string;
   terjemahan?: string;
-  audioUrl?: string;
   urutan: number;
 }
 
@@ -27,7 +26,7 @@ export interface StudentHafalanProgress {
   evaluationSemester?: 'Semester 1' | 'Semester 2';
 }
 
-export const hafalanMaterials: HafalanMaterial[] = [
+export const staticHafalanMaterials: HafalanMaterial[] = [
   // --- Utsman ---
   { id: "utsman_sp_1", kelas: "Utsman", kategori: "Surat Pendek", judul: "QS. Al Kautsar", urutan: 1, arab: "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ ۝ فَصَلِّ لِرَبِّكَ وَانْحَرْ ۝ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ", latin: "Inna a'toinakal kautsar. Fasholli lirabbika wanhar. Inna syaniaka huwal abtar.", terjemahan: "Sesungguhnya Kami telah memberikan kepadamu nikmat yang banyak. Maka dirikanlah shalat karena Tuhanmu; dan berkorbanlah. Sesungguhnya orang-orang yang membenci kamu dialah yang terputus." },
   { id: "utsman_sp_2", kelas: "Utsman", kategori: "Surat Pendek", judul: "QS. Al Ma'un", urutan: 2, arab: "أَرَأَيْتَ الَّذِي يُكَذِّبُ بِالدِّينِ ۝ فَذَلِكَ الَّذِي يَدُعُّ الْيَتِيمَ ۝ وَلَا يَحُضُّ عَلَى طَعَامِ الْمِسْكِينِ ۝ فَوَيْلٌ لِلْمُصَلِّينَ ۝ الَّذِينَ هُمْ عَنْ صَلَاتِهِمْ سَاهُونَ ۝ الَّذِينَ هُمْ يُرَاءُونَ ۝ وَيَمْنَعُونَ الْمَاعُونَ", latin: "Ara'aital ladzii yukadz-dzibu biddiin. Fadzalikal ladzi yadu'ul yatiim. Wa la yahuddu 'ala ta'amil miskiin. Fa wailul lil musalliin. Alladzina hum 'an shalaatihim saahuun. Alladziina hum yuroouun. Wa yamna'uunal maa'uun.", terjemahan: "Tahukah kamu (orang) yang mendustakan agama? Itulah orang yang menghardik anak yatim, dan tidak menganjurkan memberi makan orang miskin. Maka kecelakaanlah bagi orang-orang yang shalat, (yaitu) orang-orang yang lalai dari shalatnya, orang-orang yang berbuat riya, dan enggan (menolong dengan) barang berguna." },
@@ -89,11 +88,13 @@ export const hafalanMaterials: HafalanMaterial[] = [
   { id: "umar_bs_7", kelas: "Umar Bin Khattab", kategori: "Bacaan Sholat", judul: "Niat sholat isya", urutan: 7, arab: "أُصَلِّي فَرْضَ الْعِشَاءِ أَرْبَعَ رَكَعَاتٍ مُسْتَقْبِلَ الْقِبْلَةِ أَدَاءً لِلَّهِ تَعَالَى", latin: "Ushallii fardhal 'isya'i arba'a raka'aatin mustaqbilal qiblati adaa'an lillaahi ta'aalaa", terjemahan: "Aku niat sholat fardu isya empat rakaat menghadap kiblat karena Allah Ta'ala." },
 ];
 
-export const getNextMaterialId = (currentMaterialId: string, kelas: string): string | null => {
-  const currentMaterial = hafalanMaterials.find(m => m.id === currentMaterialId);
+export let hafalanMaterials: HafalanMaterial[] = [...staticHafalanMaterials];
+
+export const getNextMaterialId = (currentMaterialId: string, kelas: string, materials: HafalanMaterial[] = hafalanMaterials): string | null => {
+  const currentMaterial = materials.find(m => m.id === currentMaterialId);
   if (!currentMaterial) return null;
   
-  const classMaterials = hafalanMaterials
+  const classMaterials = materials
     .filter(m => m.kelas === kelas && m.kategori === currentMaterial.kategori)
     .sort((a, b) => a.urutan - b.urutan);
     

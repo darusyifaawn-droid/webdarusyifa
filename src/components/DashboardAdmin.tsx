@@ -18,6 +18,7 @@ import FinancePenetapanTab from './admin/tabs/FinancePenetapanTab';
 import FinanceValidasiTab from './admin/tabs/FinanceValidasiTab';
 import FinanceRiwayatTab from './admin/tabs/FinanceRiwayatTab';
 import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
+import HafalanTab from './admin/tabs/HafalanTab';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
@@ -2449,6 +2450,12 @@ export default function DashboardAdmin() {
         <BookOpen size={20} className={activeTab === 'academic' ? 'text-white' : 'text-gray-500'} /> Akademik & Rapot
       </button>
       <button 
+        onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
+      >
+        <BookOpen size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-500'} /> Modul Hafalan
+      </button>
+      <button 
         onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'finance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
@@ -2735,6 +2742,7 @@ export default function DashboardAdmin() {
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-10">
                 {[
                   { id: 'academic', label: 'Kelas', icon: BookOpen, color: 'bg-indigo-600 bg-gradient-to-br from-indigo-500 to-indigo-600', action: () => setActiveTab('academic') },
+                  { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500', action: () => setActiveTab('hafalan') },
                   { id: 'users', label: 'Siswa', icon: Users, color: 'bg-purple-600 bg-gradient-to-br from-purple-500 to-purple-600', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
                   { id: 'attendance', label: 'Absen', icon: CheckCircle, color: 'bg-emerald-600 bg-gradient-to-br from-emerald-500 to-emerald-600', action: () => setActiveTab('attendance') },
                   { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-rose-600 bg-gradient-to-br from-rose-500 to-rose-600', action: () => setActiveTab('kaldik') },
@@ -4049,6 +4057,10 @@ export default function DashboardAdmin() {
               })()}
             </div>
           </div>
+        )}
+
+        {activeTab === 'hafalan' && (
+          <HafalanTab />
         )}
 
         {activeTab === 'finance' && (

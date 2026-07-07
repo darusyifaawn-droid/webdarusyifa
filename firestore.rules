@@ -19,31 +19,35 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+    function isAdmin() {
+      if (!isSignedIn()) return false;
+      if (request.auth.token.email == "darusyifa.awn@gmail.com") return true;
+      
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.role == 'admin';
+    }
+
+    function isGuru() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'guru';
+    }
+
+    function isSiswa() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'siswa';
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isRole(role) {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
-    }
-
-    function isAdmin() {
-      let isBootstrapAdmin = request.auth.token.email == "darusyifa.awn@gmail.com";
-      return isBootstrapAdmin || isRole('admin');
-    }
-
-    function isGuru() {
-      return isRole('guru');
-    }
-
-    function isSiswa() {
-      return isRole('siswa');
+    // ===============================================================
+    // GLOBAL ADMIN OVERRIDE
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
 
     // Rules for Users
@@ -163,6 +167,12 @@ service cloud.firestore {
       );
       
       allow delete: if isAdmin() || isGuru();
+    }
+
+    // Hafalan Materials (Modul Hafalan)
+    match /hafalan_materials/{materialId} {
+      allow read: if isSignedIn();
+      allow write: if isGuru() || isAdmin();
     }
   }
 }

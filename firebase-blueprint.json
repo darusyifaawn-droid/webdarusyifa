@@ -71,6 +71,22 @@
         "timestamp": { "type": "object" }
       },
       "required": ["studentId", "date", "status"]
+    },
+    "HafalanMaterial": {
+      "title": "HafalanMaterial",
+      "description": "Memorization modules",
+      "type": "object",
+      "properties": {
+        "kelas": { "type": "string", "enum": ["Utsman", "Umar Bin Khattab"] },
+        "kategori": { "type": "string", "enum": ["Surat Pendek", "Hadist", "Doa Sehari-hari", "Bacaan Sholat"] },
+        "judul": { "type": "string" },
+        "arab": { "type": "string" },
+        "latin": { "type": "string" },
+        "terjemahan": { "type": "string" },
+        "urutan": { "type": "number" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["kelas", "kategori", "judul", "urutan"]
     }
   },
   "firestore": {
@@ -78,6 +94,7 @@
     "/subjects/{subjectId}": { "schema": "Subject", "description": "Academic subject categories" },
     "/progress/{progressId}": { "schema": "StudentProgress", "description": "Global student progress reports" },
     "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Global attendance records" },
-    "/payments/{paymentId}": { "schema": "Payment", "description": "Payment and savings history" }
+    "/payments/{paymentId}": { "schema": "Payment", "description": "Payment and savings history" },
+    "/hafalan_materials/{materialId}": { "schema": "HafalanMaterial", "description": "Memorization modules" }
   }
 }
