@@ -4118,6 +4118,13 @@ export default function DashboardAdmin() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setFinanceSubTab('penetapan')}
+                    className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${financeSubTab === 'penetapan' ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    <PlusCircle size={14} /> Penetapan Iuran
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setFinanceSubTab('setelan')}
                     className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${financeSubTab === 'setelan' ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'}`}
                   >
@@ -4208,6 +4215,29 @@ export default function DashboardAdmin() {
                 handleDeleteIuranCategory={handleDeleteIuranCategory}
               />
             )}
+            
+            {financeSubTab === 'penetapan' && (
+              <FinancePenetapanTab
+                allUsers={allUsers}
+                financeIuranStudentIds={financeIuranStudentIds}
+                setFinanceIuranStudentIds={setFinanceIuranStudentIds}
+                filterFinanceKelas={filterFinanceKelas}
+                setFilterFinanceKelas={setFilterFinanceKelas}
+                schoolClasses={schoolClasses}
+                financeIuranName={financeIuranName}
+                setFinanceIuranName={setFinanceIuranName}
+                financeAmount={financeAmount}
+                setFinanceAmount={setFinanceAmount}
+                financeDueDate={financeDueDate}
+                setFinanceDueDate={setFinanceDueDate}
+                selectedCategoryId={selectedCategoryId}
+                setSelectedCategoryId={setSelectedCategoryId}
+                iuranCategories={iuranCategories}
+                handleAddIuran={handleAddIuran}
+                setShowIuranCategoryModal={setShowIuranCategoryModal}
+              />
+            )}
+
             {financeSubTab === 'validasi' && (
               <FinanceValidasiTab
                 payments={payments}
