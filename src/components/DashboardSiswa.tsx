@@ -696,9 +696,7 @@ export default function DashboardSiswa() {
       query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc')),
       (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
       (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          console.error("Error fetching attendance:", error);
-        }
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
       }
     );
 
@@ -706,9 +704,7 @@ export default function DashboardSiswa() {
       query(collection(db, 'progress'), where('studentId', '==', user.uid), orderBy('createdAt', 'desc')),
       (snapshot) => setProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
       (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          console.error("Error fetching progress:", error);
-        }
+        handleFirestoreError(error, OperationType.LIST, 'progress');
       }
     );
 
@@ -716,9 +712,7 @@ export default function DashboardSiswa() {
       query(collection(db, 'hafalan_progress'), where('studentId', '==', user.uid)),
       (snapshot) => setHafalanProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentHafalanProgress))),
       (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          console.error("Error fetching hafalan progress:", error);
-        }
+        handleFirestoreError(error, OperationType.LIST, 'hafalan_progress');
       }
     );
 
@@ -728,9 +722,7 @@ export default function DashboardSiswa() {
         setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       },
       (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          console.error("Error fetching announcements:", error);
-        }
+        handleFirestoreError(error, OperationType.LIST, 'announcements');
       }
     );
 
@@ -741,9 +733,7 @@ export default function DashboardSiswa() {
         setLoading(false);
       },
       (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          console.error("Error fetching payments:", error);
-        }
+        handleFirestoreError(error, OperationType.LIST, 'payments');
         setLoading(false);
       }
     );
@@ -752,18 +742,26 @@ export default function DashboardSiswa() {
       if (snap.exists()) {
         setSettings(snap.data());
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/landingPage');
     });
 
     const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
       setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'kaldik');
     });
 
     const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'materials');
     });
 
     const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
       setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'exams');
     });
 
     return () => {

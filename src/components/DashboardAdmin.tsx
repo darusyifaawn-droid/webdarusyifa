@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import { seedHafalanMaterials, seedInitialSettings } from '../lib/seeding';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import UserTab from './admin/tabs/UserTab';
@@ -19,6 +20,7 @@ import FinanceValidasiTab from './admin/tabs/FinanceValidasiTab';
 import FinanceRiwayatTab from './admin/tabs/FinanceRiwayatTab';
 import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
 import HafalanTab from './admin/tabs/HafalanTab';
+import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
@@ -97,6 +99,22 @@ export default function DashboardAdmin() {
   const [financeIuranCategory, setFinanceIuranCategory] = useState('');
   const [showIuranCategoryModal, setShowIuranCategoryModal] = useState(false);
   const [editingIuranCategory, setEditingIuranCategory] = useState<any>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedData = async () => {
+    if (!window.confirm('Ingin memuat data awal (Surat Pendek, Hadist, Doa) ke database? Data yang sudah ada tidak akan terhapus.')) return;
+    setIsSeeding(true);
+    try {
+      await seedHafalanMaterials();
+      await seedInitialSettings();
+      alert('Data awal berhasil dimuat!');
+    } catch (error) {
+      console.error('Seeding failed:', error);
+      alert('Gagal memuat data awal.');
+    } finally {
+      setIsSeeding(false);
+    }
+  };
   const [newIuranCategoryName, setNewIuranCategoryName] = useState('');
   const [newIuranCategoryAmount, setNewIuranCategoryAmount] = useState('');
   const [searchStudentFinance, setSearchStudentFinance] = useState('');
@@ -185,6 +203,7 @@ export default function DashboardAdmin() {
   const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
   const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
   const [financeSubTab, setFinanceSubTab] = useState<'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan'>('dashboard');
+  const [hafalanSubTab, setHafalanSubTab] = useState<'modul' | 'progress'>('modul');
   const [financeIuranStudentIds, setFinanceIuranStudentIds] = useState<string[]>([]);
   const [filterFinanceKelas, setFilterFinanceKelas] = useState('');
   const [filterLogStatus, setFilterLogStatus] = useState<'semua' | 'pending' | 'lunas' | 'ditolak'>('semua');
@@ -437,41 +456,31 @@ export default function DashboardAdmin() {
     const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
       setAllUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching users:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
       setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching attendance:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'attendance');
     });
 
     const unsubAnnounce = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc')), (snapshot) => {
       setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching announcements:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'announcements');
     });
 
     const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
       setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching exams:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'exams');
     });
 
     const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc')), (snapshot) => {
       setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching payments:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'payments');
     });
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (docSnap) => {
@@ -480,35 +489,52 @@ export default function DashboardAdmin() {
       }
       setLoading(false);
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching settings:", error);
-      }
+      handleFirestoreError(error, OperationType.GET, 'settings/landingPage');
       setLoading(false);
     });
 
     const unsubClasses = onSnapshot(query(collection(db, 'classes'), orderBy('name', 'asc')), (snapshot) => {
       setSchoolClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'classes');
+    });
 
     const unsubProgress = onSnapshot(query(collection(db, 'progress'), orderBy('createdAt', 'desc')), (snapshot) => {
       setProgressData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'progress');
+    });
 
     const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
       setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'kaldik');
+    });
 
     const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'materials');
+    });
 
-    const unsubHafalan = onSnapshot(query(collection(db, 'hafalan_progress'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setHafalanData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    const unsubHafalan = onSnapshot(collection(db, 'hafalan_progress'), (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort client-side instead to avoid index requirements
+      const sortedDocs = [...docs].sort((a: any, b: any) => {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return dateB - dateA;
+      });
+      setHafalanData(sortedDocs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'hafalan_progress');
+    });
 
     const unsubCategories = onSnapshot(query(collection(db, 'iuran_categories'), orderBy('name', 'asc')), (snapshot) => {
       setIuranCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'iuran_categories');
+    });
 
     return () => {
       unsubUsers();
@@ -4060,7 +4086,24 @@ export default function DashboardAdmin() {
         )}
 
         {activeTab === 'hafalan' && (
-          <HafalanTab />
+          <div className="space-y-6">
+            <div className="flex gap-2 p-1.5 bg-gray-50/50 rounded-2xl w-fit border border-gray-100">
+              <button 
+                onClick={() => setHafalanSubTab('modul')}
+                className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${hafalanSubTab === 'modul' ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'text-gray-500 hover:bg-white'}`}
+              >
+                Manajemen Modul
+              </button>
+              <button 
+                onClick={() => setHafalanSubTab('progress')}
+                className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${hafalanSubTab === 'progress' ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'text-gray-500 hover:bg-white'}`}
+              >
+                Daftar Setoran
+              </button>
+            </div>
+            
+            {hafalanSubTab === 'modul' ? <HafalanTab /> : <HafalanProgressTab />}
+          </div>
         )}
 
         {activeTab === 'finance' && (
@@ -5846,6 +5889,25 @@ export default function DashboardAdmin() {
                       className="w-full py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2 active:scale-95"
                     >
                       <RefreshCw size={18} /> Reset Semua Keuangan Siswa
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-slate-50 border border-slate-200 rounded-[2rem] flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">Sinkronisasi Data Awal</h3>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed opacity-80">
+                      Jika database masih kosong (modul hafalan, surat pendek, hadist tidak muncul), klik tombol di bawah untuk memuat data bawaan sistem ke database Cloud Anda.
+                    </p>
+                  </div>
+                  <div className="mt-8">
+                    <button 
+                      onClick={handleSeedData}
+                      disabled={isSeeding}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSeeding ? <RefreshCw size={18} className="animate-spin" /> : <PlusCircle size={18} />}
+                      {isSeeding ? 'Memproses...' : 'Muat Data Modul Hafalan'}
                     </button>
                   </div>
                 </div>

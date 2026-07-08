@@ -6,7 +6,8 @@ import { staticHafalanMaterials, HafalanMaterial } from '../../../data/hafalanDa
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
 
 export default function HafalanTab() {
-  const [materials, setMaterials] = useState<HafalanMaterial[]>([]);
+  const [materials, setMaterials] = useState<HafalanMaterial[]>(staticHafalanMaterials);
+  const [isUsingStatic, setIsUsingStatic] = useState(true);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterKelas, setFilterKelas] = useState('Semua');
@@ -37,14 +38,18 @@ export default function HafalanTab() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       clearTimeout(timeoutId);
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HafalanMaterial));
-      
-      console.log(`Fetched ${docs.length} hafalan materials`);
-      
-      // Sort client-side
-      const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-      
-      setMaterials(sortedDocs);
+      if (snapshot.empty) {
+        setMaterials(staticHafalanMaterials);
+        setIsUsingStatic(true);
+      } else {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HafalanMaterial));
+        console.log(`Fetched ${docs.length} hafalan materials`);
+        
+        // Sort client-side
+        const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+        setMaterials(sortedDocs);
+        setIsUsingStatic(false);
+      }
       setLoading(false);
     }, (error) => {
       clearTimeout(timeoutId);
@@ -156,12 +161,12 @@ export default function HafalanTab() {
           <p className="text-sm text-gray-500 font-medium">Kelola materi hafalan surat, hadist, dan doa</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={handleSyncData}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all border border-blue-100"
-          >
-            <RefreshCw size={18} /> Sync Data Statis
-          </button>
+            <button 
+              onClick={handleSyncData}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all border ${isUsingStatic ? 'bg-orange-50 text-orange-600 border-orange-200 animate-pulse' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
+            >
+              <RefreshCw size={18} className={isUsingStatic ? 'animate-spin' : ''} /> {isUsingStatic ? 'Klik untuk Sync ke Database' : 'Sync Data Statis'}
+            </button>
           <button 
             onClick={() => {
               setEditingMaterial(null);

@@ -10,6 +10,7 @@ import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import HafalanTab from './admin/tabs/HafalanTab';
+import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 
 export default function DashboardGuru() {
@@ -50,7 +51,7 @@ export default function DashboardGuru() {
   const [evaluateHafalan, setEvaluateHafalan] = useState<StudentHafalanProgress | null>(null);
   const [showHafalanModal, setShowHafalanModal] = useState(false);
   const [hafalanEvalStars, setHafalanEvalStars] = useState<number>(0);
-  const [hafalanSubTab, setHafalanSubTab] = useState<'eval' | 'modul'>('eval');
+  const [hafalanSubTab, setHafalanSubTab] = useState<'eval' | 'modul' | 'all'>('eval');
   const [hafalanEvalNotes, setHafalanEvalNotes] = useState('');
   const [hafalanEvalStatus, setHafalanEvalStatus] = useState<HafalanStatus>('Sedang Menghafal');
   const [hafalanEvalSemester, setHafalanEvalSemester] = useState<any>('PTS Ganjil');
@@ -156,90 +157,84 @@ export default function DashboardGuru() {
         return isActive && isSameClass;
       }));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching students:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     const unsubProgress = onSnapshot(query(collection(db, 'progress'), orderBy('createdAt', 'desc')), (snapshot) => {
       setProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching progress:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'progress');
     });
 
     const unsubHafalanProgress = onSnapshot(collection(db, 'hafalan_progress'), (snapshot) => {
       setHafalanProgress(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentHafalanProgress)));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching hafalan progress:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'hafalan_progress');
     });
 
     const unsubAnnounce = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc')), (snapshot) => {
       setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching announcements:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'announcements');
     });
 
     const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
       setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching exams:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'exams');
     });
 
     const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
       setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching attendance:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'attendance');
       setLoading(false);
     });
 
     const unsubSubjects = onSnapshot(query(collection(db, 'subjects'), orderBy('createdAt', 'desc')), (snapshot) => {
       setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching subjects:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'subjects');
     });
 
     const unsubClasses = onSnapshot(query(collection(db, 'classes')), (snapshot) => {
       setSchoolClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error fetching classes:", error);
-      }
+      handleFirestoreError(error, OperationType.LIST, 'classes');
     });
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
       if (snap.exists()) {
         setSettings(snap.data());
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/landingPage');
     });
 
     const unsubKaldik = onSnapshot(query(collection(db, 'kaldik')), (snapshot) => {
       setKaldikData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'kaldik');
+    });
 
     const unsubMaterials = onSnapshot(query(collection(db, 'materials'), orderBy('createdAt', 'desc')), (snapshot) => {
       setMaterialsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {});
-
-    const unsubHafalanMaterials = onSnapshot(query(collection(db, 'hafalan_materials')), (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      // Sort client-side
-      const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
-      setHafalanMaterials(sortedDocs);
     }, (error) => {
-      console.error("Error fetching hafalan materials for guru:", error);
+      handleFirestoreError(error, OperationType.LIST, 'materials');
+    });
+
+    const unsubHafalanMaterials = onSnapshot(collection(db, 'hafalan_materials'), (snapshot) => {
+      if (snapshot.empty) {
+        setHafalanMaterials(initialHafalanMaterials);
+      } else {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        // Sort client-side
+        const sortedDocs = [...docs].sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+        setHafalanMaterials(sortedDocs);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'hafalan_materials');
     });
 
     return () => {
@@ -1485,6 +1480,12 @@ export default function DashboardGuru() {
               >
                 Kelola Modul
               </button>
+              <button 
+                onClick={() => setHafalanSubTab('all')}
+                className={`px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${hafalanSubTab === 'all' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                Semua Setoran
+              </button>
             </div>
 
             {hafalanSubTab === 'eval' ? (
@@ -1737,8 +1738,10 @@ export default function DashboardGuru() {
               )}
             </div>
           </>
-        ) : (
+        ) : hafalanSubTab === 'modul' ? (
           <HafalanTab />
+        ) : (
+          <HafalanProgressTab />
         )}
       </div>
     )}
