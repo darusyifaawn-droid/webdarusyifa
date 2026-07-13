@@ -891,10 +891,10 @@ export default function DashboardGuru() {
         <Users size={20} className={activeTab === 'students' ? 'text-white' : 'text-gray-400'} /> Daftar Siswa
       </button>
       <button 
-        onClick={() => { setActiveTab('kaldik'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'kaldik' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+        onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
       >
-        <BookOpen size={20} className={activeTab === 'kaldik' ? 'text-white' : 'text-gray-400'} /> Kaldik & Materi
+        <BookOpen size={20} className={'text-gray-400'} /> Kaldik & Materi
       </button>
       <button 
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
@@ -1127,7 +1127,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1390,8 +1390,8 @@ export default function DashboardGuru() {
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             <div className="card-3d p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Kaldik & Materi Belajar</h3>
-                <p className="text-sm text-gray-400 mt-1 font-medium">Kalender Pendidikan dari Admin dan kumpulan materi pembelajaran Anda.</p>
+                <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Materi Belajar</h3>
+                <p className="text-sm text-gray-400 mt-1 font-medium">Kumpulan materi pembelajaran yang Anda tambahkan.</p>
               </div>
               <button 
                 onClick={() => setShowMaterialModal(true)}
@@ -1401,27 +1401,11 @@ export default function DashboardGuru() {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {/* Kalender Pendidikan */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-black text-gray-800 text-lg flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
-                  <button 
-                    onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
-                    className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:underline"
-                  >
-                    <ExternalLink size={12} /> Versi Web
-                  </button>
-                </div>
-                <div className="bg-white/50 backdrop-blur-xl rounded-[2rem] border border-white/50 shadow-xl p-4">
-                  <KaldikCalendar events={kaldikData} isAdmin={false} />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 gap-8">
               {/* Materi */}
               <div>
                 <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><BookOpen className="text-blue-500" /> Materi Pembelajaran Saya</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {materialsData.filter(m => m.teacherId === user.uid).map(mat => (
                     <div key={mat.id} className="card-3d p-6 relative overflow-hidden group">
                       <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -1442,13 +1426,13 @@ export default function DashboardGuru() {
                       </div>
                     </div>
                   ))}
-                  {materialsData.filter(m => m.teacherId === user.uid).length === 0 && (
-                    <div className="col-span-1 sm:col-span-2 text-center p-8 bg-white border border-dashed border-gray-200 rounded-[2rem]">
-                      <BookOpen className="mx-auto text-gray-300 mb-2" size={32} />
-                      <p className="text-xs text-gray-400 font-medium">Belum ada materi yang Anda tambahkan.</p>
-                    </div>
-                  )}
                 </div>
+                {materialsData.filter(m => m.teacherId === user.uid).length === 0 && (
+                  <div className="text-center p-12 bg-white border border-dashed border-gray-200 rounded-[2rem]">
+                    <BookOpen className="mx-auto text-gray-300 mb-2" size={32} />
+                    <p className="text-xs text-gray-400 font-medium">Belum ada materi yang Anda tambahkan.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -2813,7 +2813,7 @@ export default function DashboardAdmin() {
                   { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500', action: () => setActiveTab('hafalan') },
                   { id: 'users', label: 'Siswa', icon: Users, color: 'bg-purple-600 bg-gradient-to-br from-purple-500 to-purple-600', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
                   { id: 'attendance', label: 'Absen', icon: CheckCircle, color: 'bg-emerald-600 bg-gradient-to-br from-emerald-500 to-emerald-600', action: () => setActiveTab('attendance') },
-                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-rose-600 bg-gradient-to-br from-rose-500 to-rose-600', action: () => setActiveTab('kaldik') },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-rose-600 bg-gradient-to-br from-rose-500 to-rose-600', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
                   { id: 'materials', label: 'Materi', icon: BookOpen, color: 'bg-sky-600 bg-gradient-to-br from-sky-500 to-sky-600', action: () => setActiveTab('materials') },
                   { id: 'achievements', label: 'Rank', icon: Trophy, color: 'bg-amber-600 bg-gradient-to-br from-amber-500 to-amber-600', action: () => setActiveTab('achievements') },
                   { id: 'assessments', label: 'Nilai', icon: TrendingUp, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('assessments') },
@@ -3763,33 +3763,7 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        {activeTab === 'kaldik' && (
-          <div className="animate-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-end mb-6">
-              <button 
-                onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
-                className="px-4 py-2 bg-rose-50 text-rose-600 rounded-xl text-xs font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-100 transition-all flex items-center gap-2"
-              >
-                <ExternalLink size={14} /> Buka Kaldik Versi Web
-              </button>
-            </div>
-            <KaldikCalendar 
-              events={kaldikData} 
-              isAdmin={true}
-              onAddEvent={(date) => {
-                const dateStr = date.toISOString().split('T')[0];
-                setNewKaldik({ date: dateStr, title: '', description: '', type: 'Agenda Sekolah' });
-                setShowAddKaldik(true);
-              }}
-              onEditEvent={(event) => {
-                setEditKaldikId(event.id);
-                setNewKaldik(event);
-                setShowAddKaldik(true);
-              }}
-              onDeleteEvent={handleDeleteKaldik}
-            />
-          </div>
-        )}
+
 
         {activeTab === 'materials' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
