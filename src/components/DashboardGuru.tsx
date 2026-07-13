@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter, Image as ImageIcon, FileText, Download } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter, Image as ImageIcon, FileText, Download, ExternalLink } from 'lucide-react';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -891,10 +891,10 @@ export default function DashboardGuru() {
         <Users size={20} className={activeTab === 'students' ? 'text-white' : 'text-gray-400'} /> Daftar Siswa
       </button>
       <button 
-        onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
+        onClick={() => { setActiveTab('kaldik'); setIsSidebarOpen(false); }}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'kaldik' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
       >
-        <BookOpen size={20} className={'text-gray-400'} /> Kaldik & Materi
+        <BookOpen size={20} className={activeTab === 'kaldik' ? 'text-white' : 'text-gray-400'} /> Kaldik & Materi
       </button>
       <button 
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
@@ -1127,7 +1127,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => setActiveTab('kaldik') },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1404,7 +1404,15 @@ export default function DashboardGuru() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Kalender Pendidikan */}
               <div>
-                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-black text-gray-800 text-lg flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
+                  <button 
+                    onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
+                    className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:underline"
+                  >
+                    <ExternalLink size={12} /> Versi Web
+                  </button>
+                </div>
                 <div className="bg-white/50 backdrop-blur-xl rounded-[2rem] border border-white/50 shadow-xl p-4">
                   <KaldikCalendar events={kaldikData} isAdmin={false} />
                 </div>
