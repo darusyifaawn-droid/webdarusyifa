@@ -10,6 +10,8 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { seedHafalanMaterials, seedInitialSettings } from '../lib/seeding';
+import KaldikCalendar from './KaldikCalendar';
+import { KaldikEvent } from '../types';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import UserTab from './admin/tabs/UserTab';
@@ -232,7 +234,7 @@ export default function DashboardAdmin() {
   // Kaldik States
   const [showAddKaldik, setShowAddKaldik] = useState(false);
   const [editKaldikId, setEditKaldikId] = useState<string | null>(null);
-  const [newKaldik, setNewKaldik] = useState({ date: '', title: '', description: '', type: 'Libur' });
+  const [newKaldik, setNewKaldik] = useState<Partial<KaldikEvent>>({ date: '', title: '', description: '', type: 'Libur' });
 
   const [showMutasiModal, setShowMutasiModal] = useState(false);
   const [mutasiTargetClass, setMutasiTargetClass] = useState('');
@@ -1698,25 +1700,46 @@ export default function DashboardAdmin() {
   };
 
   const handleOneClickPaymentFromTabungan = async (student: any, detail: any) => {
-    if ((student.savings || 0) < detail.amount) {
+    const inputAmount = window.prompt(`Masukkan jumlah pembayaran untuk ${detail.name} (Saldo: Rp ${Number(student.savings || 0).toLocaleString('id-ID')}):`, detail.amount.toString());
+    if (inputAmount === null) return;
+    
+    const amount = Number(inputAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Jumlah tidak valid!');
+      return;
+    }
+
+    if ((student.savings || 0) < amount) {
       alert('Saldo Tabungan Tidak Mencukupi!');
       return;
     }
-    if (!window.confirm(`Bayar ${detail.name} menggunakan Saldo Tabungan?`)) return;
+    
+    if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} menggunakan Saldo Tabungan?`)) return;
     
     try {
+      const isLunas = amount >= detail.amount;
+      const newArrears = Math.max(0, (student.arrears || 0) - amount);
+      const newSavings = (student.savings || 0) - amount;
+      
+      let newDetails = [...(student.arrears_details || [])];
+      if (isLunas) {
+        newDetails = newDetails.filter((d: any) => d.id !== detail.id);
+      } else {
+        newDetails = newDetails.map((d: any) => d.id === detail.id ? { ...d, amount: d.amount - amount } : d);
+      }
+
       await updateDoc(doc(db, 'users', student.id), {
-        savings: student.savings - detail.amount,
-        arrears: student.arrears - detail.amount,
-        arrears_details: student.arrears_details.filter((d: any) => d.id !== detail.id)
+        savings: newSavings,
+        arrears: newArrears,
+        arrears_details: newDetails
       });
       
       await addDoc(collection(db, 'payments'), {
         studentId: student.id,
-        amount: detail.amount,
-        description: `Bayar ${detail.name} (Saldo Tabungan)`,
+        amount: amount,
+        description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - Saldo Tabungan`,
         method: 'Tabungan',
-        status: 'lunas',
+        status: isLunas ? 'lunas' : 'cicilan',
         type: 'pembayaran',
         createdAt: serverTimestamp(),
         date: new Date().toISOString().split('T')[0]
@@ -1724,29 +1747,48 @@ export default function DashboardAdmin() {
       
       setSelectedStudentForFinance((prev: any) => ({
         ...prev,
-        savings: prev.savings - detail.amount,
-        arrears: prev.arrears - detail.amount,
-        arrears_details: prev.arrears_details.filter((d: any) => d.id !== detail.id)
+        savings: newSavings,
+        arrears: newArrears,
+        arrears_details: newDetails
       }));
-      alert('Pembayaran Berhasil!');
+      alert(isLunas ? 'Pembayaran Lunas Berhasil!' : 'Pembayaran Cicilan Berhasil!');
     } catch (e) { console.error(e); }
   };
 
   const handleOneClickPayment = async (student: any, detail: any) => {
-    if (!window.confirm(`Bayar ${detail.name} secara Tunai?`)) return;
+    const inputAmount = window.prompt(`Masukkan jumlah pembayaran tunai untuk ${detail.name}:`, detail.amount.toString());
+    if (inputAmount === null) return;
+
+    const amount = Number(inputAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Jumlah tidak valid!');
+      return;
+    }
+
+    if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} secara Tunai?`)) return;
     
     try {
+      const isLunas = amount >= detail.amount;
+      const newArrears = Math.max(0, (student.arrears || 0) - amount);
+      
+      let newDetails = [...(student.arrears_details || [])];
+      if (isLunas) {
+        newDetails = newDetails.filter((d: any) => d.id !== detail.id);
+      } else {
+        newDetails = newDetails.map((d: any) => d.id === detail.id ? { ...d, amount: d.amount - amount } : d);
+      }
+
       await updateDoc(doc(db, 'users', student.id), {
-        arrears: student.arrears - detail.amount,
-        arrears_details: student.arrears_details.filter((d: any) => d.id !== detail.id)
+        arrears: newArrears,
+        arrears_details: newDetails
       });
       
       await addDoc(collection(db, 'payments'), {
         studentId: student.id,
-        amount: detail.amount,
-        description: `Bayar ${detail.name} (Tunai Admin)`,
+        amount: amount,
+        description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - Tunai Admin`,
         method: 'Tunai',
-        status: 'lunas',
+        status: isLunas ? 'lunas' : 'cicilan',
         type: 'pembayaran',
         createdAt: serverTimestamp(),
         date: new Date().toISOString().split('T')[0]
@@ -1754,10 +1796,10 @@ export default function DashboardAdmin() {
       
       setSelectedStudentForFinance((prev: any) => ({
         ...prev,
-        arrears: prev.arrears - detail.amount,
-        arrears_details: prev.arrears_details.filter((d: any) => d.id !== detail.id)
+        arrears: newArrears,
+        arrears_details: newDetails
       }));
-      alert('Pembayaran Tunai Berhasil!');
+      alert(isLunas ? 'Pembayaran Tunai Lunas Berhasil!' : 'Pembayaran Cicilan Tunai Berhasil!');
     } catch (e) { console.error(e); }
   };
 
@@ -2771,7 +2813,7 @@ export default function DashboardAdmin() {
                   { id: 'hafalan', label: 'Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500', action: () => setActiveTab('hafalan') },
                   { id: 'users', label: 'Siswa', icon: Users, color: 'bg-purple-600 bg-gradient-to-br from-purple-500 to-purple-600', action: () => { setActiveTab('users'); setFilterUserRole('siswa'); } },
                   { id: 'attendance', label: 'Absen', icon: CheckCircle, color: 'bg-emerald-600 bg-gradient-to-br from-emerald-500 to-emerald-600', action: () => setActiveTab('attendance') },
-                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-rose-600 bg-gradient-to-br from-rose-500 to-rose-600', action: () => setActiveTab('kaldik') },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-rose-600 bg-gradient-to-br from-rose-500 to-rose-600', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
                   { id: 'materials', label: 'Materi', icon: BookOpen, color: 'bg-sky-600 bg-gradient-to-br from-sky-500 to-sky-600', action: () => setActiveTab('materials') },
                   { id: 'achievements', label: 'Rank', icon: Trophy, color: 'bg-amber-600 bg-gradient-to-br from-amber-500 to-amber-600', action: () => setActiveTab('achievements') },
                   { id: 'assessments', label: 'Nilai', icon: TrendingUp, color: 'bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600', action: () => setActiveTab('assessments') },
@@ -3722,52 +3764,22 @@ export default function DashboardAdmin() {
         )}
 
         {activeTab === 'kaldik' && (
-          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="card-3d p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kalender Pendidikan</h3>
-                <p className="text-gray-400 text-sm font-medium">Informasi agenda kalender pendidikan RA Darusyifa Arjawinangun.</p>
-              </div>
-              <button 
-                onClick={() => setShowAddKaldik(true)}
-                className="w-full sm:w-auto bg-pink-500 text-white px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-pink-600 transition-all text-sm shadow-sm"
-              >
-                <Plus size={18} /> Tambah Agenda Kaldik
-              </button>
-            </div>
-            <div className="grid gap-4">
-              {kaldikData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => (
-                <div key={item.id} className="bg-white p-6 rounded-3xl shadow-sm border border-orange-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-pink-50 rounded-2xl flex flex-col items-center justify-center border border-pink-100 text-pink-500 shrink-0">
-                      <span className="text-xs font-bold uppercase">{new Date(item.date).toLocaleString('id-ID', { month: 'short' })}</span>
-                      <span className="text-xl font-black">{new Date(item.date).getDate()}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-gray-800 text-lg">{item.title}</h4>
-                      <p className="text-gray-500 text-sm">{item.description}</p>
-                      <span className={`mt-2 inline-block px-3 py-1 text-[10px] uppercase font-black tracking-widest rounded-lg border ${item.type === 'Libur' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                        {item.type}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0 justify-end">
-                    <button onClick={() => { setEditKaldikId(item.id); setNewKaldik(item); setShowAddKaldik(true); }} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all">
-                      <Edit size={16} />
-                    </button>
-                    <button onClick={() => handleDeleteKaldik(item.id)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {kaldikData.length === 0 && (
-                <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-gray-200">
-                  <Calendar className="mx-auto text-gray-300 mb-3" size={48} />
-                  <p className="text-gray-400 font-medium">Belum ada agenda Kalender Pendidikan.</p>
-                </div>
-              )}
-            </div>
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            <KaldikCalendar 
+              events={kaldikData} 
+              isAdmin={true}
+              onAddEvent={(date) => {
+                const dateStr = date.toISOString().split('T')[0];
+                setNewKaldik({ date: dateStr, title: '', description: '', type: 'Agenda Sekolah' });
+                setShowAddKaldik(true);
+              }}
+              onEditEvent={(event) => {
+                setEditKaldikId(event.id);
+                setNewKaldik(event);
+                setShowAddKaldik(true);
+              }}
+              onDeleteEvent={handleDeleteKaldik}
+            />
           </div>
         )}
 
@@ -5978,12 +5990,13 @@ export default function DashboardAdmin() {
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Jenis Agenda</label>
                 <select 
                   value={newKaldik.type} 
-                  onChange={(e) => setNewKaldik({...newKaldik, type: e.target.value})} 
+                  onChange={(e) => setNewKaldik({...newKaldik, type: e.target.value as any})} 
                   className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all font-bold text-gray-700" 
                 >
-                  <option value="Libur">Libur / Hari Besar</option>
-                  <option value="Kegiatan">Kegiatan Sekolah</option>
+                  <option value="Libur">Libur Nasional / Cuti</option>
+                  <option value="Agenda Sekolah">Kegiatan Sekolah</option>
                   <option value="Ujian">Evaluasi / Ujian</option>
+                  <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
               

@@ -7,6 +7,7 @@ import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgre
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
+import KaldikCalendar from './KaldikCalendar';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 import HafalanTab from './admin/tabs/HafalanTab';
@@ -890,10 +891,10 @@ export default function DashboardGuru() {
         <Users size={20} className={activeTab === 'students' ? 'text-white' : 'text-gray-400'} /> Daftar Siswa
       </button>
       <button 
-        onClick={() => { setActiveTab('kaldik'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'kaldik' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-50 text-gray-600'}`}
+        onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
+        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
       >
-        <BookOpen size={20} className={activeTab === 'kaldik' ? 'text-white' : 'text-gray-400'} /> Kaldik & Materi
+        <BookOpen size={20} className={'text-gray-400'} /> Kaldik & Materi
       </button>
       <button 
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
@@ -1126,7 +1127,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1404,28 +1405,8 @@ export default function DashboardGuru() {
               {/* Kalender Pendidikan */}
               <div>
                 <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><Calendar className="text-pink-500" /> Agenda Kaldik</h4>
-                <div className="space-y-4">
-                  {kaldikData.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(item => (
-                    <div key={item.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-orange-100 flex items-center gap-4">
-                      <div className="w-14 h-14 bg-pink-50 rounded-[1rem] flex flex-col items-center justify-center border border-pink-100 text-pink-500 shrink-0">
-                        <span className="text-[10px] font-bold uppercase">{new Date(item.date).toLocaleString('id-ID', { month: 'short' })}</span>
-                        <span className="text-lg font-black leading-none mt-0.5">{new Date(item.date).getDate()}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 text-base">{item.title}</h4>
-                        <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
-                        <span className={`mt-2 inline-block px-2 py-0.5 text-[8px] uppercase font-black tracking-widest rounded-md border ${item.type === 'Libur' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                          {item.type}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {kaldikData.length === 0 && (
-                    <div className="text-center p-8 bg-white border border-dashed border-gray-200 rounded-[2rem]">
-                      <Calendar className="mx-auto text-gray-300 mb-2" size={32} />
-                      <p className="text-xs text-gray-400 font-medium">Belum ada agenda sekolah dari Admin.</p>
-                    </div>
-                  )}
+                <div className="bg-white/50 backdrop-blur-xl rounded-[2rem] border border-white/50 shadow-xl p-4">
+                  <KaldikCalendar events={kaldikData} isAdmin={false} />
                 </div>
               </div>
 
