@@ -4376,6 +4376,12 @@ export default function DashboardAdmin() {
                       <span className="text-gray-600">{a.author}</span>
                       <span>•</span>
                       <span>{formatDateForUI(a.createdAt, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      {a.updatedAt && (
+                        <>
+                          <span>•</span>
+                          <span className="text-blue-500 italic">Diperbarui: {formatDateForUI(a.updatedAt, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex md:flex-col gap-2 shrink-0">
@@ -4388,9 +4394,9 @@ export default function DashboardAdmin() {
                         setAnnounceAttachments(a.attachments || []);
                         setShowAnnounceModal(true);
                       }}
-                      className="w-12 h-12 bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-blue-100"
+                      className="flex-1 md:w-32 h-12 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm border border-blue-100 font-bold text-xs"
                     >
-                      <Edit size={20} />
+                      <Edit size={16} /> <span>Edit</span>
                     </button>
                     <button 
                       onClick={async () => {
@@ -4403,9 +4409,9 @@ export default function DashboardAdmin() {
                           }
                         }
                       }} 
-                      className="w-12 h-12 bg-red-50 text-red-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all flex items-center justify-center shadow-sm border border-red-100"
+                      className="flex-1 md:w-32 h-12 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm border border-red-100 font-bold text-xs"
                     >
-                      <Trash2 size={20} />
+                      <Trash2 size={16} /> <span>Hapus</span>
                     </button>
                   </div>
                 </div>
