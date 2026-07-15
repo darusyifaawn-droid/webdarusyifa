@@ -2110,44 +2110,45 @@ export default function DashboardAdmin() {
 
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userToReset) return;
+    if (!userToReset || !newPassword) return;
     
+    setLoading(true);
     try {
-      if (!userToReset.plainPassword) {
-        // Fallback to email reset
-        await sendPasswordResetEmail(auth, userToReset.email);
-        alert(`Password lama tidak tersimpan. Link reset password telah dikirim ke email ${userToReset.email}`);
-        setShowResetPassword(false);
-        setUserToReset(null);
-        setNewPassword('');
-        return;
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Gagal mendapatkan token autentikasi admin.");
+
+      const response = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          email: userToReset.email,
+          newPassword: newPassword
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Gagal mereset password melalui server.");
       }
 
-      if (!newPassword) return;
+      // Update plainPassword in Firestore for tracking
+      await updateDoc(doc(db, 'users', userToReset.id), {
+        plainPassword: newPassword
+      });
 
-      // Use secondary app to sign in and update password
-      const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(auth.app.options, 'SecondaryApp');
-      const secondaryAuth = getAuth(secondaryApp);
-      
-      await signInWithEmailAndPassword(secondaryAuth, userToReset.email, userToReset.plainPassword);
-      if (secondaryAuth.currentUser) {
-        const { updatePassword } = await import('firebase/auth');
-        await updatePassword(secondaryAuth.currentUser, newPassword);
-        await secondaryAuth.signOut();
-
-        // Update plainPassword in Firestore
-        await updateDoc(doc(db, 'users', userToReset.id), {
-          plainPassword: newPassword
-        });
-
-        alert(`Password untuk ${userToReset.email} berhasil diubah!`);
-        setShowResetPassword(false);
-        setUserToReset(null);
-        setNewPassword('');
-      }
+      alert(`Password untuk ${userToReset.email} berhasil diubah secara langsung oleh Admin!`);
+      setShowResetPassword(false);
+      setUserToReset(null);
+      setNewPassword('');
     } catch (error: any) {
-      console.error(error);
+      console.error('Reset password error:', error);
       alert('Gagal mereset password: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
