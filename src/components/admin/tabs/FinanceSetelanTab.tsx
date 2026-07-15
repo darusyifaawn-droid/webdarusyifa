@@ -1,11 +1,12 @@
 import React from 'react';
-import { Settings, RefreshCw, Calendar, Download, Shield } from 'lucide-react';
+import { Settings, RefreshCw, Calendar, Download, Shield, Trash2 } from 'lucide-react';
 import { updateDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../../../lib/firebase';
 
 interface FinanceSetelanTabProps {
   setShowCategoryModal: (val: boolean) => void;
   handleResetAllFinance: () => void;
+  handleResetTransactionHistory: (targetClasses?: string[]) => void;
   handleFixDuplicateArrears: (targetClass?: string, targetAmount?: number) => void;
   exportFinanceToExcel: () => void;
   settings: any;
@@ -15,6 +16,7 @@ interface FinanceSetelanTabProps {
 export default function FinanceSetelanTab({
   setShowCategoryModal,
   handleResetAllFinance,
+  handleResetTransactionHistory,
   handleFixDuplicateArrears,
   exportFinanceToExcel,
   settings,
@@ -49,6 +51,39 @@ export default function FinanceSetelanTab({
           <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
             Kosongkan seluruh saldo tabungan dan tunggakan siswa (Hati-hati).
           </p>
+        </div>
+
+        {/* Reset Transaction History Card */}
+        <div 
+          onClick={() => handleResetTransactionHistory()}
+          className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-orange-100 transition-all cursor-pointer group"
+        >
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform">
+            <RefreshCw size={28} className="sm:w-8 sm:h-8" />
+          </div>
+          <h4 className="text-lg sm:text-xl font-black text-gray-800 tracking-tight mb-2">Hapus Riwayat Transaksi</h4>
+          <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+            Hapus seluruh catatan riwayat transaksi untuk SEMUA siswa.
+          </p>
+        </div>
+
+        {/* Reset Transaction History for Umar & Utsman */}
+        <div 
+          onClick={() => handleResetTransactionHistory(['Umar', 'Utsman'])}
+          className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-red-100 transition-all cursor-pointer group"
+        >
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform">
+            <Trash2 size={28} className="sm:w-8 sm:h-8" />
+          </div>
+          <h4 className="text-lg sm:text-xl font-black text-gray-800 tracking-tight mb-2">Hapus Riwayat (Umar & Utsman)</h4>
+          <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed mb-4">
+            Khusus menghapus riwayat transaksi siswa kelas Umar dan Utsman agar keterangan kosong.
+          </p>
+          <button 
+            className="w-full py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+          >
+            Hapus Riwayat Sekarang
+          </button>
         </div>
 
         {/* Backup Card */}

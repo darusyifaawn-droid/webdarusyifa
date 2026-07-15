@@ -678,6 +678,59 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleResetTransactionHistory = async (targetClasses?: string[]) => {
+    const msg = targetClasses 
+      ? `⚠️ KONFIRMASI: Hapus riwayat transaksi untuk siswa di kelas: ${targetClasses.join(', ')}?`
+      : '⚠️ KONFIRMASI: Tindakan ini akan MENGHAPUS PERMANEN seluruh RIWAYAT TRANSAKSI semua siswa. Data tabungan dan tunggakan TIDAK akan berubah. Lanjutkan?';
+      
+    if (!window.confirm(msg)) return;
+    
+    setLoading(true);
+    try {
+      const { writeBatch } = await import('firebase/firestore');
+      let batch = writeBatch(db);
+      let count = 0;
+
+      const paymentsSnap = await getDocs(collection(db, 'payments'));
+      
+      // Map student IDs to their classes for filtering
+      const classMap = new Map();
+      if (targetClasses) {
+        allUsers.forEach(u => {
+          if (u.role === 'siswa') {
+            classMap.set(u.id, u.kelas || '');
+          }
+        });
+      }
+
+      for (const p of paymentsSnap.docs) {
+        const data = p.data();
+        if (targetClasses) {
+          const studentClass = classMap.get(data.studentId);
+          if (!studentClass || !targetClasses.some(c => studentClass.toLowerCase().includes(c.toLowerCase()))) {
+            continue;
+          }
+        }
+
+        batch.delete(doc(db, 'payments', p.id));
+        count++;
+        if (count >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) await batch.commit();
+
+      alert(targetClasses ? `Riwayat transaksi untuk kelas ${targetClasses.join(', ')} berhasil dihapus!` : 'Seluruh riwayat transaksi berhasil dihapus!');
+    } catch (error) {
+      console.error('Reset transaction history error:', error);
+      alert('Gagal menghapus riwayat transaksi.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     const path = 'users';
@@ -4471,6 +4524,7 @@ export default function DashboardAdmin() {
               <FinanceSetelanTab
                 setShowCategoryModal={setShowCategoryModal}
                 handleResetAllFinance={handleResetAllFinance}
+                handleResetTransactionHistory={handleResetTransactionHistory}
                 handleFixDuplicateArrears={handleFixDuplicateArrears}
                 exportFinanceToExcel={exportFinanceToExcel}
                 settings={settings}
@@ -5563,21 +5617,12 @@ export default function DashboardAdmin() {
                                         <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
                                         <p className="font-black text-red-500 text-xs uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
                                      </div>
-                                     <div className="flex items-center gap-2">
-                                        <button 
-                                          onClick={() => handleOneClickPaymentFromTabungan(selectedStudentForFinance, item)}
-                                          disabled={(selectedStudentForFinance.savings || 0) < Number(item.amount)}
-                                          className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-30 disabled:grayscale shrink-0 border border-indigo-100"
-                                        >
-                                          Potong Tabungan
-                                        </button>
-                                        <button 
-                                          onClick={() => handleOneClickPayment(selectedStudentForFinance, item)}
-                                          className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
-                                        >
-                                          Bayar Tunai
-                                        </button>
-                                     </div>
+                                     <button 
+                                        onClick={() => handleOneClickPayment(selectedStudentForFinance, item)}
+                                        className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
+                                     >
+                                        Bayar Tunai
+                                     </button>
                                   </div>
                                </div>
                             ))
