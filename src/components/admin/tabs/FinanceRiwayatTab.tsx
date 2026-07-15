@@ -10,6 +10,8 @@ interface FinanceRiwayatTabProps {
   setSearchTransactionText: (val: string) => void;
   filterLogStatus: string;
   setFilterLogStatus: (val: any) => void;
+  filterLogMethod: string;
+  setFilterLogMethod: (val: any) => void;
   filterLogStartDate: string;
   setFilterLogStartDate: (val: string) => void;
   filterLogEndDate: string;
@@ -25,6 +27,8 @@ export default function FinanceRiwayatTab({
   setSearchTransactionText,
   filterLogStatus,
   setFilterLogStatus,
+  filterLogMethod,
+  setFilterLogMethod,
   filterLogStartDate,
   setFilterLogStartDate,
   filterLogEndDate,
@@ -43,8 +47,11 @@ export default function FinanceRiwayatTab({
     
     // 1. Filter Status
     const matchesStatus = filterLogStatus === 'semua' || pay.status === filterLogStatus;
+
+    // 2. Filter Metode
+    const matchesMethod = filterLogMethod === 'semua' || pay.method === filterLogMethod;
     
-    // 2. Filter Waktu (Date range)
+    // 3. Filter Waktu (Date range)
     let matchesDate = true;
     if (pay.createdAt) {
       try {
@@ -61,7 +68,7 @@ export default function FinanceRiwayatTab({
       }
     }
     
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesMethod && matchesDate;
   }).sort((a, b) => {
     const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
     const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
@@ -89,7 +96,7 @@ export default function FinanceRiwayatTab({
           </div>
         </div>
 
-        <div className="bg-slate-50/50 p-6 grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-gray-100 text-left">
+        <div className="bg-slate-50/50 p-6 grid grid-cols-1 md:grid-cols-5 gap-4 border-b border-gray-100 text-left">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Status Log</label>
             <select 
@@ -101,6 +108,19 @@ export default function FinanceRiwayatTab({
               <option value="pending">Tertunda</option>
               <option value="lunas">Diterima</option>
               <option value="ditolak">Ditolak</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Metode Bayar</label>
+            <select 
+              value={filterLogMethod} 
+              onChange={(e) => setFilterLogMethod(e.target.value as any)} 
+              className="w-full text-xs p-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-gray-700"
+            >
+              <option value="semua">Semua Metode</option>
+              <option value="Tunai">Tunai (Cash)</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Tabungan">Tabungan</option>
             </select>
           </div>
           <div className="space-y-1.5">
@@ -123,7 +143,13 @@ export default function FinanceRiwayatTab({
           </div>
           <div className="flex items-end">
             <button 
-              onClick={() => { setFilterLogStatus('semua'); setFilterLogStartDate(''); setFilterLogEndDate(''); setSearchTransactionText(''); }}
+              onClick={() => { 
+                setFilterLogStatus('semua'); 
+                setFilterLogMethod('semua');
+                setFilterLogStartDate(''); 
+                setFilterLogEndDate(''); 
+                setSearchTransactionText(''); 
+              }}
               className="w-full bg-slate-200 text-slate-700 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center justify-center gap-2"
             >
               <RefreshCw size={14} /> RESET FILTER

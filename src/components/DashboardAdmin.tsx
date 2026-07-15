@@ -208,6 +208,7 @@ export default function DashboardAdmin() {
   const [financeIuranStudentIds, setFinanceIuranStudentIds] = useState<string[]>([]);
   const [filterFinanceKelas, setFilterFinanceKelas] = useState('');
   const [filterLogStatus, setFilterLogStatus] = useState<'semua' | 'pending' | 'lunas' | 'ditolak'>('semua');
+  const [filterLogMethod, setFilterLogMethod] = useState<'semua' | 'Tunai' | 'Transfer' | 'Tabungan'>('semua');
   const [filterLogStartDate, setFilterLogStartDate] = useState('');
   const [filterLogEndDate, setFilterLogEndDate] = useState('');
 
@@ -1971,8 +1972,8 @@ export default function DashboardAdmin() {
     } catch (e) { console.error(e); }
   };
 
-  const handleOneClickPayment = async (student: any, detail: any) => {
-    const inputAmount = window.prompt(`Masukkan jumlah pembayaran tunai untuk ${detail.name}:`, detail.amount.toString());
+  const handleOneClickPayment = async (student: any, detail: any, method: 'Tunai' | 'Transfer' = 'Tunai') => {
+    const inputAmount = window.prompt(`Masukkan jumlah pembayaran ${method.toLowerCase()} untuk ${detail.name}:`, detail.amount.toString());
     if (inputAmount === null) return;
 
     const amount = Number(inputAmount);
@@ -1981,7 +1982,7 @@ export default function DashboardAdmin() {
       return;
     }
 
-    if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} secara Tunai?`)) return;
+    if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} secara ${method}?`)) return;
     
     try {
       const isLunas = amount >= detail.amount;
@@ -2002,8 +2003,8 @@ export default function DashboardAdmin() {
       await addDoc(collection(db, 'payments'), {
         studentId: student.id,
         amount: amount,
-        description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - Tunai Admin`,
-        method: 'Tunai',
+        description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - ${method} Admin`,
+        method: method,
         status: isLunas ? 'lunas' : 'cicilan',
         type: 'pembayaran',
         createdAt: serverTimestamp(),
@@ -2015,7 +2016,7 @@ export default function DashboardAdmin() {
         arrears: newArrears,
         arrears_details: newDetails
       }));
-      alert(isLunas ? 'Pembayaran Tunai Lunas Berhasil!' : 'Pembayaran Cicilan Tunai Berhasil!');
+      alert(isLunas ? `Pembayaran ${method} Lunas Berhasil!` : `Pembayaran Cicilan ${method} Berhasil!`);
     } catch (e) { console.error(e); }
   };
 
@@ -4508,6 +4509,8 @@ export default function DashboardAdmin() {
                 setSearchTransactionText={setSearchTransactionText}
                 filterLogStatus={filterLogStatus}
                 setFilterLogStatus={setFilterLogStatus}
+                filterLogMethod={filterLogMethod}
+                setFilterLogMethod={setFilterLogMethod}
                 filterLogStartDate={filterLogStartDate}
                 setFilterLogStartDate={setFilterLogStartDate}
                 filterLogEndDate={filterLogEndDate}
@@ -5617,12 +5620,20 @@ export default function DashboardAdmin() {
                                         <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
                                         <p className="font-black text-red-500 text-xs uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
                                      </div>
-                                     <button 
-                                        onClick={() => handleOneClickPayment(selectedStudentForFinance, item)}
-                                        className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
-                                     >
-                                        Bayar Tunai
-                                     </button>
+                                     <div className="flex gap-2">
+                                        <button 
+                                           onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Tunai')}
+                                           className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
+                                        >
+                                           Bayar Tunai
+                                        </button>
+                                        <button 
+                                           onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Transfer')}
+                                           className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-100 shrink-0"
+                                        >
+                                           Bayar Transfer
+                                        </button>
+                                     </div>
                                   </div>
                                </div>
                             ))
