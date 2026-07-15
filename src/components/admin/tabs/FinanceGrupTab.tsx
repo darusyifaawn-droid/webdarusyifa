@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Plus, Edit, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, RefreshCw } from 'lucide-react';
 
 interface FinanceGrupTabProps {
   iuranCategories: any[];
@@ -8,6 +8,7 @@ interface FinanceGrupTabProps {
   setNewIuranCategoryAmount: (val: string) => void;
   setShowIuranCategoryModal: (val: boolean) => void;
   handleDeleteIuranCategory: (id: string) => void;
+  handleSyncFinanceData: () => void;
 }
 
 export default function FinanceGrupTab({
@@ -16,7 +17,8 @@ export default function FinanceGrupTab({
   setNewIuranCategoryName,
   setNewIuranCategoryAmount,
   setShowIuranCategoryModal,
-  handleDeleteIuranCategory
+  handleDeleteIuranCategory,
+  handleSyncFinanceData
 }: FinanceGrupTabProps) {
   return (
     <div className="space-y-6 text-left">
@@ -25,12 +27,21 @@ export default function FinanceGrupTab({
           <h3 className="text-xl font-black text-gray-800 tracking-tight">Manajemen Grup Iuran</h3>
           <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Kelola kategori iuran sekolah secara terorganisir</p>
         </div>
-        <button 
-          onClick={() => { setEditingIuranCategory(null); setNewIuranCategoryName(''); setNewIuranCategoryAmount(''); setShowIuranCategoryModal(true); }}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:scale-105 transition-all active:scale-95"
-        >
-          <Plus size={16} /> Tambah Grup
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSyncFinanceData}
+            className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+            title="Sinkronisasi tagihan siswa dengan grup iuran aktif"
+          >
+            <RefreshCw size={16} /> Sinkronisasi Data
+          </button>
+          <button 
+            onClick={() => { setEditingIuranCategory(null); setNewIuranCategoryName(''); setNewIuranCategoryAmount(''); setShowIuranCategoryModal(true); }}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:scale-105 transition-all active:scale-95"
+          >
+            <Plus size={16} /> Tambah Grup
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

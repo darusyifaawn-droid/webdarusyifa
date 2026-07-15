@@ -188,7 +188,6 @@ export default function DashboardAdmin() {
   // Photo Viewer State
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   
-  const [filterFinanceAcademicYear, setFilterFinanceAcademicYear] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -243,7 +242,7 @@ export default function DashboardAdmin() {
   const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
   const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
 
-  const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate || filterFinanceStudentName || filterFinanceClass || filterFinanceAcademicYear;
+  const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate || filterFinanceStudentName || filterFinanceKelas || filterKeuanganStatus !== 'semua';
   
   // Available Iurans for filtering (categorized)
   const availableIuranDetails = Array.from(new Set(allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').flatMap(u => (u.arrears_details || []).map((d: any) => JSON.stringify({ name: d.name, category: d.category || 'Umum' })))))
@@ -278,10 +277,10 @@ export default function DashboardAdmin() {
     const matchesNISN = u.nisn && u.nisn.toLowerCase().includes(searchLower);
     
     if (filterFinanceStudentName && !matchesName && !matchesNISN) {
-        return { ...u, viewArrears: 0, viewSavings: 0, hideByFilter: true };
+        return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, hideByFilter: true };
     }
-    if (filterFinanceClass && u.kelas !== filterFinanceClass) {
-        return { ...u, viewArrears: 0, viewSavings: 0, hideByFilter: true };
+    if (filterFinanceKelas && u.kelas !== filterFinanceKelas) {
+        return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, hideByFilter: true };
     }
 
     let filteredArrears = 0;
@@ -295,7 +294,6 @@ export default function DashboardAdmin() {
       }
       if (filterFinanceStartDate && d.date < filterFinanceStartDate) match = false;
       if (filterFinanceEndDate && d.date > filterFinanceEndDate) match = false;
-      if (filterFinanceAcademicYear && d.academicYear !== filterFinanceAcademicYear) match = false;
       if (match) filteredArrears += d.amount;
     });
 
@@ -315,17 +313,60 @@ export default function DashboardAdmin() {
       else if (p.method === 'Tabungan') filteredSavings -= Number(p.amount || 0);
     });
 
+    // Calculate filtered paid
+    let filteredPaid = 0;
+    payments.forEach(p => {
+      if (p.studentId !== u.id || p.status !== 'lunas' || p.type !== 'iuran') return;
+      let match = true;
+      if (filterFinanceCategory) {
+        const pCat = p.iuranCategory || 'Umum';
+        if (pCat !== filterFinanceCategory) match = false;
+      }
+      if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
+      if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+      
+      if (match) filteredPaid += Number(p.amount || 0);
+    });
+
     if ((filterFinanceIuranName || filterFinanceCategory) && !filterFinanceStartDate && !filterFinanceEndDate) {
       filteredSavings = u.savings || 0;
     }
+
+    let hideByStatus = false;
+    if (filterKeuanganStatus === 'lunas' && filteredArrears > 0) hideByStatus = true;
+    if (filterKeuanganStatus === 'menunggak' && filteredArrears === 0) hideByStatus = true;
 
     return {
       ...u,
       viewArrears: filteredArrears,
       viewSavings: filteredSavings,
-      hideByFilter: false
+      viewPaid: filteredPaid,
+      hideByFilter: hideByStatus
     };
   }).filter(u => u.role === 'siswa' && !u.hideByFilter) : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
+
+  const displayTotalPaid = isFinanceFiltered
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewPaid || 0), 0)
+    : payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+  const displayTotalPaidOnline = isFinanceFiltered
+    ? payments.filter(p => {
+        if (p.status !== 'lunas' || p.method !== 'Transfer' || p.type !== 'iuran') return false;
+        let match = true;
+        if (filterFinanceCategory) {
+          const pCat = p.iuranCategory || 'Umum';
+          if (pCat !== filterFinanceCategory) match = false;
+        }
+        if (filterFinanceKelas) {
+          const student = allUsers.find(u => u.id === p.studentId);
+          if (!student || student.kelas !== filterFinanceKelas) match = false;
+        }
+        if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+        if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+        return match;
+      }).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+    : payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
   const displayTotalTunggakan = isFinanceFiltered 
     ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
@@ -1659,12 +1700,81 @@ export default function DashboardAdmin() {
   };
 
   const handleDeleteIuranCategory = async (id: string) => {
-    if (!window.confirm('Hapus kategori iuran ini?')) return;
+    if (!window.confirm('Hapus kategori iuran ini? Seluruh tagihan siswa dan riwayat pembayaran terkait kategori ini akan dihapus permanen. Lanjutkan?')) return;
     try {
+      const categoryToDelete = iuranCategories.find(c => c.id === id);
+      if (!categoryToDelete) {
+        alert('Kategori tidak ditemukan.');
+        return;
+      }
+      
+      const categoryName = categoryToDelete.name;
+
+      // 1. Delete the category itself
       await deleteDoc(doc(db, 'iuran_categories', id));
-      alert('Grup iuran berhasil dihapus!');
+
+      // 2. Cascade delete from all students (arrears_details)
+      const studentsWithCategory = allUsers.filter(u => u.role === 'siswa' && u.arrears_details?.some((d: any) => d.category === categoryName));
+      
+      for (const student of studentsWithCategory) {
+        const updatedDetails = (student.arrears_details || []).filter((d: any) => d.category !== categoryName);
+        const newArrears = updatedDetails.reduce((acc: number, curr: any) => acc + curr.amount, 0);
+        await updateDoc(doc(db, 'users', student.id), {
+          arrears_details: updatedDetails,
+          arrears: newArrears
+        });
+      }
+
+      // 3. Delete related payments/logs
+      const relatedPayments = payments.filter(p => p.iuranCategory === categoryName || p.category === categoryName);
+      for (const pay of relatedPayments) {
+        await deleteDoc(doc(db, 'payments', pay.id));
+      }
+
+      alert(`Grup iuran "${categoryName}" beserta tagihan dan riwayat terkait berhasil dihapus!`);
     } catch (error) {
-      console.error(error);
+      console.error("Error cascading delete for iuran category:", error);
+      alert('Gagal menghapus grup iuran secara menyeluruh.');
+    }
+  };
+
+  const handleSyncFinanceData = async () => {
+    if (!window.confirm('Sinkronisasi data akan menghapus tagihan siswa yang merujuk pada grup iuran yang sudah tidak ada. Lanjutkan?')) return;
+    
+    try {
+      const activeCategoryNames = iuranCategories.map(c => c.name);
+      const studentsToFix = allUsers.filter(u => u.role === 'siswa' && u.arrears_details?.some((d: any) => !activeCategoryNames.includes(d.category)));
+      
+      const orphanedPayments = payments.filter(p => p.type === 'iuran' && p.iuranCategory && !activeCategoryNames.includes(p.iuranCategory));
+
+      if (studentsToFix.length === 0 && orphanedPayments.length === 0) {
+        alert('Data sudah sinkron. Tidak ada tagihan atau riwayat yatim ditemukan.');
+        return;
+      }
+
+      let studentFixCount = 0;
+      for (const student of studentsToFix) {
+        const originalDetails = student.arrears_details || [];
+        const fixedDetails = originalDetails.filter((d: any) => activeCategoryNames.includes(d.category));
+        const newArrears = fixedDetails.reduce((acc: number, curr: any) => acc + curr.amount, 0);
+        
+        await updateDoc(doc(db, 'users', student.id), {
+          arrears_details: fixedDetails,
+          arrears: newArrears
+        });
+        studentFixCount++;
+      }
+
+      let paymentDeleteCount = 0;
+      for (const p of orphanedPayments) {
+        await deleteDoc(doc(db, 'payments', p.id));
+        paymentDeleteCount++;
+      }
+
+      alert(`Sinkronisasi selesai!\n- ${studentFixCount} data siswa diperbarui.\n- ${paymentDeleteCount} riwayat pembayaran dihapus.`);
+    } catch (error) {
+      console.error("Error syncing finance data:", error);
+      alert('Gagal melakukan sinkronisasi data.');
     }
   };
 
@@ -4200,7 +4310,7 @@ export default function DashboardAdmin() {
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black text-indigo-700/60 uppercase tracking-widest mb-0.5">Terbayar (Online)</p>
                   <h4 className="text-xl font-black text-indigo-900 tracking-tight truncate">
-                    Rp {payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0).toLocaleString('id-ID')}
+                    Rp {displayTotalPaidOnline.toLocaleString('id-ID')}
                   </h4>
                 </div>
               </div>
@@ -4210,8 +4320,6 @@ export default function DashboardAdmin() {
             {financeSubTab === 'dashboard' && (
               <FinanceRekapTab
                 filteredUsersForFinance={filteredUsersForFinance}
-                filterFinanceAcademicYear={filterFinanceAcademicYear}
-                setFilterFinanceAcademicYear={setFilterFinanceAcademicYear}
                 filterFinanceKelas={filterFinanceKelas}
                 setFilterFinanceKelas={setFilterFinanceKelas}
                 schoolClasses={schoolClasses}
@@ -4239,6 +4347,7 @@ export default function DashboardAdmin() {
                 getMonthlyFinanceData={getMonthlyFinanceData}
                 displayTotalTabungan={displayTotalTabungan}
                 displayTotalTunggakan={displayTotalTunggakan}
+                displayTotalPaid={displayTotalPaid}
               />
             )}
 
@@ -4250,6 +4359,7 @@ export default function DashboardAdmin() {
                 setNewIuranCategoryAmount={setNewIuranCategoryAmount}
                 setShowIuranCategoryModal={setShowIuranCategoryModal}
                 handleDeleteIuranCategory={handleDeleteIuranCategory}
+                handleSyncFinanceData={handleSyncFinanceData}
               />
             )}
             

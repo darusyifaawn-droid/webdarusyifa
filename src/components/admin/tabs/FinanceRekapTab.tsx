@@ -4,8 +4,6 @@ import { BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Resp
 
 interface FinanceRekapTabProps {
   filteredUsersForFinance: any[];
-  filterFinanceAcademicYear: string;
-  setFilterFinanceAcademicYear: (val: string) => void;
   filterFinanceKelas: string;
   setFilterFinanceKelas: (val: string) => void;
   schoolClasses: any[];
@@ -33,12 +31,11 @@ interface FinanceRekapTabProps {
   getMonthlyFinanceData: () => any[];
   displayTotalTabungan: number;
   displayTotalTunggakan: number;
+  displayTotalPaid: number;
 }
 
 export default function FinanceRekapTab({
   filteredUsersForFinance,
-  filterFinanceAcademicYear,
-  setFilterFinanceAcademicYear,
   filterFinanceKelas,
   setFilterFinanceKelas,
   schoolClasses,
@@ -65,16 +62,9 @@ export default function FinanceRekapTab({
   setShowDeleteConfirm,
   getMonthlyFinanceData,
   displayTotalTabungan,
-  displayTotalTunggakan
+  displayTotalTunggakan,
+  displayTotalPaid
 }: FinanceRekapTabProps) {
-  const currentYear = new Date().getFullYear();
-  const nextYear = currentYear + 1;
-  const academicYearOptions = [
-    `${currentYear - 1}/${currentYear}`,
-    `${currentYear}/${nextYear}`,
-    `${nextYear}/${nextYear + 1}`
-  ];
-
   const totalTagihanValue = (allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0) + payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0));
   const totalDibayarValue = payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const totalSisaTunggakanValue = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0);
@@ -98,17 +88,6 @@ export default function FinanceRekapTab({
             </div>
           </div>
           
-          <div className="space-y-1.5 md:space-y-2">
-            <label className="text-[10px] font-black text-gray-400 md:text-gray-500 uppercase tracking-widest ml-1">Tahun Ajaran</label>
-            <select 
-              value={filterFinanceAcademicYear}
-              onChange={(e) => setFilterFinanceAcademicYear(e.target.value)}
-              className="w-full text-[11px] md:text-xs p-3 md:p-4 bg-slate-50 border-none rounded-xl md:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700 cursor-pointer appearance-none font-sans"
-            >
-              {academicYearOptions.map(year => <option key={year} value={year}>{year}</option>)}
-            </select>
-          </div>
-
           <div className="space-y-1.5 md:space-y-2">
             <label className="text-[10px] font-black text-gray-400 md:text-gray-500 uppercase tracking-widest ml-1">Filter Kelas</label>
             <select 
@@ -197,7 +176,7 @@ export default function FinanceRekapTab({
             <CheckCircle size={24} />
           </div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Dibayar</p>
-          <h4 className="text-2xl font-black text-gray-800 tracking-tight mt-1">Rp {totalDibayarValue.toLocaleString('id-ID')}</h4>
+          <h4 className="text-2xl font-black text-gray-800 tracking-tight mt-1">Rp {displayTotalPaid.toLocaleString('id-ID')}</h4>
         </div>
 
         <div className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm relative overflow-hidden group text-left">
@@ -260,9 +239,9 @@ export default function FinanceRekapTab({
                 </tr>
               ) : (
                 filteredUsersForFinance.map((u, idx) => {
-                  const sumDibayar = payments.filter(p => p.studentId === u.id && p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-                  const totalTagihan = (u.arrears || 0) + sumDibayar;
-                  const sisa = u.arrears || 0;
+                  const sumDibayar = u.viewPaid !== undefined ? u.viewPaid : payments.filter(p => p.studentId === u.id && p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+                  const sisa = u.viewArrears !== undefined ? u.viewArrears : (u.arrears || 0);
+                  const totalTagihan = sisa + sumDibayar;
                   
                   let statusBadge = (
                     <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest">Lunas</span>
