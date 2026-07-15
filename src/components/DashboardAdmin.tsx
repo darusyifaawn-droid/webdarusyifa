@@ -1778,6 +1778,59 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleFixDuplicateArrears = async (targetClass?: string, targetAmount?: number) => {
+    const msg = targetClass && targetAmount 
+      ? `Bersihkan double tagihan Rp ${targetAmount.toLocaleString('id-ID')} untuk kelas ${targetClass}?`
+      : 'Bersihkan seluruh double tagihan (nama & nominal sama) untuk seluruh siswa?';
+      
+    if (!window.confirm(msg)) return;
+    
+    try {
+      const studentsToFix = allUsers.filter(u => u.role === 'siswa' && (!targetClass || u.kelas === targetClass));
+      let totalFixed = 0;
+      
+      for (const student of studentsToFix) {
+        const details = student.arrears_details || [];
+        if (details.length === 0) continue;
+        
+        const seen = new Set();
+        const updatedDetails = [];
+        let changed = false;
+        
+        for (const d of details) {
+          // Unique key: name + amount + category
+          const key = `${d.name}-${d.amount}-${d.category || ''}`;
+          
+          // If we are targeting a specific amount and this isn't it, just keep it
+          if (targetAmount && d.amount !== targetAmount) {
+             updatedDetails.push(d);
+             continue;
+          }
+          
+          if (seen.has(key)) {
+            changed = true;
+            continue;
+          }
+          seen.add(key);
+          updatedDetails.push(d);
+        }
+        
+        if (changed) {
+          const newArrears = updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+          await updateDoc(doc(db, 'users', student.id), {
+            arrears_details: updatedDetails,
+            arrears: newArrears
+          });
+          totalFixed++;
+        }
+      }
+      alert(`Selesai! Berhasil membersihkan double tagihan untuk ${totalFixed} siswa.`);
+    } catch (error) {
+      console.error("Error fixing duplicates:", error);
+      alert('Gagal membersihkan data.');
+    }
+  };
+
   const handleSaveIuranCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIuranCategoryName || !newIuranCategoryAmount) {
@@ -4418,6 +4471,7 @@ export default function DashboardAdmin() {
               <FinanceSetelanTab
                 setShowCategoryModal={setShowCategoryModal}
                 handleResetAllFinance={handleResetAllFinance}
+                handleFixDuplicateArrears={handleFixDuplicateArrears}
                 exportFinanceToExcel={exportFinanceToExcel}
                 settings={settings}
                 setSettings={setSettings}

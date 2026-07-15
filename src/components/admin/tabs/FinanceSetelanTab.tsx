@@ -6,6 +6,7 @@ import { auth, db } from '../../../lib/firebase';
 interface FinanceSetelanTabProps {
   setShowCategoryModal: (val: boolean) => void;
   handleResetAllFinance: () => void;
+  handleFixDuplicateArrears: (targetClass?: string, targetAmount?: number) => void;
   exportFinanceToExcel: () => void;
   settings: any;
   setSettings: (val: any) => void;
@@ -14,6 +15,7 @@ interface FinanceSetelanTabProps {
 export default function FinanceSetelanTab({
   setShowCategoryModal,
   handleResetAllFinance,
+  handleFixDuplicateArrears,
   exportFinanceToExcel,
   settings,
   setSettings
@@ -61,6 +63,25 @@ export default function FinanceSetelanTab({
           <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
             Unduh seluruh data keuangan ke dalam format Excel (XLSX).
           </p>
+        </div>
+
+        {/* Fix Duplicates Card */}
+        <div 
+          onClick={() => handleFixDuplicateArrears('Utsman', 320000)}
+          className="bg-white border border-gray-100 p-6 sm:p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:border-amber-100 transition-all cursor-pointer group"
+        >
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform">
+            <Shield size={28} className="sm:w-8 sm:h-8" />
+          </div>
+          <h4 className="text-lg sm:text-xl font-black text-gray-800 tracking-tight mb-2">Pembersihan Double Tagihan</h4>
+          <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-widest leading-relaxed mb-4">
+            Hapus tagihan ganda (Rp 320.000) untuk kelas Utsman secara otomatis.
+          </p>
+          <button 
+            className="w-full py-3 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-colors"
+          >
+            Bersihkan Sekarang
+          </button>
         </div>
 
         {/* Academic Year Management Card */}
