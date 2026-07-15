@@ -19,15 +19,17 @@ async function startServer() {
   try {
     const apps = getApps();
     if (apps.length === 0) {
+      console.log(`[FirebaseInit] Initializing with ProjectID: ${firebaseConfig.projectId}`);
       adminApp = initializeApp({
         projectId: firebaseConfig.projectId,
       });
-      console.log("Firebase Admin initialized");
     } else {
       adminApp = apps[0];
     }
   } catch (error) {
-    console.error("Firebase Admin init error:", error);
+    console.error("[FirebaseInit] Error:", error);
+    // Fallback to default initialization
+    adminApp = initializeApp();
   }
 
   app.use(express.json());
@@ -42,31 +44,65 @@ async function startServer() {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+    console.log(`[ResetPW] Request for email: ${email}`);
+    
     try {
-      const auth = getAuth();
+      const auth = getAuth(adminApp);
       const decodedToken = await auth.verifyIdToken(idToken);
+      console.log(`[ResetPW] Admin verified: ${decodedToken.email} (UID: ${decodedToken.uid})`);
       
-      // Check if user is admin in Firestore
-      const db = getFirestore();
-      const adminDoc = await db.collection('admins').doc(decodedToken.uid).get();
+      // Use the database ID from config if available
+      const dbId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
+      const db = getFirestore(adminApp, dbId);
       
-      if (!adminDoc.exists) {
-        // Also check if they are in the users collection with role 'admin'
-        const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-        if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+      console.log(`[ResetPW] Checking admin status for UID: ${decodedToken.uid} on database: ${dbId}`);
+      
+      try {
+        const adminDoc = await db.collection('admins').doc(decodedToken.uid).get();
+        
+        let isAdmin = adminDoc.exists;
+        
+        if (!isAdmin) {
+          console.log(`[ResetPW] UID ${decodedToken.uid} not in 'admins' collection, checking 'users' collection...`);
+          const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+          isAdmin = userDoc.exists && userDoc.data()?.role === 'admin';
+        }
+
+        if (!isAdmin) {
+          console.warn(`[ResetPW] Access denied for UID: ${decodedToken.uid}`);
           return res.status(403).json({ error: "Forbidden: Not an admin" });
         }
+      } catch (fsError: any) {
+        console.error(`[ResetPW] Firestore error during admin check:`, fsError);
+        // If Firestore fails with permission denied, it might be a DB ID issue or IAM issue
+        // We'll proceed with caution if the token itself contains admin claims (if implemented)
+        // For now, let's just log and rethrow to see the exact error
+        throw fsError;
       }
 
+      console.log(`[ResetPW] Admin status confirmed. Looking up user by email: ${email}`);
+      
       // Perform the password reset
-      const userRecord = await auth.getUserByEmail(email);
+      let userRecord;
+      try {
+        userRecord = await auth.getUserByEmail(email);
+      } catch (authError: any) {
+        if (authError.code === 'auth/user-not-found') {
+          console.error(`[ResetPW] User not found in Firebase Auth: ${email}`);
+          return res.status(404).json({ error: "User tidak ditemukan di Firebase Authentication." });
+        }
+        throw authError;
+      }
+
+      console.log(`[ResetPW] User found (UID: ${userRecord.uid}). Updating password...`);
       await auth.updateUser(userRecord.uid, {
         password: newPassword,
       });
 
+      console.log(`[ResetPW] Password successfully updated for ${email}`);
       res.json({ message: "Password updated successfully" });
     } catch (error: any) {
-      console.error("Reset password error:", error);
+      console.error("[ResetPW] Critical Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
