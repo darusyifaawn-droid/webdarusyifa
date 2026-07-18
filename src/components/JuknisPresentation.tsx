@@ -426,46 +426,55 @@ export default function JuknisPresentation() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12 flex flex-col">
       {/* Header Panel */}
-      <header className="bg-white border-b border-slate-200 py-4 px-6 sticky top-0 z-40 shadow-sm flex items-center justify-between no-print">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/login')} 
-            className="p-2 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 text-xs text-slate-600 font-bold"
-          >
-            <ArrowLeft size={16} />
-            <span>Kembali ke Portal</span>
-          </button>
-          <div className="h-6 w-[1px] bg-slate-200 hidden sm:block"></div>
-          <div>
-            <h1 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-              <span className="text-green-600">Juknis</span> Wali Murid RA Darusyifa
-            </h1>
-            <p className="text-[10px] text-slate-400 hidden sm:block font-medium">Petunjuk Teknis Sosialisasi Penggunaan Portal Digital</p>
+      <header className="bg-white border-b border-slate-200 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-print">
+        <div className="flex items-center justify-between sm:justify-start gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button 
+              onClick={() => navigate('/login')} 
+              className="p-2 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-600 font-bold"
+            >
+              <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Kembali</span>
+            </button>
+            <div className="h-6 w-[1px] bg-slate-200 hidden sm:block"></div>
+            <div>
+              <h1 className="text-xs sm:text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5 leading-tight">
+                <span className="text-green-600">Juknis</span> <span className="hidden xs:inline">Wali Murid</span>
+              </h1>
+              <p className="text-[9px] text-slate-400 hidden sm:block font-medium">Petunjuk Teknis Sosialisasi Penggunaan Portal Digital</p>
+            </div>
           </div>
+
+          <button 
+            onClick={handlePrint} 
+            className="sm:hidden p-2 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 text-[10px] font-bold bg-white"
+          >
+            <Printer size={14} />
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
           {/* View Mode Selectors */}
-          <div className="bg-slate-100 p-1 rounded-xl flex border border-slate-200">
+          <div className="bg-slate-100 p-1 rounded-xl flex border border-slate-200 flex-1 sm:flex-none">
             <button 
               onClick={() => setViewMode('presentation')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'presentation' ? 'bg-white text-green-700 shadow-sm border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 ${viewMode === 'presentation' ? 'bg-white text-green-700 shadow-sm border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <Laptop size={14} />
-              <span>Slide Presentasi</span>
+              <Laptop size={12} className="sm:w-[14px] sm:h-[14px]" />
+              <span>Slide</span>
             </button>
             <button 
               onClick={() => setViewMode('document')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${viewMode === 'document' ? 'bg-white text-green-700 shadow-sm border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 ${viewMode === 'document' ? 'bg-white text-green-700 shadow-sm border border-slate-200/50' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <BookOpen size={14} />
-              <span>Buku Panduan</span>
+              <BookOpen size={12} className="sm:w-[14px] sm:h-[14px]" />
+              <span>Buku</span>
             </button>
           </div>
 
           <button 
             onClick={handlePrint} 
-            className="p-2 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 text-xs font-bold bg-white"
+            className="hidden sm:flex p-2 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all items-center gap-1.5 text-xs font-bold bg-white"
             title="Cetak Panduan Lengkap"
           >
             <Printer size={15} />
@@ -475,7 +484,7 @@ export default function JuknisPresentation() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
         <AnimatePresence mode="wait">
           {viewMode === 'presentation' ? (
             <motion.div 
@@ -483,12 +492,12 @@ export default function JuknisPresentation() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="grid lg:grid-cols-12 gap-6 items-stretch no-print"
+              className="grid lg:grid-cols-12 gap-4 sm:gap-6 items-stretch no-print"
             >
               {/* Presentation Slide Main Card */}
-              <div className="lg:col-span-8 bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-lg shadow-slate-100 flex flex-col justify-between relative min-h-[460px] sm:min-h-[520px]">
+              <div className="lg:col-span-8 bg-white border border-slate-200 rounded-[2rem] sm:rounded-3xl p-5 sm:p-10 shadow-lg shadow-slate-100 flex flex-col justify-between relative min-h-[500px] sm:min-h-[520px]">
                 {/* Progress bar */}
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 rounded-t-3xl overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 rounded-t-[2rem] sm:rounded-t-3xl overflow-hidden">
                   <motion.div 
                     className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
                     initial={{ width: '0%' }}
@@ -498,44 +507,46 @@ export default function JuknisPresentation() {
                 </div>
 
                 {/* Top header on slide */}
-                <div className="flex justify-between items-center mb-6 mt-1">
-                  <span className="text-[10px] font-extrabold text-green-700 bg-green-50 border border-green-100/50 px-2.5 py-1 rounded-full tracking-wider uppercase">
+                <div className="flex justify-between items-center mb-5 mt-1">
+                  <span className="text-[9px] sm:text-[10px] font-extrabold text-green-700 bg-green-50 border border-green-100/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full tracking-wider uppercase">
                     {slides[currentSlide].category}
                   </span>
-                  <span className="text-xs font-mono font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg">
-                    Slide {currentSlide + 1} dari {slides.length}
+                  <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-400 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-lg">
+                    {currentSlide + 1} / {slides.length}
                   </span>
                 </div>
 
                 {/* Active Slide Body */}
-                <div className="flex-1 flex flex-col justify-center mb-8">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="p-3 bg-green-50 rounded-2xl border border-green-100 flex-shrink-0">
-                      {slides[currentSlide].icon}
+                <div className="flex-1 flex flex-col justify-center mb-6 sm:mb-8">
+                  <div className="flex flex-col xs:flex-row items-start gap-3 sm:gap-4 mb-4">
+                    <div className="p-2.5 sm:p-3 bg-green-50 rounded-xl sm:rounded-2xl border border-green-100 flex-shrink-0 text-emerald-600">
+                      <div className="w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center">
+                        {slides[currentSlide].icon}
+                      </div>
                     </div>
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                      <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
                         {slides[currentSlide].title}
                       </h2>
-                      <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium italic">
+                      <p className="text-[11px] sm:text-sm text-slate-500 mt-1 font-medium italic leading-snug">
                         {slides[currentSlide].subtitle}
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-3 mt-4 ml-0 sm:ml-16">
+                  <div className="space-y-2.5 sm:space-y-3 mt-2 sm:mt-4 ml-0 sm:ml-16">
                     {slides[currentSlide].content.map((point, index) => (
                       <motion.div 
                         key={index}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="flex items-start gap-2.5"
+                        className="flex items-start gap-2.5 sm:gap-3"
                       >
-                        <div className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs mt-0.5 flex-shrink-0 font-bold">
+                        <div className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] mt-0.5 flex-shrink-0 font-bold border border-emerald-100/50">
                           {index + 1}
                         </div>
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                        <p className="text-[11px] sm:text-sm text-slate-600 leading-relaxed font-medium">
                           {point}
                         </p>
                       </motion.div>
@@ -544,63 +555,63 @@ export default function JuknisPresentation() {
                 </div>
 
                 {/* Bottom slide controls */}
-                <div className="border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="border-t border-slate-100 pt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   {/* Tips/Info alert */}
-                  <div className="flex items-start gap-2 max-w-md bg-amber-50 border border-amber-100 p-3 rounded-xl">
-                    <HelpCircle className="text-amber-500 w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <p className="text-[10px] text-amber-800 leading-normal font-medium">
-                      <span className="font-bold">Tips Orang Tua: </span>{slides[currentSlide].tips || "Pendampingan konsisten di rumah melatih karakter baik anak."}
+                  <div className="flex items-start gap-2 w-full sm:max-w-md bg-amber-50 border border-amber-100 p-2.5 sm:p-3 rounded-xl">
+                    <HelpCircle className="text-amber-500 w-3.5 h-3.5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
+                    <p className="text-[9px] sm:text-[10px] text-amber-800 leading-normal font-medium">
+                      <span className="font-bold">Tips: </span>{slides[currentSlide].tips || "Pendampingan konsisten di rumah melatih karakter baik anak."}
                     </p>
                   </div>
 
                   {/* Playback Buttons */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                     <button 
                       onClick={() => setIsPlaying(!isPlaying)}
-                      className={`p-2.5 rounded-xl border transition-all flex items-center gap-1 text-xs font-bold ${isPlaying ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                      title={isPlaying ? "Jeda Auto-play" : "Mulai Auto-play"}
+                      className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center gap-1.5 text-[10px] sm:text-xs font-bold ${isPlaying ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                      title={isPlaying ? "Jeda" : "Mulai"}
                     >
                       {isPlaying ? <Pause size={14} className="animate-pulse" /> : <Play size={14} />}
-                      <span className="hidden sm:inline">{isPlaying ? "Pause" : "Auto Play"}</span>
+                      <span>{isPlaying ? "Pause" : "Play"}</span>
                     </button>
 
-                    <div className="h-6 w-[1px] bg-slate-200"></div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={handlePrev}
+                        className="p-2 sm:p-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-all active:scale-95"
+                        title="Sebelumnya"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
 
-                    <button 
-                      onClick={handlePrev}
-                      className="p-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl transition-all"
-                      title="Slide Sebelumnya"
-                    >
-                      <ArrowLeft size={16} />
-                    </button>
-
-                    <button 
-                      onClick={handleNext}
-                      className="p-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-100 transition-all flex items-center gap-1"
-                      title="Slide Selanjutnya"
-                    >
-                      <span className="text-xs ml-1">Lanjut</span>
-                      <ArrowRight size={16} />
-                    </button>
+                      <button 
+                        onClick={handleNext}
+                        className="px-4 py-2 sm:p-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-100 transition-all flex items-center gap-1 active:scale-95"
+                        title="Selanjutnya"
+                      >
+                        <span className="text-[10px] sm:text-xs sm:ml-1 uppercase tracking-wider">Lanjut</span>
+                        <ArrowRight size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* High-Fidelity Mockup Sidebar on right */}
-              <div className="lg:col-span-4 bg-slate-100 border border-slate-200 rounded-3xl p-6 flex flex-col justify-center items-center relative overflow-hidden min-h-[300px]">
+              <div className="lg:col-span-4 bg-slate-100 border border-slate-200 rounded-[2rem] sm:rounded-3xl p-5 sm:p-6 flex flex-col justify-center items-center relative overflow-hidden min-h-[280px] sm:min-h-[300px]">
                 {/* Background glow matching the category */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-green-200/40 rounded-full filter blur-3xl opacity-50 pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-green-200/30 rounded-full filter blur-3xl opacity-50 pointer-events-none" />
                 
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 z-10 flex items-center gap-1">
-                  <Eye size={12} /> Live Preview Tampilan Aplikasi
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4 z-10 flex items-center gap-1.5">
+                  <Eye size={12} /> Tampilan Layar
                 </span>
                 
                 <div className="w-full relative z-10 transform hover:scale-[1.02] transition-transform duration-300">
                   {renderMockup(slides[currentSlide].mockup)}
                 </div>
 
-                <div className="mt-4 text-center text-[10px] text-slate-500 max-w-[240px] font-medium z-10">
-                  Siswa & Orang Tua menggunakan kata sandi yang telah disinkronisasikan langsung oleh Admin.
+                <div className="mt-4 text-center text-[9px] text-slate-500 max-w-[240px] font-medium z-10 leading-relaxed italic">
+                  Visualisasi antarmuka fitur yang sedang dibahas.
                 </div>
               </div>
             </motion.div>
@@ -611,56 +622,58 @@ export default function JuknisPresentation() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-12 shadow-lg max-w-4xl mx-auto print:border-none print:shadow-none"
+              className="bg-white border border-slate-200 rounded-[2rem] sm:rounded-3xl p-5 sm:p-12 shadow-lg max-w-4xl mx-auto print:border-none print:shadow-none mb-20"
             >
               {/* Cover Header */}
-              <div className="text-center pb-8 border-b-2 border-green-600 mb-8">
-                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-green-600">
-                  <Award className="text-green-600 w-10 h-10" />
+              <div className="text-center pb-6 sm:pb-8 border-b-2 border-green-600 mb-6 sm:mb-8">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-green-600">
+                  <Award className="text-green-600 w-8 h-8 sm:w-10 sm:h-10" />
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  PETUNJUK TEKNIS (JUKNIS) PENGGUNAAN PORTAL DIGITAL
+                <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight uppercase px-2">
+                  Petunjuk Teknis Penggunaan Portal Digital
                 </h1>
-                <h2 className="text-lg font-bold text-green-700 mt-1 uppercase">RA Darusyifa Arjawinangun</h2>
-                <p className="text-xs text-slate-400 mt-2 font-mono font-bold tracking-widest uppercase">PANDUAN LENGKAP UNTUK ORANG TUA & WALI MURID</p>
+                <h2 className="text-sm sm:text-lg font-bold text-green-700 mt-1 uppercase">RA Darusyifa Arjawinangun</h2>
+                <p className="text-[8px] sm:text-[10px] text-slate-400 mt-2 font-mono font-bold tracking-widest uppercase">Panduan Lengkap Untuk Orang Tua & Wali Murid</p>
               </div>
 
               {/* Document intro */}
-              <div className="prose prose-slate max-w-none text-xs sm:text-sm text-slate-600 leading-relaxed mb-8">
-                <p className="font-bold text-slate-800 text-sm mb-2">Ayah & Bunda Wali Murid RA Darusyifa yang kami hormati,</p>
+              <div className="prose prose-slate max-w-none text-[11px] sm:text-sm text-slate-600 leading-relaxed mb-6 sm:mb-8">
+                <p className="font-bold text-slate-800 text-xs sm:text-sm mb-2">Ayah & Bunda Wali Murid RA Darusyifa yang kami hormati,</p>
                 <p>
                   Sebagai wujud peningkatan kualitas bimbingan dan transparansi pendidikan di RA Darusyifa Arjawinangun, kami menghadirkan portal digital yang dapat diakses langsung melalui HP, laptop, atau tablet. Petunjuk teknis ini disusun agar Ayah & Bunda dapat masuk ke portal siswa dan menggunakan seluruh fiturnya untuk memantau kemajuan putra-putri kita dengan mudah.
                 </p>
               </div>
 
               {/* Sections for each slide */}
-              <div className="space-y-10">
+              <div className="space-y-6 sm:space-y-10">
                 {slides.slice(1, -1).map((slide, sIdx) => (
-                  <div key={slide.id} className="border border-slate-100 rounded-2xl p-6 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 bg-green-100 rounded-xl text-green-700">
-                        {slide.icon}
+                  <div key={slide.id} className="border border-slate-100 rounded-2xl p-5 sm:p-6 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start sm:items-center gap-3 mb-4">
+                      <div className="p-2 sm:p-2.5 bg-green-100 rounded-xl text-green-700 flex-shrink-0">
+                        <div className="w-5 h-5 flex items-center justify-center">
+                          {slide.icon}
+                        </div>
                       </div>
                       <div>
-                        <h3 className="font-black text-slate-900 text-base sm:text-lg">{slide.title}</h3>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{slide.category}</p>
+                        <h3 className="font-black text-slate-900 text-sm sm:text-lg leading-tight">{slide.title}</h3>
+                        <p className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">{slide.category}</p>
                       </div>
                     </div>
 
                     <div className="pl-0 sm:pl-12">
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium mb-3 italic">{slide.subtitle}</p>
+                      <p className="text-[11px] sm:text-sm text-slate-500 font-medium mb-3 italic leading-snug">{slide.subtitle}</p>
                       <ul className="space-y-2 mb-4">
                         {slide.content.map((pt, pIdx) => (
-                          <li key={pIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-600 mt-2 flex-shrink-0" />
+                          <li key={pIdx} className="flex items-start gap-2.5 text-[11px] sm:text-sm text-slate-600 leading-relaxed">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-600 mt-1.5 flex-shrink-0" />
                             <span>{pt}</span>
                           </li>
                         ))}
                       </ul>
 
                       {slide.tips && (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 font-medium">
-                          <span className="font-extrabold text-amber-900">Rekomendasi Orang Tua: </span>
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-[10px] sm:text-xs text-amber-800 font-medium">
+                          <span className="font-extrabold text-amber-900">Saran: </span>
                           {slide.tips}
                         </div>
                       )}
@@ -670,10 +683,10 @@ export default function JuknisPresentation() {
               </div>
 
               {/* Document Footer */}
-              <div className="mt-12 pt-8 border-t border-slate-200 text-center text-xs text-slate-400 font-medium">
+              <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-slate-200 text-center text-[10px] sm:text-xs text-slate-400 font-medium">
                 <p className="font-extrabold text-slate-800 mb-1">RA DARUSYIFA ARJAWINANGUN</p>
-                <p>Jl. Raya Arjawinangun, Cirebon, Jawa Barat</p>
-                <p className="text-[10px] text-slate-400 mt-2 font-mono">Dibuat Otomatis • Hak Cipta Terpelihara © 2026 RA Darusyifa</p>
+                <p>Arjawinangun, Cirebon, Jawa Barat</p>
+                <p className="text-[9px] text-slate-400 mt-2 font-mono">© 2026 RA Darusyifa • Digital Guide</p>
               </div>
             </motion.div>
           )}
@@ -682,13 +695,13 @@ export default function JuknisPresentation() {
 
       {/* Floating Presentation Deck navigation indicator helper */}
       {viewMode === 'presentation' && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-slate-200/80 px-4 py-2.5 rounded-full shadow-2xl z-50 flex items-center gap-3 no-print">
-          <div className="flex gap-1">
+        <div className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md border border-slate-200/80 px-4 py-2.5 rounded-full shadow-2xl z-50 flex items-center gap-3 no-print border-b-4 border-b-green-600/20">
+          <div className="flex gap-1 sm:gap-1.5">
             {slides.map((_, idx) => (
               <button 
                 key={idx}
                 onClick={() => setCurrentSlide(idx)}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${currentSlide === idx ? 'bg-green-600 w-5' : 'bg-slate-300 hover:bg-slate-400'}`}
+                className={`h-2 sm:h-2.5 rounded-full transition-all duration-300 ${currentSlide === idx ? 'bg-green-600 w-6 sm:w-8' : 'bg-slate-200 hover:bg-slate-300 w-2 sm:w-2.5'}`}
                 title={`Ke slide ${idx + 1}`}
               />
             ))}

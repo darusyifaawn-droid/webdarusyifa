@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import KaldikIframe from './KaldikIframe';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -39,7 +41,7 @@ export default function DashboardSiswa() {
   const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'progress', 'hafalan', 'attendance', 'administration', 'announcements', 'profile', 'kaldik'
   const [selectedExamDays, setSelectedExamDays] = useState<Record<string, string>>({});
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir');
@@ -957,137 +959,152 @@ export default function DashboardSiswa() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-green-50">Memuat data...</div>;
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   const NavItems = () => (
     <nav className="space-y-2 flex-1">
-      <button 
-        onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'overview' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Calendar size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-400'} /> Beranda
-      </button>
+      {[
+        { id: 'overview', label: 'Beranda', icon: Home },
+        { id: 'progress', label: 'Laporan Belajar', icon: BookOpen },
+        { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
+        { id: 'attendance', label: 'Riwayat Absensi', icon: CheckCircle },
+        { id: 'administration', label: 'Administrasi', icon: CreditCard },
+        { id: 'announcements', label: 'Info Sekolah', icon: Bell },
+        { id: 'profile', label: 'Profil Saya', icon: User },
+        { id: 'kaldik', label: 'Kalender Pendidikan', icon: Calendar },
+      ].map((item) => (
+        <button 
+          key={item.id}
+          onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+          className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold group ${activeTab === item.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
+        >
+          <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
+          <span className="text-sm tracking-tight">{item.label}</span>
+        </button>
+      ))}
       <button 
         onClick={() => { navigate('/kaldik'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
+        className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 group"
       >
-        <Calendar size={20} className={'text-gray-400'} /> Kaldik & Materi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('progress'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'progress' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <BookOpen size={20} className={activeTab === 'progress' ? 'text-white' : 'text-gray-400'} /> Laporan Belajar
-      </button>
-      <button 
-        onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Star size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-400'} /> Modul Hafalan
-      </button>
-      <button 
-        onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'attendance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-400'} /> Riwayat Absensi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('administration'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'administration' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <CreditCard size={20} className={activeTab === 'administration' ? 'text-white' : 'text-gray-400'} /> Administrasi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Bell size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-400'} /> Info Sekolah
-      </button>
-      <button 
-        onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-400'} /> Profil Saya
+        <Calendar size={20} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+        <span className="text-sm tracking-tight">Kaldik & Materi</span>
       </button>
       <button 
         onClick={() => { navigate('/juknis'); setIsSidebarOpen(false); }}
-        className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100"
+        className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-4"
       >
-        <BookOpen size={20} className="text-emerald-600" /> Juknis Wali Murid
+        <BookOpen size={20} className="text-emerald-600" />
+        <span className="text-sm tracking-tight">Juknis Wali Murid</span>
       </button>
     </nav>
   );
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
-      {/* Desktop Sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-100 p-8 hidden md:flex flex-col shadow-sm z-30">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900">
+      {/* Sidebar (Desktop) */}
+      <aside className="w-72 bg-white border-r border-slate-100 p-8 hidden md:flex flex-col shadow-sm z-30">
         <div className="flex items-center gap-4 mb-14">
           {settings?.logoUrl ? (
-            <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-green-600 p-0.5 bg-white">
+            <div className="w-12 h-12 overflow-hidden rounded-[1.25rem] border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm">
               <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           ) : (
-            <div className="w-12 h-12 bg-green-600 rounded-[20px] flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-green-100">RA</div>
+            <div className="w-12 h-12 bg-emerald-600 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-xl shadow-emerald-100">RA</div>
           )}
           <div>
-            <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Siswa</h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa Arjawinangun</p>
+            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Wali</h1>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">RA Darusyifa</p>
           </div>
         </div>
         <NavItems />
+        <div className="mt-8 pt-8 border-t border-slate-50">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-4 p-4 rounded-2xl text-rose-500 hover:bg-rose-50 font-bold transition-all group"
+          >
+            <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm tracking-tight">Keluar Sesi</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500'}`}>
-          <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
-             <BarChartIcon size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500'}`}>
-           <div className={`w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
-            <User size={28} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
-        </button>
-        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-500">
-          <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
-            <LogOut size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter">Logout</span>
-        </button>
-      </div>
-
       {/* Mobile Sidebar/Drawer */}
-      {isSidebarOpen && (
-        <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarOpen(false)}></div>
-          <div className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-6 animate-in slide-in-from-left duration-300">
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-3">
-                {settings?.logoUrl ? (
-                  <div className="w-10 h-10 overflow-hidden rounded-xl border border-green-600 bg-emerald-50/50 backdrop-blur-sm p-0.5">
-                    <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white font-bold">RA</div>
-                )}
-                <div>
-                  <h2 className="font-bold text-gray-800 text-sm">Portal Siswa</h2>
-                  <p className="text-[8px] text-gray-400 font-bold uppercase">RA Darusyifa</p>
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <motion.div 
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-8 z-[100] md:hidden"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black">RA</div>
+                  <h2 className="font-display font-black text-slate-800 text-sm">Portal Wali</h2>
                 </div>
+                <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-1 hover:bg-slate-50 rounded-lg">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 p-1 hover:bg-gray-100 rounded-lg">
-                <X size={24} />
-              </button>
-            </div>
-            <NavItems />
-          </div>
-        </div>
-      )}
+              <NavItems />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch">
+      <main className="flex-1 min-h-screen relative overflow-y-auto scrolling-touch">
+        {/* Top Bar / Mobile Header */}
+        <div className="md:hidden bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-[60] shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-100">RA</div>
+            <h2 className="font-display font-black text-slate-800 leading-none">Portal Wali</h2>
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(true)} 
+            className="p-2.5 bg-slate-50 rounded-xl text-slate-600 active:scale-95 transition-all"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
+
+        <div className="max-w-7xl mx-auto p-4 md:p-10 lg:p-12 pb-32 md:pb-12">
+          {/* Page Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4xl font-display font-black text-slate-900 tracking-tight capitalize">
+                {activeTab === 'overview' ? `Ahlan wa Sahlan,` : activeTab.replace('-', ' ')}
+              </h1>
+              <p className="text-slate-500 font-medium">
+                {activeTab === 'overview' ? `Ayah & Bunda ${userData?.name || ''}` : `Pantau perkembangan buah hati Anda secara real-time.`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4 p-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                <Users size={24} />
+              </div>
+              <div className="pr-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Kelas Aktif</p>
+                <p className="text-sm font-bold text-slate-800">{userData?.kelas || 'Belum Ditentukan'}</p>
+              </div>
+            </div>
+          </div>
         {activeTab === 'overview' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
             {/* Mobile Header */}
@@ -1541,6 +1558,10 @@ export default function DashboardSiswa() {
               })()}
             </div>
           </div>
+        )}
+
+        {activeTab === 'kaldik' && (
+          <KaldikIframe />
         )}
 
         {activeTab === 'profile' && (
@@ -2646,6 +2667,7 @@ export default function DashboardSiswa() {
             </div>
           </div>
         )}
+        </div>
       </main>
       {/* Photo Viewer Modal */}
       {selectedPhoto && (

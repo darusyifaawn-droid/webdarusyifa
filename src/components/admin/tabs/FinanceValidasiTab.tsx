@@ -16,7 +16,7 @@ export default function FinanceValidasiTab({
   handleApprovePayment,
   handleRejectPayment
 }: FinanceValidasiTabProps) {
-  const pendingPayments = payments.filter(p => (p.type === 'tagihan_manual' || p.type === 'tabungan' || p.type === 'pembayaran') && p.status === 'pending');
+  const pendingPayments = payments.filter(p => p.status === 'pending');
 
   return (
     <div className="space-y-6 text-left">

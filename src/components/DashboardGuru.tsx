@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter, Image as ImageIcon, FileText, Download, ExternalLink } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X, Menu, Save, Camera, Clock, BarChart as BarChartIcon, TrendingUp, Printer, Star, Megaphone, GraduationCap, Calendar, Search, Filter, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw } from 'lucide-react';
+import KaldikIframe from './KaldikIframe';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -29,7 +30,7 @@ export default function DashboardGuru() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'students', 'kaldik', 'penilaian-kelas', 'progress', 'exams', 'hafalan', 'attendance', 'announcements', 'profile'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const profileFileInputRef = useRef<HTMLInputElement>(null);
   
@@ -1127,7 +1128,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => navigate('/kaldik') },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1138,7 +1139,7 @@ export default function DashboardGuru() {
                 ].map((item, idx) => (
                   <button 
                     key={idx} 
-                    onClick={item.action ? (item.action as any) : () => setActiveTab(item.id)}
+                    onClick={() => setActiveTab(item.id)}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
                     <div className={`w-16 h-16 md:w-20 md:h-20 ${item.color} rounded-[28px] shadow-lg flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>
@@ -1718,6 +1719,10 @@ export default function DashboardGuru() {
         )}
       </div>
     )}
+
+        {activeTab === 'kaldik' && (
+          <KaldikIframe />
+        )}
 
         {activeTab === 'penilaian-kelas' && (
           <div className="space-y-6">

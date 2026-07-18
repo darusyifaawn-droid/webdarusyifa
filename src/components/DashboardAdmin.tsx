@@ -19,10 +19,12 @@ import FinanceRekapTab from './admin/tabs/FinanceRekapTab';
 import FinanceGrupTab from './admin/tabs/FinanceGrupTab';
 import FinancePenetapanTab from './admin/tabs/FinancePenetapanTab';
 import FinanceValidasiTab from './admin/tabs/FinanceValidasiTab';
+import KaldikIframe from './KaldikIframe';
 import FinanceRiwayatTab from './admin/tabs/FinanceRiwayatTab';
 import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
+import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
@@ -2717,135 +2719,128 @@ export default function DashboardAdmin() {
 
   const NavItems = () => (
     <nav className="space-y-2 flex-1">
-      <button 
-        onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'overview' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <BarChart size={20} className={activeTab === 'overview' ? 'text-white' : 'text-gray-500'} /> Dashboard
-      </button>
-      <button 
-        onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'users' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Users size={20} className={activeTab === 'users' ? 'text-white' : 'text-gray-500'} /> User Management
-      </button>
-      <button 
-        onClick={() => { setActiveTab('academic'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'academic' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <BookOpen size={20} className={activeTab === 'academic' ? 'text-white' : 'text-gray-500'} /> Akademik & Rapot
-      </button>
-      <button 
-        onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'hafalan' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <BookOpen size={20} className={activeTab === 'hafalan' ? 'text-white' : 'text-gray-500'} /> Modul Hafalan
-      </button>
-      <button 
-        onClick={() => { setActiveTab('finance'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'finance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <CreditCard size={20} className={activeTab === 'finance' ? 'text-white' : 'text-gray-500'} /> Administrasi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'attendance' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <CheckCircle size={20} className={activeTab === 'attendance' ? 'text-white' : 'text-gray-500'} /> Absensi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('achievements'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'achievements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Trophy size={20} className={activeTab === 'achievements' ? 'text-white' : 'text-gray-500'} /> Siswa Berprestasi
-      </button>
-      <button 
-        onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'announcements' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Megaphone size={20} className={activeTab === 'announcements' ? 'text-white' : 'text-gray-500'} /> Pengumuman
-      </button>
-      <button 
-        onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'profile' ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <User size={20} className={activeTab === 'profile' ? 'text-white' : 'text-gray-500'} /> Profil Admin
-      </button>
-      <button 
-        onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
-        className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium ${activeTab === 'settings' ? 'bg-slate-600 text-white shadow-lg shadow-slate-200' : 'hover:bg-gray-50 text-gray-600'}`}
-      >
-        <Settings size={20} className={activeTab === 'settings' ? 'text-white' : 'text-gray-500'} /> Pengaturan
-      </button>
+      {[
+        { id: 'overview', label: 'Dashboard', icon: BarChart },
+        { id: 'users', label: 'User Management', icon: Users },
+        { id: 'academic', label: 'Akademik & Rapot', icon: BookOpen },
+        { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
+        { id: 'finance', label: 'Administrasi', icon: CreditCard },
+        { id: 'attendance', label: 'Absensi', icon: CheckCircle },
+        { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
+        { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
+        { id: 'announcements', label: 'Pengumuman', icon: Megaphone },
+        { id: 'profile', label: 'Profil Admin', icon: User },
+        { id: 'settings', label: 'Pengaturan', icon: Settings },
+      ].map((item) => (
+        <button 
+          key={item.id}
+          onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
+          className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold group ${activeTab === item.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
+        >
+          <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
+          <span className="text-sm tracking-tight">{item.label}</span>
+        </button>
+      ))}
     </nav>
   );
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row pb-20 md:pb-0">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900">
       {/* Sidebar (Desktop) */}
-      <aside className="w-72 bg-white border-r border-gray-100 p-6 hidden md:flex flex-col shadow-sm z-10">
-        <div className="flex items-center gap-4 mb-12">
+      <aside className="w-72 bg-white border-r border-slate-100 p-8 hidden md:flex flex-col shadow-sm z-30">
+        <div className="flex items-center gap-4 mb-14">
           {settings?.logoUrl ? (
-            <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-green-600 p-0.5 bg-white">
+            <div className="w-12 h-12 overflow-hidden rounded-[1.25rem] border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm">
               <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           ) : (
-            <div className="w-12 h-12 bg-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-green-200">RA</div>
+            <div className="w-12 h-12 bg-emerald-600 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-xl shadow-emerald-100">RA</div>
           )}
           <div>
-            <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Admin</h1>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">RA Darusyifa Arjawinangun</p>
+            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Admin</h1>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">RA Darusyifa</p>
           </div>
         </div>
         <NavItems />
+        <div className="mt-8 pt-8 border-t border-slate-50">
+          <button 
+            onClick={async () => { await auth.signOut(); navigate('/login'); }}
+            className="w-full flex items-center gap-4 p-4 rounded-2xl text-rose-500 hover:bg-rose-50 font-bold transition-all group"
+          >
+            <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm tracking-tight">Keluar Sesi</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-gray-100 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] flex justify-between items-center px-4 py-2.5 z-50 pb-safe-offset-2" style={{ WebkitBackdropFilter: 'blur(20px)' }}>
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === 'overview' ? 'text-indigo-600 font-black' : 'text-slate-400 font-bold'}`}>
-          <div className={`p-2.5 rounded-[1.25rem] transition-all relative ${activeTab === 'overview' ? 'bg-indigo-50 shadow-sm scale-110' : 'hover:bg-slate-50'}`}>
-            <BarChart size={20} />
-            {activeTab === 'overview' && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>}
-          </div>
-          <span className="text-[8px] uppercase tracking-widest font-black">Dash</span>
-        </button>
+      {/* Mobile Sidebar/Drawer */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <motion.div 
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-8 z-[100] md:hidden"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black">RA</div>
+                  <h2 className="font-display font-black text-slate-800 text-sm">Admin Portal</h2>
+                </div>
+                <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-1 hover:bg-slate-50 rounded-lg">
+                  <X size={24} />
+                </button>
+              </div>
+              <NavItems />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-        <button onClick={() => setActiveTab('finance')} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === 'finance' ? 'text-indigo-600 font-black' : 'text-slate-400 font-bold'}`}>
-          <div className={`p-2.5 rounded-[1.25rem] transition-all relative ${activeTab === 'finance' ? 'bg-indigo-50 shadow-sm scale-110' : 'hover:bg-slate-50'}`}>
-            <CreditCard size={20} />
-            {activeTab === 'finance' && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>}
+      {/* Main Content */}
+      <main className="flex-1 min-h-screen relative overflow-y-auto scrolling-touch">
+        {/* Top Bar / Mobile Header */}
+        <div className="md:hidden bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-[60] shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-100">RA</div>
+            <h2 className="font-display font-black text-slate-800 leading-none">Admin Portal</h2>
           </div>
-          <span className="text-[8px] uppercase tracking-widest font-black">Uang</span>
-        </button>
-
-        <div className="flex-1 flex justify-center -mt-8 relative z-10">
           <button 
-            onClick={() => setActiveTab('users')}
-            className={`w-14 h-14 rounded-[1.75rem] flex items-center justify-center transition-all shadow-xl shadow-indigo-100 border-4 border-white ${activeTab === 'users' ? 'bg-indigo-600 text-white scale-110' : 'bg-slate-900 text-white'}`}
+            onClick={() => setIsSidebarOpen(true)} 
+            className="p-2.5 bg-slate-50 rounded-xl text-slate-600 active:scale-95 transition-all"
           >
-            <Users size={24} />
+            <Menu size={24} />
           </button>
         </div>
 
-        <button onClick={() => setActiveTab('academic')} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === 'academic' ? 'text-indigo-600 font-black' : 'text-slate-400 font-bold'}`}>
-          <div className={`p-2.5 rounded-[1.25rem] transition-all relative ${activeTab === 'academic' ? 'bg-indigo-50 shadow-sm scale-110' : 'hover:bg-slate-50'}`}>
-            <BookOpen size={20} />
-            {activeTab === 'academic' && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>}
-          </div>
-          <span className="text-[8px] uppercase tracking-widest font-black">Buku</span>
-        </button>
+        <div className="max-w-7xl mx-auto p-4 md:p-10 lg:p-12 pb-32 md:pb-12">
+          {/* Dashboard Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4xl font-display font-black text-slate-900 tracking-tight capitalize">
+                {activeTab === 'overview' ? 'Ringkasan Dashboard' : activeTab.replace('-', ' ')}
+              </h1>
+              <p className="text-slate-500 font-medium">Selamat datang kembali, Admin RA Darusyifa.</p>
+            </div>
 
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1.5 transition-all flex-1 py-1 ${activeTab === 'profile' ? 'text-indigo-600 font-black' : 'text-slate-400 font-bold'}`}>
-          <div className={`p-2.5 rounded-[1.25rem] transition-all relative ${activeTab === 'profile' ? 'bg-indigo-50 shadow-sm scale-110' : 'hover:bg-slate-50'}`}>
-            <User size={20} />
-            {activeTab === 'profile' && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>}
+            <div className="flex items-center gap-4 p-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                <Shield size={24} />
+              </div>
+              <div className="pr-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Status Sesi</p>
+                <p className="text-sm font-bold text-slate-800">Administrator</p>
+              </div>
+            </div>
           </div>
-          <span className="text-[8px] uppercase tracking-widest font-black">Profil</span>
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 p-5 md:p-10 overflow-y-auto pb-32 md:pb-10 scrolling-touch custom-scrollbar">
         {showPrintRapotModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative">
@@ -4538,6 +4533,10 @@ export default function DashboardAdmin() {
           </div>
         )}
 
+        {activeTab === 'calendar' && (
+          <KaldikIframe />
+        )}
+
         {activeTab === 'announcements' && (
           <div className="space-y-8 pb-20">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
@@ -6150,7 +6149,7 @@ export default function DashboardAdmin() {
             </div>
           </div>
         )}
-
+        </div>
       </main>
 
       {/* Modal Add Kaldik */}
