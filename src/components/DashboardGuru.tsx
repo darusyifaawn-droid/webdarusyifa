@@ -891,7 +891,7 @@ export default function DashboardGuru() {
         <Users size={20} className={activeTab === 'students' ? 'text-white' : 'text-gray-400'} /> Daftar Siswa
       </button>
       <button 
-        onClick={() => window.open('https://kaldikradarusyifa.netlify.app/', '_blank')}
+        onClick={() => { navigate('/kaldik'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
       >
         <BookOpen size={20} className={'text-gray-400'} /> Kaldik & Materi
@@ -1127,7 +1127,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => window.open('https://kaldikradarusyifa.netlify.app/', '_blank') },
+                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => navigate('/kaldik') },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1138,7 +1138,7 @@ export default function DashboardGuru() {
                 ].map((item, idx) => (
                   <button 
                     key={idx} 
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={item.action ? (item.action as any) : () => setActiveTab(item.id)}
                     className="group flex flex-col items-center gap-3 transition-all"
                   >
                     <div className={`w-16 h-16 md:w-20 md:h-20 ${item.color} rounded-[28px] shadow-lg flex items-center justify-center text-white transition-all group-active:scale-95 group-hover:scale-110`}>

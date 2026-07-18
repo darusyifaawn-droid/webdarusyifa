@@ -12,20 +12,20 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.email == "darusyifa.awn@gmail.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin')
       );
     }
 
     function isGuru() {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'guru';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'guru';
     }
 
     function isSiswa() {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'siswa';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'siswa';
     }
 
     function isOwner(userId) {
@@ -54,7 +54,7 @@ service cloud.firestore {
     // Rules for Progress
     match /progress/{progressId} {
       allow read: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && resource.data.studentId == request.auth.uid)
+        isAdmin() || isGuru() || resource.data.studentId == request.auth.uid
       );
       allow write: if isAdmin() || isGuru();
     }
@@ -62,7 +62,7 @@ service cloud.firestore {
     // Rules for Attendance
     match /attendance/{attendanceId} {
       allow read: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && resource.data.studentId == request.auth.uid)
+        isAdmin() || isGuru() || resource.data.studentId == request.auth.uid
       );
       allow create: if isSignedIn();
       allow update: if isAdmin() || isGuru();
@@ -72,9 +72,12 @@ service cloud.firestore {
     // Rules for Payments
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (
-        isAdmin() || (isSiswa() && resource.data.studentId == request.auth.uid)
+        isAdmin() || resource.data.studentId == request.auth.uid
       );
-      allow write: if isAdmin();
+      allow create: if isSignedIn() && (
+        isAdmin() || (request.resource.data.studentId == request.auth.uid && request.resource.data.type == "pembayaran")
+      );
+      allow update, delete: if isAdmin();
     }
 
     // Rules for Subjects
@@ -92,9 +95,9 @@ service cloud.firestore {
     // Rules for Hafalan Progress
     match /hafalan_progress/{progressId} {
       allow read: if isSignedIn() && (
-        isAdmin() || isGuru() || (isSiswa() && resource.data.studentId == request.auth.uid)
+        isAdmin() || isGuru() || resource.data.studentId == request.auth.uid
       );
-      allow write: if isAdmin() || isGuru() || (isSiswa() && (
+      allow write: if isAdmin() || isGuru() || (isSignedIn() && (
         (request.resource != null && request.resource.data.studentId == request.auth.uid) ||
         (resource != null && resource.data.studentId == request.auth.uid)
       ));

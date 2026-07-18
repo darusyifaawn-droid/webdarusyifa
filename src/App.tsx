@@ -9,6 +9,8 @@ import LoginPage from './components/LoginPage';
 import DashboardSiswa from './components/DashboardSiswa';
 import DashboardGuru from './components/DashboardGuru';
 import DashboardAdmin from './components/DashboardAdmin';
+import JuknisPresentation from './components/JuknisPresentation';
+import KaldikExternal from './components/KaldikExternal';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
           <Route path="/siswa-dashboard" element={<DashboardSiswa />} />
           <Route path="/guru-dashboard" element={<DashboardGuru />} />
           <Route path="/admin-dashboard" element={<DashboardAdmin />} />
+          <Route path="/juknis" element={<JuknisPresentation />} />
+          <Route path="/kaldik" element={<KaldikExternal />} />
         </Routes>
       </Router>
     </ErrorBoundary>

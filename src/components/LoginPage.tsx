@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { LogIn, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, ArrowLeft, BookOpen } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -177,7 +177,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-xs text-gray-400">
+        <div className="mt-6 border-t border-gray-100 pt-5 text-center">
+          <Link 
+            to="/juknis" 
+            className="inline-flex items-center gap-2 w-full justify-center bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border border-emerald-100 shadow-sm"
+          >
+            <BookOpen size={14} />
+            <span>Panduan & Juknis Wali Murid (Presentasi)</span>
+          </Link>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-gray-400">
           Hanya pengguna yang terdaftar oleh Admin yang dapat masuk.
         </p>
       </div>
