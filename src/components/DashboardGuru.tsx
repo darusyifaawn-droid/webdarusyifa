@@ -97,6 +97,16 @@ export default function DashboardGuru() {
   const [filterName, setFilterName] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
 
+  useEffect(() => {
+    // Prevent back button from exiting the app
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Editor settings for DashboardGuru.tsx
   const [filterKelasHafalan, setFilterKelasHafalan] = useState('');
   const [filterHafalanStatus, setFilterHafalanStatus] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'

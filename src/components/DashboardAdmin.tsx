@@ -22,6 +22,7 @@ import FinanceValidasiTab from './admin/tabs/FinanceValidasiTab';
 import KaldikIframe from './KaldikIframe';
 import FinanceRiwayatTab from './admin/tabs/FinanceRiwayatTab';
 import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
+import FinanceArusTab from './admin/tabs/FinanceArusTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import { motion, AnimatePresence } from 'motion/react';
@@ -192,6 +193,16 @@ export default function DashboardAdmin() {
   
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Prevent back button from exiting the app
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Attendance Filter States
   const [filterUserRole, setFilterUserRole] = useState<'semua' | 'admin' | 'guru' | 'siswa'>('semua');
@@ -2725,6 +2736,7 @@ export default function DashboardAdmin() {
         { id: 'academic', label: 'Akademik & Rapot', icon: BookOpen },
         { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
         { id: 'finance', label: 'Administrasi', icon: CreditCard },
+        { id: 'finance-arus', label: 'Arus Keuangan', icon: TrendingUp },
         { id: 'attendance', label: 'Absensi', icon: CheckCircle },
         { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
         { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
@@ -4531,6 +4543,14 @@ export default function DashboardAdmin() {
               />
             )}
           </div>
+        )}
+
+        {activeTab === 'finance-arus' && (
+          <FinanceArusTab 
+            payments={payments}
+            allUsers={allUsers}
+            user={user}
+          />
         )}
 
         {activeTab === 'calendar' && (

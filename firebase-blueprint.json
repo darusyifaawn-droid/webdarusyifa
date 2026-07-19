@@ -87,6 +87,21 @@
         "createdAt": { "type": "object" }
       },
       "required": ["kelas", "kategori", "judul", "urutan"]
+    },
+    "FinanceTransaction": {
+      "title": "FinanceTransaction",
+      "description": "General financial ledger for incomes and expenses",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "adminId": { "type": "string" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["amount", "date", "type", "description"]
     }
   },
   "firestore": {
@@ -96,6 +111,7 @@
     "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Global attendance records" },
     "/payments/{paymentId}": { "schema": "Payment", "description": "Payment and savings history" },
     "/hafalan_materials/{materialId}": { "schema": "HafalanMaterial", "description": "Memorization modules" },
-    "/hafalan_progress/{progressId}": { "description": "Student memorization progress" }
+    "/hafalan_progress/{progressId}": { "description": "Student memorization progress" },
+    "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" }
   }
 }

@@ -49,6 +49,16 @@ export default function DashboardSiswa() {
   const [quote, setQuote] = useState('');
 
   useEffect(() => {
+    // Prevent back button from exiting the app
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
     if (attendance && user) {
       const today = new Date().toISOString().split('T')[0];
       const todayAbsence = attendance.find(a => a.date === today);
