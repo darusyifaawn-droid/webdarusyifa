@@ -76,7 +76,11 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
   };
 
   // Calculate Totals
-  const incomeFromIuran = payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  const incomeFromIuran = payments.filter(p => 
+    (p.type === 'iuran' || p.type === 'pembayaran') && 
+    p.status === 'lunas'
+  ).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  
   const incomeManual = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const totalIncome = incomeFromIuran + incomeManual;
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);

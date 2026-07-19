@@ -89,7 +89,8 @@ export default function LoginPage() {
 
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        navigate(`/${role}-dashboard`);
+        const targetPath = role === 'parent' ? '/parent-dashboard' : `/${role}-dashboard`;
+        navigate(targetPath);
       } else {
         await auth.signOut();
         setError('Akun Anda belum didaftarkan oleh Admin. Silakan hubungi admin sekolah.');
