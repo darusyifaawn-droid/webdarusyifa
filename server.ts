@@ -4,11 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { initializeApp, getApps, App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
-import { fileURLToPath } from "url";
 import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
