@@ -1,0 +1,148 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Amiri:wght@400;700&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-arab: "Amiri", serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50/50 text-slate-900 antialiased;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .markdown-body {
+    @apply text-gray-600 leading-relaxed text-sm md:text-base;
+  }
+  .markdown-body p {
+    @apply mb-4 last:mb-0;
+  }
+  .markdown-body h1 {
+    @apply text-2xl font-bold mb-4 text-gray-800;
+  }
+  .markdown-body h2 {
+    @apply text-xl font-bold mb-3 text-gray-800;
+  }
+  .markdown-body h3 {
+    @apply text-lg font-bold mb-2 text-gray-800;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-5 mb-4 space-y-1;
+  }
+  .markdown-body ol {
+    @apply list-decimal pl-5 mb-4 space-y-1;
+  }
+  .markdown-body li {
+    @apply pl-1;
+  }
+  .markdown-body strong {
+    @apply font-bold text-gray-800;
+  }
+  .markdown-body blockquote {
+    @apply border-l-4 border-gray-200 pl-4 italic my-4;
+  }
+  .markdown-body code {
+    @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  /* 3D Visual System */
+  .glass-3d {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.05)];
+  }
+
+  .card-3d {
+    @apply bg-white border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-300;
+  }
+
+  .card-3d:hover {
+    @apply shadow-[0_20px_50px_-12px_rgba(0,0,0,0.12)] -translate-y-1;
+  }
+
+  .button-3d {
+    @apply relative transition-all duration-200 active:translate-y-0.5 active:shadow-none shadow-[0_4px_0_0_rgba(0,0,0,0.1)];
+  }
+
+  .floating-3d {
+    @apply shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] ring-1 ring-black/[0.02];
+  }
+
+  .neobrutal-3d {
+    @apply border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+  }
+
+  .inner-3d {
+    @apply shadow-[inset_0_2px_4px_0_rgba(0,0,0,0.06)];
+  }
+
+  /* Safari Fixes */
+  .scrolling-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .backdrop-blur-sm { -webkit-backdrop-filter: blur(4px); }
+  .backdrop-blur-md { -webkit-backdrop-filter: blur(12px); }
+  .backdrop-blur-lg { -webkit-backdrop-filter: blur(16px); }
+  .backdrop-blur-xl { -webkit-backdrop-filter: blur(24px); }
+  .backdrop-blur-2xl { -webkit-backdrop-filter: blur(40px); }
+  .backdrop-blur-3xl { -webkit-backdrop-filter: blur(64px); }
+
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  /* Quill Editor Customization */
+  .quill-editor .ql-toolbar {
+    @apply border-none bg-gray-50/50 p-3 border-b border-gray-100! flex flex-wrap gap-1;
+  }
+
+  .quill-editor .ql-container {
+    @apply border-none min-h-[350px] text-base font-serif;
+  }
+
+  .quill-editor .ql-editor {
+    @apply p-8 md:p-12 leading-relaxed text-gray-700;
+  }
+
+  .quill-editor .ql-editor.ql-blank::before {
+    @apply text-gray-300 font-sans italic left-8 md:left-12;
+  }
+
+  .quill-editor .ql-toolbar .ql-formats {
+    @apply mr-2 border-r border-gray-100 pr-2 last:mr-0 last:border-0 last:pr-0 flex items-center gap-1;
+  }
+
+  .quill-editor .ql-toolbar button, 
+  .quill-editor .ql-toolbar .ql-picker {
+    @apply hover:bg-white hover:shadow-sm rounded-lg transition-all duration-200! flex items-center justify-center;
+  }
+
+  .quill-editor .ql-toolbar button {
+    @apply w-8 h-8;
+  }
+
+  .quill-editor .ql-toolbar .ql-active {
+    @apply bg-white shadow-sm text-blue-600!;
+  }
+
+  .quill-editor .ql-toolbar .ql-active .ql-stroke {
+    @apply stroke-blue-600!;
+  }
+
+  /* Quill Alignment Classes */
+  .ql-align-center { text-align: center; }
+  .ql-align-right { text-align: right; }
+  .ql-align-justify { text-align: justify; }
+}
