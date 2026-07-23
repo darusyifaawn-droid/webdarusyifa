@@ -77,8 +77,7 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
 
   // Calculate Totals
   const incomeFromIuran = payments.filter(p => 
-    (p.type === 'iuran' || p.type === 'pembayaran') && 
-    p.status === 'lunas'
+    p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan'
   ).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   
   const incomeManual = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);

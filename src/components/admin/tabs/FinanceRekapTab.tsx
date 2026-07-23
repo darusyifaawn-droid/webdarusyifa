@@ -65,8 +65,8 @@ export default function FinanceRekapTab({
   displayTotalTunggakan,
   displayTotalPaid
 }: FinanceRekapTabProps) {
-  const totalTagihanValue = (allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0) + payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0));
-  const totalDibayarValue = payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  const totalDibayarValue = displayTotalPaid;
+  const totalTagihanValue = (allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0) + totalDibayarValue);
   const totalSisaTunggakanValue = allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0);
 
   return (
@@ -239,7 +239,7 @@ export default function FinanceRekapTab({
                 </tr>
               ) : (
                 filteredUsersForFinance.map((u, idx) => {
-                  const sumDibayar = u.viewPaid !== undefined ? u.viewPaid : payments.filter(p => p.studentId === u.id && p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+                  const sumDibayar = u.viewPaid !== undefined ? u.viewPaid : payments.filter(p => p.studentId === u.id && p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
                   const sisa = u.viewArrears !== undefined ? u.viewArrears : (u.arrears || 0);
                   const totalTagihan = sisa + sumDibayar;
                   

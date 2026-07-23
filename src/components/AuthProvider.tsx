@@ -21,16 +21,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setUserData({ id: user.uid, ...userDoc.data() } as UserData);
+      try {
+        setUser(user);
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setUserData({ id: user.uid, ...userDoc.data() } as UserData);
+          } else {
+            setUserData(null);
+          }
+        } else {
+          setUserData(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Auth initialization error:", error);
         setUserData(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

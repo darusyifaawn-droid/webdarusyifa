@@ -6,6 +6,7 @@ import { Users, BookOpen, Plus, Trash2, Edit, LogOut, User, Bell, CheckCircle, X
 import KaldikIframe from './KaldikIframe';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import KaldikCalendar from './KaldikCalendar';
@@ -19,6 +20,7 @@ export default function DashboardGuru() {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
@@ -162,6 +164,7 @@ export default function DashboardGuru() {
     const unsubStudents = onSnapshot(query(collection(db, 'users'), where('role', '==', 'siswa')), (snapshot) => {
       // Filter out non-active students explicitly on client side (since we don't have composite index for status)
       const mapped = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setAllStudents(mapped);
       setStudents(mapped.filter(u => {
         const isActive = (u.status || 'Aktif') === 'Aktif';
         const userClass = userData?.assignedClass || userData?.kelas;
@@ -264,6 +267,16 @@ export default function DashboardGuru() {
       unsubHafalanMaterials();
     };
   }, [user, userData?.assignedClass, userData?.kelas]);
+
+  useEffect(() => {
+    if (!allStudents.length) return;
+    setStudents(allStudents.filter(u => {
+      const isActive = (u.status || 'Aktif') === 'Aktif';
+      const userClass = userData?.assignedClass || userData?.kelas;
+      const isSameClass = userClass ? u.kelas === userClass : true;
+      return isActive && isSameClass;
+    }));
+  }, [allStudents, userData]);
 
   useEffect(() => {
     if (activeTab !== 'penilaian-kelas') return;
@@ -951,13 +964,13 @@ export default function DashboardGuru() {
       {/* Desktop Sidebar */}
       <aside className="w-72 bg-white border-r border-gray-100 p-8 hidden md:flex flex-col shadow-sm z-30">
         <div className="flex items-center gap-4 mb-14">
-          {settings?.logoUrl ? (
-            <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-blue-600 p-0.5 bg-white">
-              <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-          ) : (
-            <div className="w-12 h-12 bg-blue-600 rounded-[20px] flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-100">RA</div>
-          )}
+          <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-blue-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
+            <img 
+              src="/logo_ra.jpeg" 
+              alt="Logo Resmi" 
+              className="w-10 h-10 object-contain" 
+            />
+          </div>
           <div>
             <h1 className="font-bold text-xl text-gray-800 tracking-tight">Portal Guru</h1>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[2px] mt-1">RA Darusyifa Arjawinangun</p>
@@ -966,125 +979,214 @@ export default function DashboardGuru() {
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
           <NavItems />
         </div>
+        <div className="pt-6 border-t border-gray-100 mt-auto">
+          <button 
+            onClick={async () => { await auth.signOut(); navigate('/login'); }}
+            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 transition-all text-sm shadow-sm"
+          >
+            <LogOut size={18} />
+            <span>Keluar Sesi</span>
+          </button>
+        </div>
       </aside>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-xl border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex justify-around items-center px-4 py-2 z-50 pb-safe transition-all" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
-        <button onClick={() => setActiveTab('overview')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500'}`}>
-          <div className={`p-2 rounded-2xl transition-all ${activeTab === 'overview' ? 'bg-blue-100 scale-110 shadow-sm' : ''}`}>
-            <BarChartIcon size={24} />
+      {/* Bottom Navigation Bar (Mobile) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-2 z-[100]" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
+        {[
+          { id: 'overview', label: 'Beranda', icon: BarChartIcon },
+          { id: 'students', label: 'Siswa', icon: Users },
+          { id: 'hafalan', label: 'Hafalan', icon: Star },
+          { id: 'penilaian-kelas', label: 'Penilaian', icon: Edit },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-blue-50 text-blue-600 scale-110 shadow-sm' : 'text-slate-400'}`}>
+              <item.icon size={20} />
+            </div>
+            <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
+          </button>
+        ))}
+        {/* Menu Tab */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 ${isSidebarOpen ? 'text-blue-600' : 'text-slate-400'}`}
+        >
+          <div className={`p-1.5 rounded-xl transition-all ${isSidebarOpen ? 'bg-blue-50 text-blue-600 scale-110 shadow-sm' : 'text-slate-400'}`}>
+            <Menu size={20} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter">Home</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all flex-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500'}`}>
-           <div className={`w-14 h-14 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 -mt-8 border-4 border-white transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}>
-            <User size={28} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter mt-1">Profil</span>
-        </button>
-        <button onClick={async () => { await auth.signOut(); navigate('/login'); }} className="flex flex-col items-center gap-1 transition-all flex-1 text-gray-500">
-          <div className="p-2 rounded-2xl transition-all hover:bg-red-50 hover:text-red-600">
-            <LogOut size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-tighter">Logout</span>
+          <span className="text-[10px] font-bold tracking-tight">Lainnya</span>
         </button>
       </div>
 
-      {/* Mobile Sidebar/Drawer */}
-      {isSidebarOpen && (
-        <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarOpen(false)}></div>
-          <div className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-6 animate-in slide-in-from-left duration-300">
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-3">
-                {settings?.logoUrl ? (
-                  <div className="w-10 h-10 overflow-hidden rounded-xl border border-blue-600 bg-blue-50/50 backdrop-blur-sm p-0.5">
-                    <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+      {/* Mobile Bottom Sheet Menu */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            {/* Bottom Sheet */}
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] shadow-2xl p-6 z-[100] md:hidden max-h-[85vh] flex flex-col border-t border-slate-100"
+            >
+              {/* Drag indicator */}
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+              
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-blue-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
+                    <img 
+                      src="/logo_ra.jpeg" 
+                      alt="Logo Resmi" 
+                      className="w-full h-full object-contain" 
+                    />
                   </div>
-                ) : (
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">RA</div>
-                )}
-                <div>
-                  <h2 className="font-bold text-gray-800 text-sm">Portal Guru</h2>
-                  <p className="text-[8px] text-gray-400 font-bold uppercase">RA Darusyifa</p>
+                  <div>
+                    <h2 className="font-bold text-gray-800 text-sm">Portal Guru</h2>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">RA Darusyifa</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 p-1 hover:bg-gray-50 rounded-lg">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pb-8 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {[
+                    { id: 'overview', label: 'Beranda / Overview', icon: BarChartIcon },
+                    { id: 'students', label: 'Daftar Siswa', icon: Users },
+                    { id: 'hafalan', label: 'Hafalan & Modul', icon: Star },
+                    { id: 'penilaian-kelas', label: 'Penilaian Kelas', icon: Edit },
+                    { id: 'progress', label: 'Rapot Siswa', icon: GraduationCap },
+                    { id: 'attendance', label: 'Absensi Saya', icon: Camera },
+                    { id: 'announcements', label: 'Pengumuman', icon: Bell },
+                    { id: 'profile', label: 'Profil Saya', icon: User },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all ${
+                        activeTab === item.id
+                          ? 'bg-blue-50 border-blue-100 text-blue-600 font-bold shadow-sm'
+                          : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <item.icon size={20} className={activeTab === item.id ? 'text-blue-600' : 'text-slate-400'} />
+                      <span className="text-xs font-bold tracking-tight leading-tight">{item.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-              <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 p-1 hover:bg-gray-100 rounded-lg">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-              <NavItems />
-            </div>
-          </div>
-        </div>
-      )}
+
+              <div className="border-t border-slate-100 pt-4 mt-auto">
+                <button 
+                  onClick={async () => { await auth.signOut(); navigate('/login'); }}
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 transition-all text-sm"
+                >
+                  <LogOut size={18} />
+                  <span>Keluar Sesi</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto scrolling-touch">
-        {activeTab === 'overview' && (
-          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
-            {/* Mobile Header */}
-            <div className="md:hidden -mx-4 -mt-12 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 pt-12 rounded-b-[40px] text-white relative shadow-2xl">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
-                <button 
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg active:scale-95 transition-all text-white"
-                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
-                >
-                  <Menu size={20} />
-                </button>
-                <div className="text-center flex-1">
-                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
-                    SAKINAH
-                  </h1>
-                  <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
-                  <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
-                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setActiveTab('announcements')}
-                  className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
-                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
-                >
-                  <Bell size={20} />
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
-                <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
-                  {userData?.photoURL ? (
-                    <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <User size={32} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                    <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Teacher Portal</p>
-                  </div>
-                  <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
-                    {userData?.name || 'Guru Pengajar'}
-                  </h2>
-                  <div className="flex flex-col mt-1">
-                    <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
-                      {userData?.role || 'Guru'}
-                    </p>
-                    <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
-                      {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <main className="flex-1 overflow-y-auto scrolling-touch">
+        {/* Top Bar / Mobile Header - Consistent with screenshot */}
+        <div className="md:hidden bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-[100] shadow-sm backdrop-blur-md bg-white/90">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-blue-600/10 p-1 bg-white shadow-sm flex items-center justify-center">
+              <img 
+                src="/logo_ra.jpeg" 
+                alt="Logo" 
+                className="w-full h-full object-contain" 
+              />
             </div>
+            <h2 className="font-bold text-gray-800 text-sm tracking-tight">Portal Guru</h2>
+          </div>
+          <button 
+            onClick={async () => { await auth.signOut(); navigate('/login'); }}
+            className="p-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1.5 px-3 py-1.5 shadow-sm"
+            title="Keluar Sesi"
+          >
+            <LogOut size={16} />
+            <span className="text-[11px] font-bold">Keluar</span>
+          </button>
+        </div>
 
-            {/* Desktop Header */}
-            <header className="hidden md:flex justify-between items-center mb-8 pt-2">
+        <div className="p-4 md:p-8">
+          {activeTab === 'overview' && (
+            <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+              {/* Mobile Profile Header - Sakinah Style */}
+              <div className="md:hidden -mx-4 -mt-4 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative shadow-2xl overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+                <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
+                  <div className="text-center flex-1">
+                    <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
+                      SAKINAH
+                    </h1>
+                    <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
+                    <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
+                      <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('announcements')}
+                    className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                    style={{ WebkitBackdropFilter: 'blur(8px)' }}
+                  >
+                    <Bell size={20} />
+                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
+                  <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
+                    {userData?.photoURL ? (
+                      <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <User size={32} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
+                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                      <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Teacher Portal</p>
+                    </div>
+                    <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
+                      {userData?.name || 'Guru Pengajar'}
+                    </h2>
+                    <div className="flex flex-col mt-1">
+                      <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
+                        {userData?.role || 'Guru'}
+                      </p>
+                      <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
+                        {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Header - Sticky */}
+            <header className="hidden md:flex md:sticky md:top-0 z-20 bg-white/80 backdrop-blur-md -mx-8 px-8 py-4 justify-between items-center mb-8 border-b border-transparent transition-all">
               <div>
                 <h2 className="text-3xl font-bold text-gray-800 leading-tight tracking-tight underline decoration-blue-500 decoration-4 underline-offset-8 uppercase italic">Beranda</h2>
                 <p className="text-gray-500 text-sm font-medium mt-4">Kelola perkembangan belajar siswa secara efisien.</p>
@@ -1103,6 +1205,14 @@ export default function DashboardGuru() {
                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Guru Pengajar</p>
                     </div>
                  </div>
+                 <button 
+                   onClick={async () => { await auth.signOut(); navigate('/login'); }}
+                   className="p-3 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-2xl shadow-sm transition-all flex items-center gap-2 font-bold text-xs"
+                   title="Keluar Sesi"
+                 >
+                   <LogOut size={20} />
+                   <span className="hidden lg:inline">Keluar</span>
+                 </button>
               </div>
             </header>
 
@@ -1170,11 +1280,12 @@ export default function DashboardGuru() {
                   </div>
                   <div className="space-y-4">
                      {progress.slice(0, 4).map((p) => {
-                        const s = students.find(st => st.id === p.studentId);
+                        const s = allStudents.find(st => st.id === p.studentId) || students.find(st => st.id === p.studentId);
+                        const studentName = (p as any).studentName || s?.name || 'Siswa';
                         return (
                           <div key={p.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-3xl border border-gray-100">
                              <div className="min-w-0">
-                                <p className="font-bold text-gray-800 truncate">{s?.name || 'Siswa'}</p>
+                                <p className="font-bold text-gray-800 truncate">{studentName}</p>
                                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter truncate">{p.title}</p>
                              </div>
                              <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${p.status === 'Lulus' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -1194,7 +1305,8 @@ export default function DashboardGuru() {
                   </div>
                   <div className="space-y-4">
                      {hafalanProgress.filter(h => h.isReadyForTest).slice(0, 4).map((h) => {
-                        const s = students.find(st => st.id === h.studentId);
+                        const s = allStudents.find(st => st.id === h.studentId) || students.find(st => st.id === h.studentId);
+                        const studentName = (h as any).studentName || s?.name || 'Siswa Tanpa Nama';
                         const mat = hafalanMaterials.find(m => m.id === h.materialId);
                         return (
                           <div key={h.id} className="flex items-center gap-4 p-4 bg-blue-50/50 rounded-3xl border border-blue-100">
@@ -1202,7 +1314,7 @@ export default function DashboardGuru() {
                                 <Star size={20} fill="currentColor" />
                              </div>
                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-gray-800 truncate">{s?.name || 'Siswa'}</p>
+                                <p className="font-bold text-gray-800 truncate">{studentName}</p>
                                 <p className="text-[10px] text-blue-600 font-black uppercase tracking-tighter truncate">{mat?.judul || 'Materi'}</p>
                              </div>
                              <button onClick={() => { setEvaluateHafalan(h); setShowHafalanModal(true); }} className="p-2 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-100">
@@ -2480,6 +2592,18 @@ export default function DashboardGuru() {
                 </button>
               </form>
             </div>
+
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Sesi Akun</h3>
+              <button 
+                type="button"
+                onClick={async () => { await auth.signOut(); navigate('/login'); }}
+                className="w-full bg-rose-50 text-rose-600 border border-rose-100 p-4 rounded-2xl font-bold text-base hover:bg-rose-100 transition-all flex items-center justify-center gap-3 shadow-sm"
+              >
+                <LogOut size={20} />
+                <span>Keluar dari Akun Guru</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -3033,8 +3157,9 @@ export default function DashboardGuru() {
               </div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal Guru RA Darusyifa Arjawinangun</p>
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Photo Viewer Modal */}

@@ -27,12 +27,17 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       let errorMessage = 'Terjadi kesalahan pada aplikasi.';
       try {
-        const parsedError = JSON.parse(this.state.error.message);
-        if (parsedError.error && parsedError.error.includes('Missing or insufficient permissions')) {
-          errorMessage = 'Akses ditolak: Anda tidak memiliki izin untuk melihat data ini.';
+        const err = this.state.error;
+        if (err) {
+          const msg = err.message || String(err);
+          if (msg.includes('Missing or insufficient permissions') || msg.includes('permission-denied')) {
+            errorMessage = 'Akses ditolak: Anda tidak memiliki izin untuk melihat data ini.';
+          } else {
+            errorMessage = msg;
+          }
         }
       } catch (e) {
-        // Not a JSON error
+        console.error("Error formatting boundary message:", e);
       }
 
       return (

@@ -330,7 +330,9 @@ export default function DashboardAdmin() {
     // Calculate filtered paid
     let filteredPaid = 0;
     payments.forEach(p => {
-      if (p.studentId !== u.id || p.status !== 'lunas' || p.type !== 'iuran') return;
+      if (p.studentId !== u.id) return;
+      if (p.status === 'pending' || p.status === 'rejected') return;
+      if (p.type === 'tagihan' || p.type === 'tabungan') return;
       let match = true;
       if (filterFinanceCategory) {
         const pCat = p.iuranCategory || 'Umum';
@@ -362,11 +364,13 @@ export default function DashboardAdmin() {
 
   const displayTotalPaid = isFinanceFiltered
     ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewPaid || 0), 0)
-    : payments.filter(p => p.type === 'iuran' && p.status === 'lunas').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
   const displayTotalPaidOnline = isFinanceFiltered
     ? payments.filter(p => {
-        if (p.status !== 'lunas' || p.method !== 'Transfer' || p.type !== 'iuran') return false;
+        if (p.status === 'pending' || p.status === 'rejected') return false;
+        if (p.type === 'tagihan' || p.type === 'tabungan') return false;
+        if (p.method !== 'Transfer') return false;
         let match = true;
         if (filterFinanceCategory) {
           const pCat = p.iuranCategory || 'Umum';
@@ -380,7 +384,7 @@ export default function DashboardAdmin() {
         if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
         return match;
       }).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-    : payments.filter(p => p.status === 'lunas' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
   const displayTotalTunggakan = isFinanceFiltered 
     ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
@@ -1244,6 +1248,7 @@ export default function DashboardAdmin() {
         amount: totalPaid,
         description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()} & Tunai/Transfer Rp ${Number(mixedCashAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
         type: 'iuran',
+        status: totalPaid >= detailToPay.amount ? 'lunas' : 'cicilan',
         method: paymentMethod,
         proof: paymentProof || null,
         date: new Date().toISOString().split('T')[0],
@@ -2761,13 +2766,14 @@ export default function DashboardAdmin() {
       {/* Sidebar (Desktop) */}
       <aside className="w-72 bg-white border-r border-slate-100 p-8 hidden md:flex flex-col shadow-sm z-30">
         <div className="flex items-center gap-4 mb-14">
-          {settings?.logoUrl ? (
-            <div className="w-12 h-12 overflow-hidden rounded-[1.25rem] border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm">
-              <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-          ) : (
-            <div className="w-12 h-12 bg-emerald-600 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-xl shadow-emerald-100">RA</div>
-          )}
+          <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
+            <img 
+              src="/logo_ra.jpeg" 
+              alt="Logo Resmi RA Darusyifa" 
+              className="w-10 h-10 md:w-12 md:h-12 object-contain" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
           <div>
             <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Admin</h1>
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">RA Darusyifa</p>
@@ -2785,10 +2791,42 @@ export default function DashboardAdmin() {
         </div>
       </aside>
 
-      {/* Mobile Sidebar/Drawer */}
+      {/* Bottom Navigation Bar (Mobile) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-2 z-[100]" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
+        {[
+          { id: 'overview', label: 'Beranda', icon: BarChart },
+          { id: 'users', label: 'User', icon: Users },
+          { id: 'academic', label: 'Akademik', icon: BookOpen },
+          { id: 'finance', label: 'Keuangan', icon: CreditCard },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 ${activeTab === item.id ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-sm' : 'text-slate-400'}`}>
+              <item.icon size={20} />
+            </div>
+            <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
+          </button>
+        ))}
+        {/* Menu Tab */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 ${isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'}`}
+        >
+          <div className={`p-1.5 rounded-xl transition-all ${isSidebarOpen ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-sm' : 'text-slate-400'}`}>
+            <Menu size={20} />
+          </div>
+          <span className="text-[10px] font-bold tracking-tight">Lainnya</span>
+        </button>
+      </div>
+
+      {/* Mobile Bottom Sheet Menu */}
       <AnimatePresence>
         {isSidebarOpen && (
           <>
+            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2796,22 +2834,77 @@ export default function DashboardAdmin() {
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] md:hidden"
               onClick={() => setIsSidebarOpen(false)}
             />
+            {/* Bottom Sheet */}
             <motion.div 
-              initial={{ x: -300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl flex flex-col p-8 z-[100] md:hidden"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] shadow-2xl p-6 z-[100] md:hidden max-h-[85vh] flex flex-col border-t border-slate-100"
             >
-              <div className="flex items-center justify-between mb-10">
+              {/* Drag indicator */}
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+              
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black">RA</div>
-                  <h2 className="font-display font-black text-slate-800 text-sm">Admin Portal</h2>
+                  <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
+                    <img 
+                      src="/logo_ra.jpeg" 
+                      alt="Logo Resmi" 
+                      className="w-full h-full object-contain" 
+                    />
+                  </div>
+                  <div>
+                    <h2 className="font-display font-black text-slate-800 text-sm">Portal Admin</h2>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase">RA Darusyifa</p>
+                  </div>
                 </div>
                 <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-1 hover:bg-slate-50 rounded-lg">
                   <X size={24} />
                 </button>
               </div>
-              <NavItems />
+
+              <div className="flex-1 overflow-y-auto pb-8 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {[
+                    { id: 'overview', label: 'Dashboard', icon: BarChart },
+                    { id: 'users', label: 'User Management', icon: Users },
+                    { id: 'academic', label: 'Akademik & Rapot', icon: BookOpen },
+                    { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
+                    { id: 'finance', label: 'Administrasi', icon: CreditCard },
+                    { id: 'finance-arus', label: 'Arus Keuangan', icon: TrendingUp },
+                    { id: 'attendance', label: 'Absensi', icon: CheckCircle },
+                    { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
+                    { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
+                    { id: 'announcements', label: 'Pengumuman', icon: Megaphone },
+                    { id: 'profile', label: 'Profil Admin', icon: User },
+                    { id: 'settings', label: 'Pengaturan', icon: Settings },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all ${
+                        activeTab === item.id
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-600 font-bold shadow-sm'
+                          : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <item.icon size={20} className={activeTab === item.id ? 'text-emerald-600' : 'text-slate-400'} />
+                      <span className="text-xs font-bold tracking-tight leading-tight">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 mt-auto">
+                <button 
+                  onClick={async () => { await auth.signOut(); navigate('/login'); }}
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 transition-all text-sm"
+                >
+                  <LogOut size={18} />
+                  <span>Keluar Sesi</span>
+                </button>
+              </div>
             </motion.div>
           </>
         )}
@@ -2819,26 +2912,85 @@ export default function DashboardAdmin() {
 
       {/* Main Content */}
       <main className="flex-1 min-h-screen relative overflow-y-auto scrolling-touch">
-        {/* Top Bar / Mobile Header */}
-        <div className="md:hidden bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-[60] shadow-sm">
+        {/* Top Bar / Mobile Header - Consistent with screenshot */}
+        <div className="md:hidden bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-[100] shadow-sm backdrop-blur-md bg-white/90">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-100">RA</div>
-            <h2 className="font-display font-black text-slate-800 leading-none">Admin Portal</h2>
+            <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-emerald-600/10 p-1 bg-white shadow-sm flex items-center justify-center">
+              <img 
+                src="/logo_ra.jpeg" 
+                alt="Logo" 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+            <h2 className="font-display font-black text-slate-900 tracking-tight">Portal Admin</h2>
           </div>
           <button 
-            onClick={() => setIsSidebarOpen(true)} 
-            className="p-2.5 bg-slate-50 rounded-xl text-slate-600 active:scale-95 transition-all"
+            onClick={async () => { await auth.signOut(); navigate('/login'); }}
+            className="p-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1.5 px-3 py-1.5 shadow-sm"
+            title="Keluar Sesi"
           >
-            <Menu size={24} />
+            <LogOut size={16} />
+            <span className="text-[11px] font-bold">Keluar</span>
           </button>
         </div>
 
         <div className="max-w-7xl mx-auto p-4 md:p-10 lg:p-12 pb-32 md:pb-12">
-          {/* Dashboard Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+              {/* Mobile Profile Header - Sakinah Style */}
+              <div className="md:hidden -mx-4 -mt-4 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative shadow-2xl overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+                <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
+                  <div className="text-center flex-1">
+                    <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
+                      SAKINAH
+                    </h1>
+                    <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
+                    <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
+                      <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('announcements')}
+                    className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
+                    style={{ WebkitBackdropFilter: 'blur(8px)' }}
+                  >
+                    <Bell size={20} />
+                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
+                  <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
+                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Shield size={32} />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
+                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                      <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Admin Portal</p>
+                    </div>
+                    <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
+                      Administrator
+                    </h2>
+                    <div className="flex flex-col mt-1">
+                      <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
+                        Super Admin
+                      </p>
+                      <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
+                        {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dashboard Header - Sticky on Desktop */}
+          <div className="md:sticky md:top-0 z-20 bg-slate-50/80 backdrop-blur-md py-4 mb-8 -mx-4 px-4 md:-mx-10 md:px-10 lg:-mx-12 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-transparent transition-all">
             <div className="space-y-1">
               <h1 className="text-3xl md:text-4xl font-display font-black text-slate-900 tracking-tight capitalize">
-                {activeTab === 'overview' ? 'Ringkasan Dashboard' : activeTab.replace('-', ' ')}
+                Ringkasan Dashboard
               </h1>
               <p className="text-slate-500 font-medium">Selamat datang kembali, Admin RA Darusyifa.</p>
             </div>
@@ -2912,60 +3064,8 @@ export default function DashboardAdmin() {
           </div>
         )}
 
-        {activeTab === 'overview' && (
-          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
-            {/* Mobile Header (Hidden on Desktop) */}
-            <div className="md:hidden -mx-4 -mt-8 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 pt-10 rounded-b-[40px] text-white relative shadow-2xl">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-              <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
-                <div className="text-center flex-1 ml-10">
-                  <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
-                    SAKINAH
-                  </h1>
-                  <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
-                  <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
-                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setActiveTab('announcements')}
-                  className="bg-white/25 p-2.5 rounded-2xl backdrop-blur-md border border-white/40 shadow-lg relative active:scale-95 transition-all text-white"
-                  style={{ WebkitBackdropFilter: 'blur(8px)' }}
-                >
-                  <Bell size={20} />
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in shadow-sm"></span>
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/40 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
-                <div className="w-20 h-20 rounded-full border-4 border-white/50 overflow-hidden bg-white/98 flex items-center justify-center shadow-xl shrink-0">
-                  {userData?.photoURL ? (
-                    <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <User size={32} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                    <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Administrator</p>
-                  </div>
-                  <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
-                    {userData?.name || 'Administrator'}
-                  </h2>
-                  <div className="flex flex-col mt-1">
-                    <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
-                      Admin Utama
-                    </p>
-                    <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
-                      {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Main Overview Content */}
+
 
             {/* Desktop Header */}
             <header className="hidden md:flex justify-between items-center mb-8 pt-2">
@@ -3063,7 +3163,6 @@ export default function DashboardAdmin() {
             </div>
           </div>
         )}
-
         {activeTab === 'users' && (
           <UserTab
             allUsers={allUsers}

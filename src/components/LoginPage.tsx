@@ -18,6 +18,8 @@ export default function LoginPage() {
       if (snap.exists()) {
         setLogoUrl(snap.data().logoUrl);
       }
+    }, (error) => {
+      console.error("Error fetching landing page settings:", error);
     });
     return () => unsub();
   }, []);
