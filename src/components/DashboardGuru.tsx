@@ -30,6 +30,7 @@ export default function DashboardGuru() {
   const [exams, setExams] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [hiddenSubjects, setHiddenSubjects] = useState<string[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'students', 'kaldik', 'penilaian-kelas', 'progress', 'exams', 'hafalan', 'attendance', 'announcements', 'profile'
@@ -168,7 +169,12 @@ export default function DashboardGuru() {
       setStudents(mapped.filter(u => {
         const isActive = (u.status || 'Aktif') === 'Aktif';
         const userClass = userData?.assignedClass || userData?.kelas;
-        const isSameClass = userClass ? u.kelas === userClass : true;
+        const isSameClass = userClass ? (
+          u.kelas === userClass ||
+          (u.kelas || '').trim().toLowerCase() === userClass.trim().toLowerCase() ||
+          (u.kelas || '').toLowerCase().includes(userClass.toLowerCase()) ||
+          userClass.toLowerCase().includes((u.kelas || '').toLowerCase())
+        ) : true;
         return isActive && isSameClass;
       }));
     }, (error) => {
@@ -211,6 +217,14 @@ export default function DashboardGuru() {
       setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'subjects');
+    });
+
+    const unsubSubjectsConfig = onSnapshot(doc(db, 'settings', 'subjectsConfig'), (snap) => {
+      if (snap.exists() && Array.isArray(snap.data().hiddenSubjects)) {
+        setHiddenSubjects(snap.data().hiddenSubjects);
+      }
+    }, (error) => {
+      // Ignore config snapshot errors gracefully
     });
 
     const unsubClasses = onSnapshot(query(collection(db, 'classes')), (snapshot) => {
@@ -260,6 +274,7 @@ export default function DashboardGuru() {
       unsubExams();
       unsubAttendance();
       unsubSubjects();
+      unsubSubjectsConfig();
       unsubClasses();
       unsubSettings();
       unsubKaldik();
@@ -270,10 +285,18 @@ export default function DashboardGuru() {
 
   useEffect(() => {
     if (!allStudents.length) return;
+    const userClass = userData?.assignedClass || userData?.kelas;
+    if (userClass && !filterKelasHafalan) {
+      setFilterKelasHafalan(userClass);
+    }
     setStudents(allStudents.filter(u => {
       const isActive = (u.status || 'Aktif') === 'Aktif';
-      const userClass = userData?.assignedClass || userData?.kelas;
-      const isSameClass = userClass ? u.kelas === userClass : true;
+      const isSameClass = userClass ? (
+        u.kelas === userClass ||
+        (u.kelas || '').trim().toLowerCase() === userClass.trim().toLowerCase() ||
+        (u.kelas || '').toLowerCase().includes(userClass.toLowerCase()) ||
+        userClass.toLowerCase().includes((u.kelas || '').toLowerCase())
+      ) : true;
       return isActive && isSameClass;
     }));
   }, [allStudents, userData]);
@@ -845,26 +868,124 @@ export default function DashboardGuru() {
     }
   };
 
+  const getAvailableSubjects = (periodFilter?: string, classFilter?: string) => {
+    const subjectSet = new Set<string>();
+
+    // 1. Saved subjects from Firestore
+    subjects.forEach(s => {
+      if (s.name && typeof s.name === 'string') subjectSet.add(s.name.trim());
+    });
+
+    // 2. Default RA/TK subjects
+    const defaultSubjects = [
+      "Nilai Agama & Moral",
+      "Fisik Motorik",
+      "Kognitif & Sains",
+      "Bahasa & Literasi",
+      "Seni & Kreativitas",
+      "Sosial Emosional",
+      "Al-Qur'an & Hafalan",
+      "Fiqih & Ibadah",
+      "Bahasa Arab",
+      "Akidah Akhlak",
+      "Pancasila / Kewarganegaraan"
+    ];
+    defaultSubjects.forEach(s => subjectSet.add(s));
+
+    // 3. Subjects from exam schedules
+    if (periodFilter) {
+      const matchingExams = exams.filter(ex => ex.type === periodFilter);
+      const schedules = matchingExams.flatMap(ex => ex.schedules || []);
+      const classSpecificSchedules = schedules.filter((s: any) => 
+        !s.kelas || s.kelas.toLowerCase() === "semua kelas" ||
+        !classFilter || classFilter === "Semua" || 
+        (s.kelas && classFilter && s.kelas.trim().toLowerCase() === classFilter.trim().toLowerCase())
+      );
+      classSpecificSchedules.forEach((s: any) => {
+        if (s.subject && typeof s.subject === 'string') subjectSet.add(s.subject.trim());
+      });
+    }
+
+    if (pkCategory) subjectSet.add(pkCategory.trim());
+    if (progressCategory) subjectSet.add(progressCategory.trim());
+
+    return Array.from(subjectSet)
+      .filter(Boolean)
+      .filter(sub => !hiddenSubjects.includes(sub));
+  };
+
+  const handleDeleteSubject = async (subjectName: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus mata pelajaran "${subjectName}"?`)) return;
+    try {
+      const trimmedName = subjectName.trim();
+      
+      // Delete any matching document in Firestore 'subjects' collection
+      const matchedDocs = subjects.filter(s => s.name?.trim().toLowerCase() === trimmedName.toLowerCase());
+      for (const d of matchedDocs) {
+        if (d.id) {
+          await deleteDoc(doc(db, 'subjects', d.id));
+        }
+      }
+
+      // Add to hiddenSubjects in settings/subjectsConfig
+      const newHidden = Array.from(new Set([...hiddenSubjects, trimmedName]));
+      await setDoc(doc(db, 'settings', 'subjectsConfig'), { hiddenSubjects: newHidden }, { merge: true });
+
+      if (pkCategory === trimmedName) setPkCategory('');
+      if (progressCategory === trimmedName) setProgressCategory('');
+
+      if (editingSubject && editingSubject.name === trimmedName) {
+        setEditingSubject(null);
+        setNewSubjectName('');
+      }
+
+      alert(`Mata pelajaran "${trimmedName}" berhasil dihapus!`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'subjects');
+    }
+  };
+
   const handleSaveSubject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newSubjectName.trim()) return;
     const path = 'subjects';
     try {
-      const data = {
-        name: newSubjectName,
-        teacherId: user.uid,
-        createdAt: serverTimestamp()
-      };
+      const trimmed = newSubjectName.trim();
 
       if (editingSubject) {
-        await updateDoc(doc(db, path, editingSubject.id), { name: newSubjectName });
+        if (editingSubject.id) {
+          await updateDoc(doc(db, path, editingSubject.id), { name: trimmed });
+        } else {
+          const oldName = editingSubject.name;
+          if (oldName && oldName !== trimmed) {
+            const newHidden = Array.from(new Set([...hiddenSubjects, oldName]));
+            await setDoc(doc(db, 'settings', 'subjectsConfig'), { hiddenSubjects: newHidden }, { merge: true });
+          }
+          await addDoc(collection(db, path), {
+            name: trimmed,
+            teacherId: user.uid,
+            createdAt: serverTimestamp()
+          });
+        }
         alert('Mata pelajaran diperbarui!');
       } else {
-        await addDoc(collection(db, path), data);
+        if (hiddenSubjects.includes(trimmed)) {
+          const newHidden = hiddenSubjects.filter(h => h !== trimmed);
+          await setDoc(doc(db, 'settings', 'subjectsConfig'), { hiddenSubjects: newHidden }, { merge: true });
+        }
+
+        await addDoc(collection(db, path), {
+          name: trimmed,
+          teacherId: user.uid,
+          createdAt: serverTimestamp()
+        });
         alert('Mata pelajaran ditambahkan!');
       }
+
+      setPkCategory(trimmed);
+      setProgressCategory(trimmed);
       setNewSubjectName('');
       setEditingSubject(null);
-      setShowSubjectModal(false);
     } catch (error) {
       handleFirestoreError(error, editingSubject ? OperationType.UPDATE : OperationType.CREATE, path);
     }
@@ -918,7 +1039,7 @@ export default function DashboardGuru() {
         onClick={() => { navigate('/kaldik'); setIsSidebarOpen(false); }}
         className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-medium hover:bg-gray-50 text-gray-600`}
       >
-        <BookOpen size={20} className={'text-gray-400'} /> Kaldik & Materi
+        <Calendar size={20} className={'text-gray-400'} /> Kaldik
       </button>
       <button 
         onClick={() => { setActiveTab('hafalan'); setIsSidebarOpen(false); }}
@@ -1248,7 +1369,7 @@ export default function DashboardGuru() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'students', label: 'Siswa', icon: Users, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500' },
                   { id: 'penilaian-kelas', label: 'Nilai Masal', icon: Edit, color: 'bg-indigo-600 bg-gradient-to-br from-blue-600 to-indigo-700' },
                   { id: 'progress', label: 'Rapot', icon: BookOpen, color: 'bg-blue-500 bg-gradient-to-br from-blue-400 to-blue-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
@@ -1300,13 +1421,14 @@ export default function DashboardGuru() {
 
                <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
                   <div className="flex justify-between items-center mb-8">
-                     <h3 className="text-xl font-black text-gray-800">Antrian Hafalan</h3>
+                     <h3 className="text-xl font-black text-gray-800">Antrian Hafalan {userData?.assignedClass || userData?.kelas ? `(${userData.assignedClass || userData.kelas})` : ''}</h3>
                      <button onClick={() => setActiveTab('hafalan')} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">Review</button>
                   </div>
                   <div className="space-y-4">
-                     {hafalanProgress.filter(h => h.isReadyForTest).slice(0, 4).map((h) => {
-                        const s = allStudents.find(st => st.id === h.studentId) || students.find(st => st.id === h.studentId);
+                     {hafalanProgress.filter(h => h.isReadyForTest && students.some(st => st.id === h.studentId)).slice(0, 4).map((h) => {
+                        const s = students.find(st => st.id === h.studentId) || allStudents.find(st => st.id === h.studentId);
                         const studentName = (h as any).studentName || s?.name || 'Siswa Tanpa Nama';
+                        const studentClass = s?.kelas ? `(${s.kelas})` : '';
                         const mat = hafalanMaterials.find(m => m.id === h.materialId);
                         return (
                           <div key={h.id} className="flex items-center gap-4 p-4 bg-blue-50/50 rounded-3xl border border-blue-100">
@@ -1314,7 +1436,7 @@ export default function DashboardGuru() {
                                 <Star size={20} fill="currentColor" />
                              </div>
                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-gray-800 truncate">{studentName}</p>
+                                <p className="font-bold text-gray-800 truncate">{studentName} <span className="text-xs text-gray-400 font-normal">{studentClass}</span></p>
                                 <p className="text-[10px] text-blue-600 font-black uppercase tracking-tighter truncate">{mat?.judul || 'Materi'}</p>
                              </div>
                              <button onClick={() => { setEvaluateHafalan(h); setShowHafalanModal(true); }} className="p-2 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-100">
@@ -1323,7 +1445,9 @@ export default function DashboardGuru() {
                           </div>
                         );
                      })}
-                     {hafalanProgress.filter(h => h.isReadyForTest).length === 0 && <p className="text-center py-6 text-gray-400 italic text-sm">Tidak ada antrian setoran.</p>}
+                     {hafalanProgress.filter(h => h.isReadyForTest && students.some(st => st.id === h.studentId)).length === 0 && (
+                       <p className="text-center py-6 text-gray-400 italic text-sm">Tidak ada antrian setoran untuk kelas Anda.</p>
+                     )}
                   </div>
                </div>
             </div>
@@ -1509,58 +1633,6 @@ export default function DashboardGuru() {
           </div>
         )}
 
-        {activeTab === 'kaldik' && (
-          <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
-            <div className="card-3d p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Materi Belajar</h3>
-                <p className="text-sm text-gray-400 mt-1 font-medium">Kumpulan materi pembelajaran yang Anda tambahkan.</p>
-              </div>
-              <button 
-                onClick={() => setShowMaterialModal(true)}
-                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all text-sm shadow-md shadow-blue-200"
-              >
-                <Plus size={18} /> Tambah Materi
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-8">
-              {/* Materi */}
-              <div>
-                <h4 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2"><BookOpen className="text-blue-500" /> Materi Pembelajaran Saya</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {materialsData.filter(m => m.teacherId === user.uid).map(mat => (
-                    <div key={mat.id} className="card-3d p-6 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <BookOpen size={48} className="text-blue-500" />
-                      </div>
-                      <div className="relative z-10">
-                        <h5 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2">{mat.name}</h5>
-                        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">{mat.topic || 'Umum'}</p>
-                        
-                        <div className="flex gap-2 mt-4">
-                          <button onClick={() => { setEditingMaterialId(mat.id); setNewMaterial(mat); setShowMaterialModal(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex-1 flex justify-center items-center">
-                            <Edit size={14} />
-                          </button>
-                          <button onClick={() => handleDeleteMaterial(mat.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all flex-1 flex justify-center items-center">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {materialsData.filter(m => m.teacherId === user.uid).length === 0 && (
-                  <div className="text-center p-12 bg-white border border-dashed border-gray-200 rounded-[2rem]">
-                    <BookOpen className="mx-auto text-gray-300 mb-2" size={32} />
-                    <p className="text-xs text-gray-400 font-medium">Belum ada materi yang Anda tambahkan.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'hafalan' && (
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
             <div className="flex gap-2 mb-6">
@@ -1595,9 +1667,11 @@ export default function DashboardGuru() {
                 </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <select value={filterKelasHafalan} onChange={e => setFilterKelasHafalan(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
-                  <option value="">Semua Kelas</option>
-                  <option value="Utsman">Utsman</option>
-                  <option value="Umar Bin Khattab">Umar</option>
+                  <option value="">Semua Kelas Guru</option>
+                  {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {(userData?.assignedClass || userData?.kelas) && !schoolClasses.some(c => c.name === (userData?.assignedClass || userData?.kelas)) && (
+                    <option value={userData?.assignedClass || userData?.kelas}>{userData?.assignedClass || userData?.kelas}</option>
+                  )}
                 </select>
                 <select value={filterHafalanStatus} onChange={e => setFilterHafalanStatus(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-600 appearance-none">
                   <option value="Semua">Semua Status</option>
@@ -1837,7 +1911,7 @@ export default function DashboardGuru() {
         ) : hafalanSubTab === 'modul' ? (
           <HafalanTab />
         ) : (
-          <HafalanProgressTab />
+          <HafalanProgressTab userClass={userData?.assignedClass || userData?.kelas} />
         )}
       </div>
     )}
@@ -1919,30 +1993,46 @@ export default function DashboardGuru() {
               )}
 
               {pkType === 'Rapot' && (
-                <div className="animate-in slide-in-from-top duration-300">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Mata Pelajaran</label>
-                  <select value={pkCategory} onChange={e => setPkCategory(e.target.value)} className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-blue-900 font-black transition-all">
-                    <option value="">-- Pilih Mata Pelajaran --</option>
-                    {(() => {
-                      if (pkType === 'Rapot') {
-                        const matchingExams = exams.filter(ex => ex.type === pkRapotPeriod);
-                        const schedules = matchingExams.flatMap(ex => ex.schedules || []);
-                        const classSpecificSchedules = schedules.filter((s: any) => 
-                          !s.kelas || s.kelas.toLowerCase() === "semua kelas" ||
-                          !pkClass || pkClass === "Semua" || 
-                          (s.kelas && pkClass && s.kelas.trim().toLowerCase() === pkClass.trim().toLowerCase())
-                        );
-                        const uniqueSubjects = Array.from(new Set(classSpecificSchedules.map((s: any) => s.subject))).filter(Boolean);
-                        if (uniqueSubjects.length > 0) {
-                          return uniqueSubjects.map((sub: any, idx: number) => <option key={idx} value={sub}>{sub}</option>);
-                        } else {
-                          return <option value="" disabled>Belum ada jadwal mapel untuk Kelas ini di {pkRapotPeriod}</option>;
-                        }
+                <div className="animate-in slide-in-from-top duration-300 bg-blue-50/40 p-5 rounded-2xl border border-blue-100 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="block text-[10px] font-black text-blue-900 uppercase tracking-widest ml-1">Mata Pelajaran Rapot</label>
+                      <p className="text-xs text-blue-600 font-medium ml-1">Pilih mata pelajaran yang akan dinilai atau tambahkan mata pelajaran baru.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSubject(null);
+                        setNewSubjectName('');
+                        setShowSubjectModal(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-200 cursor-pointer self-start sm:self-auto"
+                    >
+                      <Plus size={16} />
+                      <span>+ Tambah Mapel Baru</span>
+                    </button>
+                  </div>
+
+                  <select 
+                    value={pkCategory} 
+                    onChange={e => {
+                      if (e.target.value === '__ADD_NEW__') {
+                        setEditingSubject(null);
+                        setNewSubjectName('');
+                        setShowSubjectModal(true);
+                      } else {
+                        setPkCategory(e.target.value);
                       }
-                      return subjects.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ));
-                    })()}
+                    }} 
+                    className="w-full p-4 bg-white border border-blue-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 text-blue-900 font-black transition-all shadow-sm"
+                  >
+                    <option value="">-- Pilih Mata Pelajaran --</option>
+                    {getAvailableSubjects(pkRapotPeriod, pkClass).map((sub, idx) => (
+                      <option key={idx} value={sub}>{sub}</option>
+                    ))}
+                    <option value="__ADD_NEW__" className="font-bold text-blue-600 bg-blue-50">
+                      ➕ + Tambah Mata Pelajaran Baru...
+                    </option>
                   </select>
                 </div>
               )}
@@ -2983,30 +3073,41 @@ export default function DashboardGuru() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Mapel</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-gray-500 uppercase">Pilih Mapel</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSubject(null);
+                          setNewSubjectName('');
+                          setShowSubjectModal(true);
+                        }}
+                        className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={12} /> + Mapel Baru
+                      </button>
+                    </div>
                     <select 
                       value={progressCategory} 
-                      onChange={(e) => setProgressCategory(e.target.value)} 
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => {
+                        if (e.target.value === '__ADD_NEW__') {
+                          setEditingSubject(null);
+                          setNewSubjectName('');
+                          setShowSubjectModal(true);
+                        } else {
+                          setProgressCategory(e.target.value);
+                        }
+                      }} 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800"
                       required
                     >
                       <option value="">-- Pilih Mapel --</option>
-                      {(() => {
-                        if (['PTS Ganjil', 'PAS Ganjil', 'PTS Genap', 'PAS Genap'].includes(progressEvaluationPeriod)) {
-                          const matchingExams = exams.filter(ex => ex.type === progressEvaluationPeriod);
-                          const schedules = matchingExams.flatMap(ex => ex.schedules || []);
-                          // In the individual single student form, maybe we can filter by the selected student's class,
-                          // but wait, we only query the subject list here
-                          const uniqueSubjects = Array.from(new Set(schedules.map((s: any) => s.subject))).filter(Boolean);
-                          if (uniqueSubjects.length > 0) {
-                            return uniqueSubjects.map((sub: any, idx: number) => <option key={idx} value={sub}>{sub}</option>);
-                          } else {
-                            return <option value="" disabled>Belum ada jadwal mapel di Ujian {progressEvaluationPeriod}</option>;
-                          }
-                        }
-                        return subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>);
-                      })()}
-                      {!['PTS Ganjil', 'PAS Ganjil', 'PTS Genap', 'PAS Genap'].includes(progressEvaluationPeriod) && <option value="Umum">Umum / Lainnya</option>}
+                      {getAvailableSubjects(progressEvaluationPeriod).map((sub, idx) => (
+                        <option key={idx} value={sub}>{sub}</option>
+                      ))}
+                      <option value="__ADD_NEW__" className="font-bold text-blue-600 bg-blue-50">
+                        ➕ + Tambah Mata Pelajaran Baru...
+                      </option>
                     </select>
                   </div>
                   <div>
@@ -3051,26 +3152,120 @@ export default function DashboardGuru() {
         )}
 
         {showSubjectModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl relative">
-              <button onClick={() => setShowSubjectModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">{editingSubject ? 'Edit Mapel' : 'Tambah Mapel'}</h3>
-              <form onSubmit={handleSaveSubject} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Mata Pelajaran</label>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
+              <button 
+                onClick={() => {
+                  setShowSubjectModal(false);
+                  setEditingSubject(null);
+                  setNewSubjectName('');
+                }} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="mb-5 pr-8">
+                <h3 className="text-xl font-bold text-gray-800">Kelola Mata Pelajaran</h3>
+                <p className="text-xs text-gray-500 mt-1">Tambah, edit nama, atau hapus mata pelajaran untuk rapot dan nilai masal.</p>
+              </div>
+
+              {/* Form Input */}
+              <form onSubmit={handleSaveSubject} className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mb-5 space-y-2">
+                <label className="block text-xs font-bold text-blue-900 uppercase">
+                  {editingSubject ? `Edit Mapel: "${editingSubject.name}"` : 'Tambah Mata Pelajaran Baru'}
+                </label>
+                <div className="flex gap-2">
                   <input 
                     type="text" 
                     value={newSubjectName} 
                     onChange={(e) => setNewSubjectName(e.target.value)} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
-                    placeholder="Contoh: Hafalan Qur'an" 
+                    className="flex-1 p-3 bg-white border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold text-gray-800" 
+                    placeholder="Contoh: Hijaiyah, Berhitung, Fiqih..." 
                     required 
                   />
+                  <button type="submit" className="px-5 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 shadow-md shadow-blue-200 transition-all shrink-0">
+                    {editingSubject ? 'Simpan' : '+ Tambah'}
+                  </button>
+                  {editingSubject && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setEditingSubject(null);
+                        setNewSubjectName('');
+                      }} 
+                      className="px-3 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-300 transition-all shrink-0"
+                    >
+                      Batal
+                    </button>
+                  )}
                 </div>
-                <button type="submit" className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all mt-4">
-                  {editingSubject ? 'Simpan Perubahan' : 'Tambah Mata Pelajaran'}
-                </button>
               </form>
+
+              {/* List of Subjects */}
+              <div className="flex-1 overflow-y-auto pr-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-3">Daftar Mata Pelajaran Aktif ({getAvailableSubjects().length})</label>
+                {getAvailableSubjects().length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-400 border border-dashed rounded-2xl">
+                    Belum ada mata pelajaran. Silakan tambahkan mata pelajaran baru di atas.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {getAvailableSubjects().map((subName, idx) => {
+                      const matchedDoc = subjects.find(s => s.name?.trim().toLowerCase() === subName.toLowerCase());
+                      const isEditingThis = editingSubject && editingSubject.name === subName;
+
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${isEditingThis ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-100' : 'bg-gray-50/70 border-gray-100 hover:bg-gray-100/80'}`}
+                        >
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                            <span className="font-bold text-sm text-gray-800 truncate">{subName}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSubject(matchedDoc || { name: subName });
+                                setNewSubjectName(subName);
+                              }}
+                              title="Edit nama mata pelajaran"
+                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-all"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubject(subName)}
+                              title="Hapus mata pelajaran ini"
+                              className="p-2 text-red-500 hover:bg-red-100 rounded-xl transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSubjectModal(false);
+                    setEditingSubject(null);
+                    setNewSubjectName('');
+                  }}
+                  className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         )}

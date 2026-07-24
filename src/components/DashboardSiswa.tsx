@@ -1006,7 +1006,7 @@ export default function DashboardSiswa() {
         className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 group"
       >
         <Calendar size={20} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
-        <span className="text-sm tracking-tight">Kaldik & Materi</span>
+        <span className="text-sm tracking-tight">Kaldik</span>
       </button>
       <button 
         onClick={() => { navigate('/juknis'); setIsSidebarOpen(false); }}
@@ -1150,7 +1150,7 @@ export default function DashboardSiswa() {
                     className="w-full flex items-center gap-3 p-4 rounded-2xl text-slate-600 bg-slate-50 border border-slate-100 font-bold text-sm transition-all hover:bg-slate-100"
                   >
                     <Calendar size={18} className="text-slate-400" />
-                    <span>Kaldik & Materi</span>
+                    <span>Kaldik</span>
                   </button>
                   <button 
                     onClick={() => { navigate('/juknis'); setIsSidebarOpen(false); }}
@@ -1337,7 +1337,7 @@ export default function DashboardSiswa() {
               <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
                 {[
                   { id: 'progress', label: 'Hasil Pembelajaran', icon: GraduationCap, color: 'bg-purple-500 bg-gradient-to-br from-purple-400 to-purple-500' },
-                  { id: 'kaldik', label: 'Kaldik & Materi', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => navigate('/kaldik') },
+                  { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-pink-500 bg-gradient-to-br from-pink-400 to-pink-500', action: () => navigate('/kaldik') },
                   { id: 'hafalan', label: 'Modul Hafalan', icon: Star, color: 'bg-amber-500 bg-gradient-to-br from-amber-400 to-amber-500' },
                   { id: 'exams', label: 'Ujian', icon: Edit, color: 'bg-rose-500 bg-gradient-to-br from-rose-400 to-rose-500' },
                   { id: 'administration', label: 'Administrasi', icon: CreditCard, color: 'bg-emerald-500 bg-gradient-to-br from-emerald-400 to-emerald-500' },

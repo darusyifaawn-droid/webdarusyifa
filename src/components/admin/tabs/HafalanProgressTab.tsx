@@ -5,15 +5,26 @@ import { Trash2, Edit, User, BookOpen, Search, Filter, Calendar, Star, CheckCirc
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
 import { StudentHafalanProgress, HafalanStatus } from '../../../data/hafalanData';
 
-export default function HafalanProgressTab() {
+interface HafalanProgressTabProps {
+  userClass?: string;
+}
+
+export default function HafalanProgressTab({ userClass }: HafalanProgressTabProps) {
   const [progress, setProgress] = useState<StudentHafalanProgress[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterKelas, setFilterKelas] = useState('Semua');
+  const [filterKelas, setFilterKelas] = useState(userClass || 'Semua');
   const [filterStatus, setFilterStatus] = useState('Semua');
   const [filterSemester, setFilterSemester] = useState('Semua');
+
+  useEffect(() => {
+    if (userClass) {
+      setFilterKelas(userClass);
+    }
+  }, [userClass]);
   
   const [editingRecord, setEditingRecord] = useState<StudentHafalanProgress | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -42,10 +53,15 @@ export default function HafalanProgressTab() {
       setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+    const unsubClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
+      setSchoolClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubProgress();
       unsubMaterials();
       unsubStudents();
+      unsubClasses();
     };
   }, []);
 
@@ -84,7 +100,13 @@ export default function HafalanProgressTab() {
       (student?.name || '').toLowerCase().includes(searchStr) ||
       (material?.judul || '').toLowerCase().includes(searchStr);
     
-    const matchKelas = filterKelas === 'Semua' || student?.kelas === filterKelas;
+    const matchKelas = filterKelas === 'Semua' || 
+      student?.kelas === filterKelas ||
+      (student?.kelas && filterKelas && (
+        student.kelas.trim().toLowerCase() === filterKelas.trim().toLowerCase() ||
+        student.kelas.toLowerCase().includes(filterKelas.toLowerCase()) ||
+        filterKelas.toLowerCase().includes(student.kelas.toLowerCase())
+      ));
     const matchStatus = filterStatus === 'Semua' || p.status === filterStatus;
     const matchSemester = filterSemester === 'Semua' || p.evaluationSemester === filterSemester;
     
@@ -118,8 +140,10 @@ export default function HafalanProgressTab() {
           className="p-3 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-bold text-gray-600 text-sm"
         >
           <option value="Semua">Semua Kelas</option>
-          <option value="Utsman">Utsman</option>
-          <option value="Umar Bin Khattab">Umar Bin Khattab</option>
+          {schoolClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          {userClass && !schoolClasses.some(c => c.name === userClass) && (
+            <option value={userClass}>{userClass}</option>
+          )}
         </select>
         <select 
           value={filterStatus}
