@@ -2823,8 +2823,8 @@ export default function DashboardSiswa() {
                       <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-2xl sm:rounded-[32px]"></div>
                     </div>
 
-                    {/* Button directly below camera preview */}
-                    {!capturedPhoto && (
+                    {/* Action Buttons directly below camera / photo preview */}
+                    {!capturedPhoto ? (
                       <button 
                         type="button"
                         onClick={takePhoto}
@@ -2832,10 +2832,31 @@ export default function DashboardSiswa() {
                       >
                         <Camera size={20} /> Ambil Foto Sekarang
                       </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3 my-1">
+                        <button 
+                          onClick={retakePhoto}
+                          disabled={isSubmittingAttendance}
+                          className="bg-white border-2 border-slate-300 text-slate-700 py-3.5 sm:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
+                        >
+                          <RefreshCw size={16} /> Foto Ulang
+                        </button>
+                        <button 
+                          onClick={handleConfirmAttendance}
+                          disabled={isSubmittingAttendance}
+                          className="bg-emerald-600 text-white py-3.5 sm:py-4 rounded-2xl font-bold text-xs sm:text-sm uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {isSubmittingAttendance ? (
+                            <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
+                          ) : (
+                            <><CheckCircle size={18} /> OK, Kirim Presensi</>
+                          )}
+                        </button>
+                      </div>
                     )}
 
                     <p className="text-[10px] text-gray-400 font-bold text-center uppercase tracking-wider">
-                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Periksa foto Anda. Jika sudah oke, klik "OK, Kirim Presensi" di bawah'}
+                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Foto berhasil diambil! Klik "OK, Kirim Presensi" untuk konfirmasi.'}
                     </p>
                   </div>
                 )}
@@ -2853,35 +2874,8 @@ export default function DashboardSiswa() {
                 )}
               </div>
 
-              <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0 sticky bottom-0 z-30">
-                {attendanceStatus === 'Hadir' ? (
-                  !capturedPhoto ? (
-                    <p className="text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider py-1">
-                      Klik tombol hijau di atas untuk mengambil foto
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <button 
-                        onClick={retakePhoto}
-                        disabled={isSubmittingAttendance}
-                        className="bg-white border-2 border-slate-200 text-slate-700 py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw size={16} /> Foto Ulang
-                      </button>
-                      <button 
-                        onClick={handleConfirmAttendance}
-                        disabled={isSubmittingAttendance}
-                        className="bg-emerald-600 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {isSubmittingAttendance ? (
-                          <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
-                        ) : (
-                          <><CheckCircle size={16} /> OK, Kirim Presensi</>
-                        )}
-                      </button>
-                    </div>
-                  )
-                ) : (
+              {attendanceStatus !== 'Hadir' && (
+                <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0 sticky bottom-0 z-30">
                   <button 
                     onClick={handleConfirmAttendance}
                     disabled={isSubmittingAttendance}
@@ -2893,8 +2887,8 @@ export default function DashboardSiswa() {
                       <><Save size={18} /> Simpan Presensi</>
                     )}
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}
