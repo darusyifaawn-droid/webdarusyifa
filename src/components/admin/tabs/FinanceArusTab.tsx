@@ -4,6 +4,7 @@ import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc,
 import { TrendingUp, TrendingDown, Wallet, Plus, Trash2, Calendar, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, BarChart as BarChartIcon, Search, Filter, Download } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
+import * as XLSX from 'xlsx';
 
 interface FinanceArusTabProps {
   payments: any[];
@@ -16,6 +17,12 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
+
   // Form State
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('income');
@@ -75,6 +82,146 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
     }
   };
 
+  // Export Arus Kas to Excel
+  const handleExportArusKasExcel = () => {
+    const validPayments = payments.filter(p => 
+      p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan'
+    );
+
+    let filteredTx = transactions;
+    let filteredPay = validPayments;
+
+    if (filterDateStart) {
+      filteredTx = filteredTx.filter(t => t.date >= filterDateStart);
+      filteredPay = filteredPay.filter(p => p.date >= filterDateStart);
+    }
+    if (filterDateEnd) {
+      filteredTx = filteredTx.filter(t => t.date <= filterDateEnd);
+      filteredPay = filteredPay.filter(p => p.date <= filterDateEnd);
+    }
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      filteredTx = filteredTx.filter(t => (t.description || '').toLowerCase().includes(s) || (t.category || '').toLowerCase().includes(s));
+      filteredPay = filteredPay.filter(p => (p.description || p.iuranCategory || p.studentName || '').toLowerCase().includes(s));
+    }
+    if (filterType === 'income') {
+      filteredTx = filteredTx.filter(t => t.type === 'income');
+    } else if (filterType === 'expense') {
+      filteredTx = filteredTx.filter(t => t.type === 'expense');
+      filteredPay = [];
+    }
+
+    const combinedItems: any[] = [];
+
+    filteredPay.forEach(p => {
+      let dateStr = p.date || '';
+      if (!dateStr && p.createdAt) {
+        try {
+          const dObj = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+          dateStr = dObj.toISOString().split('T')[0];
+        } catch(e) {
+          dateStr = new Date().toISOString().split('T')[0];
+        }
+      }
+      const student = allUsers.find(u => u.id === p.studentId);
+      const studentName = student?.name || p.studentName || 'Siswa';
+      
+      combinedItems.push({
+        source: 'Iuran Siswa',
+        date: dateStr,
+        type: 'PEMASUKAN',
+        category: p.iuranCategory || 'Iuran Siswa',
+        description: `Iuran (${p.description || p.iuranName || 'Pembayaran'}) - ${studentName}`,
+        amount: Number(p.amount) || 0,
+        rawDate: dateStr
+      });
+    });
+
+    filteredTx.forEach(t => {
+      combinedItems.push({
+        source: 'Manual / Kas',
+        date: t.date || '-',
+        type: t.type === 'income' ? 'PEMASUKAN' : 'PENGELUARAN',
+        category: t.category || 'Lainnya',
+        description: t.description || '-',
+        amount: Number(t.amount) || 0,
+        rawDate: t.date || ''
+      });
+    });
+
+    combinedItems.sort((a, b) => a.rawDate.localeCompare(b.rawDate));
+
+    if (combinedItems.length === 0) {
+      alert("Tidak ada transaksi arus kas yang sesuai dengan filter yang dipilih.");
+      return;
+    }
+
+    const totalPemasukan = combinedItems.filter(i => i.type === 'PEMASUKAN').reduce((sum, i) => sum + i.amount, 0);
+    const totalPengeluaran = combinedItems.filter(i => i.type === 'PENGELUARAN').reduce((sum, i) => sum + i.amount, 0);
+    const saldoBersih = totalPemasukan - totalPengeluaran;
+
+    // Sheet 1: Laporan Arus Kas
+    let runningBalance = 0;
+    const arusKasTable = combinedItems.map((item, idx) => {
+      if (item.type === 'PEMASUKAN') {
+        runningBalance += item.amount;
+      } else {
+        runningBalance -= item.amount;
+      }
+
+      return {
+        "No": idx + 1,
+        "Tanggal": item.date,
+        "Sumber Data": item.source,
+        "Tipe": item.type,
+        "Kategori": item.category,
+        "Deskripsi / Keterangan": item.description,
+        "Pemasukan (Rp)": item.type === 'PEMASUKAN' ? item.amount : 0,
+        "Pengeluaran (Rp)": item.type === 'PENGELUARAN' ? item.amount : 0,
+        "Saldo Kumulatif (Rp)": runningBalance
+      };
+    });
+
+    // Sheet 2: Ringkasan Arus Kas
+    const ringkasanData = [
+      { "Parameter Laporan": "Judul Laporan", "Nilai / Details": "LAPORAN ARUS KAS KEUANGAN" },
+      { "Parameter Laporan": "Tanggal Export", "Nilai / Details": new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) },
+      { "Parameter Laporan": "Periode Filter", "Nilai / Details": `${filterDateStart || 'Awal'} s/d ${filterDateEnd || 'Terakhir'}` },
+      { "Parameter Laporan": "Total Item Transaksi", "Nilai / Details": `${combinedItems.length} Transaksi` },
+      { "Parameter Laporan": "Total Pemasukan Iuran", "Nilai / Details": `Rp ${incomeFromIuran.toLocaleString('id-ID')}` },
+      { "Parameter Laporan": "Total Pemasukan Manual", "Nilai / Details": `Rp ${incomeManual.toLocaleString('id-ID')}` },
+      { "Parameter Laporan": "TOTAL PEMASUKAN", "Nilai / Details": `Rp ${totalPemasukan.toLocaleString('id-ID')}` },
+      { "Parameter Laporan": "TOTAL PENGELUARAN", "Nilai / Details": `Rp ${totalPengeluaran.toLocaleString('id-ID')}` },
+      { "Parameter Laporan": "SALDO AKHIR BERSIH", "Nilai / Details": `Rp ${saldoBersih.toLocaleString('id-ID')}` }
+    ];
+
+    const wb = XLSX.utils.book_new();
+
+    const wsArusKas = XLSX.utils.json_to_sheet(arusKasTable);
+    const wsSummary = XLSX.utils.json_to_sheet(ringkasanData);
+
+    const autoFitCols = (ws: any, data: any[]) => {
+      if (!data || data.length === 0) return;
+      const colWidths = Object.keys(data[0]).map(key => {
+        let maxLen = key.length;
+        data.forEach(row => {
+          const val = String(row[key] ?? '');
+          if (val.length > maxLen) maxLen = val.length;
+        });
+        return { wch: Math.max(maxLen + 4, 12) };
+      });
+      ws['!cols'] = colWidths;
+    };
+
+    autoFitCols(wsArusKas, arusKasTable);
+    autoFitCols(wsSummary, ringkasanData);
+
+    XLSX.utils.book_append_sheet(wb, wsArusKas, "Laporan Arus Kas");
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan Laporan");
+
+    XLSX.writeFile(wb, `Laporan_Arus_Kas_Keuangan_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // Calculate Totals
   const incomeFromIuran = payments.filter(p => 
     p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan'
@@ -84,6 +231,24 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
   const totalIncome = incomeFromIuran + incomeManual;
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   const balance = totalIncome - totalExpense;
+
+  const displayTransactions = transactions.filter(t => {
+    let match = true;
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      match = match && ((t.description || '').toLowerCase().includes(s) || (t.category || '').toLowerCase().includes(s));
+    }
+    if (filterType !== 'all') {
+      match = match && t.type === filterType;
+    }
+    if (filterDateStart) {
+      match = match && t.date >= filterDateStart;
+    }
+    if (filterDateEnd) {
+      match = match && t.date <= filterDateEnd;
+    }
+    return match;
+  });
 
   const chartData = [
     { name: 'Pemasukan (Iuran)', value: incomeFromIuran },
@@ -152,12 +317,72 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
                 <h4 className="text-xl font-black text-slate-900 tracking-tight">Arus Kas Transaksi</h4>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Laporan Transaksi Masuk & Keluar</p>
               </div>
-              <button 
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-slate-900 transition-all active:scale-95"
+              <div className="flex flex-wrap items-center gap-3">
+                <button 
+                  onClick={handleExportArusKasExcel}
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95"
+                >
+                  <Download size={16} /> Export Excel
+                </button>
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-slate-900 transition-all active:scale-95"
+                >
+                  <Plus size={16} /> Tambah Transaksi
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="p-6 bg-slate-50/50 border-b border-slate-50 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Cari transaksi / deskripsi..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                />
+              </div>
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm text-slate-600"
               >
-                <Plus size={16} /> Tambah Transaksi
-              </button>
+                <option value="all">Semua Tipe</option>
+                <option value="income">Pemasukan Only</option>
+                <option value="expense">Pengeluaran Only</option>
+              </select>
+              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm text-xs font-bold text-slate-600">
+                <span className="text-[10px] text-slate-400 font-black uppercase">Tgl:</span>
+                <input 
+                  type="date" 
+                  value={filterDateStart} 
+                  onChange={(e) => setFilterDateStart(e.target.value)}
+                  className="outline-none bg-transparent text-[11px]"
+                />
+                <span className="text-slate-400">-</span>
+                <input 
+                  type="date" 
+                  value={filterDateEnd} 
+                  onChange={(e) => setFilterDateEnd(e.target.value)}
+                  className="outline-none bg-transparent text-[11px]"
+                />
+              </div>
+              {(searchTerm || filterType !== 'all' || filterDateStart || filterDateEnd) && (
+                <button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterType('all');
+                    setFilterDateStart('');
+                    setFilterDateEnd('');
+                  }}
+                  className="px-3 py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all"
+                >
+                  Reset
+                </button>
+              )}
             </div>
 
             <div className="overflow-x-auto">
@@ -172,17 +397,17 @@ export default function FinanceArusTab({ payments, allUsers, user }: FinanceArus
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {transactions.length === 0 ? (
+                  {displayTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-8 py-20 text-center text-slate-300">
                         <div className="flex flex-col items-center gap-2 opacity-30">
                           <FileText size={48} />
-                          <p className="font-black text-[10px] uppercase tracking-widest">Belum ada transaksi manual</p>
+                          <p className="font-black text-[10px] uppercase tracking-widest">Tidak ada transaksi ditemukan</p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((t) => (
+                    displayTransactions.map((t) => (
                       <tr key={t.id} className="hover:bg-slate-50 transition-all group">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">

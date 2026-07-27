@@ -79,6 +79,8 @@ export default function DashboardGuru() {
 
   // Camera States
   const [showCamera, setShowCamera] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir'); // Hadir, Sakit, Izin, TK
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -667,29 +669,6 @@ export default function DashboardGuru() {
     printWindow.document.close();
   };
 
-  const startCamera = async () => {
-    setShowCamera(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      alert("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
-      setShowCamera(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-    }
-    setShowCamera(false);
-  };
-
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -754,74 +733,151 @@ export default function DashboardGuru() {
     }
   };
 
-  const handleAttendance = async () => {
-    if (!navigator.geolocation && attendanceStatus === 'Hadir') {
-      alert('Geolocation tidak didukung oleh browser Anda.');
+  const startCamera = async () => {
+    setShowCamera(true);
+    setCapturedPhoto(null);
+    setIsSubmittingAttendance(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+      setShowCamera(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    setShowCamera(false);
+    setCapturedPhoto(null);
+    setIsSubmittingAttendance(false);
+  };
+
+  const takePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    // Scale down resolution for ultra fast capture & light payload (~40KB)
+    const maxDim = 800;
+    let w = video.videoWidth || 640;
+    let h = video.videoHeight || 480;
+    if (w > h) {
+      if (w > maxDim) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      }
+    } else {
+      if (h > maxDim) {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Mirror horizontal for natural selfie view
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, w, h);
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      setCapturedPhoto(photoDataUrl);
+
+      // Stop camera stream tracks while user reviews photo
+      if (video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
+  };
+
+  const retakePhoto = async () => {
+    setCapturedPhoto(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error restarting camera:", err);
+    }
+  };
+
+  const handleConfirmAttendance = async () => {
+    if (attendanceStatus === 'Hadir' && !capturedPhoto) {
+      alert('Silakan ambil foto presensi terlebih dahulu.');
       return;
     }
 
-    if (!videoRef.current || !canvasRef.current) return;
+    if (isSubmittingAttendance) return;
+    setIsSubmittingAttendance(true);
 
-    const context = canvasRef.current.getContext('2d');
-    if (context) {
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
+    const today = new Date().toISOString().split('T')[0];
+    const path = 'attendance';
+
+    try {
+      // Check if already attended today
+      const q = query(
+        collection(db, path), 
+        where('studentId', '==', user.uid), 
+        where('date', '==', today)
+      );
+      const querySnapshot = await getDocs(q);
       
-      // Mirror the context
-      context.translate(canvasRef.current.width, 0);
-      context.scale(-1, 1);
-      
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      const photoDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.6);
+      if (!querySnapshot.empty) {
+        alert('Anda sudah melakukan absensi hari ini.');
+        stopCamera();
+        return;
+      }
 
-      const today = new Date().toISOString().split('T')[0];
-      const path = 'attendance';
-
-      const saveAttendance = async (location: any = null) => {
+      const saveRecord = async (location: any = null) => {
         try {
-          // Check if already attended today
-          const q = query(
-            collection(db, path), 
-            where('studentId', '==', user.uid), 
-            where('date', '==', today)
-          );
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            alert('Anda sudah melakukan absensi hari ini.');
-            stopCamera();
-            return;
-          }
-
           await addDoc(collection(db, path), {
             studentId: user.uid,
-            studentName: user.displayName || editName,
+            studentName: user.displayName || editName || 'Guru',
             date: today,
             timestamp: serverTimestamp(),
             status: attendanceStatus,
             location: location,
-            photo: attendanceStatus === 'Hadir' ? photoDataUrl : null
+            photo: attendanceStatus === 'Hadir' ? capturedPhoto : null
           });
           alert('Absensi berhasil dicatat!');
           stopCamera();
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, path);
+        } finally {
+          setIsSubmittingAttendance(false);
         }
       };
 
-      if (attendanceStatus === 'Hadir') {
+      if (attendanceStatus === 'Hadir' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;
-            await saveAttendance({ latitude, longitude });
+            await saveRecord({ latitude, longitude });
           }, 
-          (error) => {
-            alert('Gagal mendapatkan lokasi: ' + error.message);
-          }
+          async (error) => {
+            console.warn('Geolocation error:', error.message);
+            await saveRecord(null);
+          },
+          { timeout: 5000 }
         );
       } else {
-        await saveAttendance();
+        await saveRecord(null);
       }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, path);
+      setIsSubmittingAttendance(false);
     }
   };
 
@@ -3329,31 +3385,123 @@ export default function DashboardGuru() {
 
         {/* Camera Modal */}
         {showCamera && (
-          <div className="fixed inset-0 bg-black z-[200] flex flex-col">
-            <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-              <div className="absolute top-10 left-0 right-0 flex justify-center p-4">
-                <div className="bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/30 text-white font-bold text-sm">
-                  Status: {attendanceStatus}
+          <div className="fixed inset-0 bg-white md:bg-black/60 md:backdrop-blur-md z-[300] flex flex-col items-center justify-center">
+            <div className="bg-white w-full h-full md:h-auto md:max-w-xl md:rounded-[40px] shadow-2xl flex flex-col relative overflow-hidden">
+              <div className="p-6 flex justify-between items-center border-b border-gray-100 shrink-0">
+                <div>
+                  <h3 className="font-display font-bold text-xl text-gray-800 uppercase tracking-tight">Presensi Guru & Staf</h3>
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mt-0.5">Status: {attendanceStatus}</p>
                 </div>
+                <button onClick={stopCamera} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"><X size={24} /></button>
+              </div>
+
+              <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest text-center">Pilih Status Kehadiran</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['Hadir', 'Sakit', 'Izin', 'Alpha'].map((status) => (
+                      <button 
+                        key={status}
+                        onClick={() => {
+                          setAttendanceStatus(status);
+                          if (status !== 'Hadir') setCapturedPhoto(null);
+                        }}
+                        className={`py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${attendanceStatus === status ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                      >
+                        {status === 'Alpha' ? 'Tanpa Keterangan' : status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {attendanceStatus === 'Hadir' && (
+                  <div className="space-y-4">
+                    <div className="relative aspect-video bg-slate-900 rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
+                      {!capturedPhoto ? (
+                        <>
+                          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Kamera Live
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <img src={capturedPhoto} alt="Hasil Foto Absen" className="w-full h-full object-cover" />
+                          <div className="absolute top-3 left-3 bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-md">
+                            <CheckCircle size={12} /> Hasil Foto Dikonfirmasi
+                          </div>
+                        </>
+                      )}
+                      <canvas ref={canvasRef} className="hidden" />
+                      <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-[32px]"></div>
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold text-center uppercase tracking-wider">
+                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Periksa foto Anda. Jika sudah oke, klik "OK, Kirim Presensi"'}
+                    </p>
+                  </div>
+                )}
+
+                {attendanceStatus !== 'Hadir' && (
+                  <div className="py-10 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+                      <CheckCircle size={36} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-800 text-sm">Status: {attendanceStatus === 'Alpha' ? 'Tanpa Keterangan' : attendanceStatus}</h4>
+                      <p className="text-xs text-gray-500 max-w-xs mt-1">Anda mencatat kehadiran sebagai {attendanceStatus}. Klik Simpan untuk konfirmasi.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 bg-gray-50 border-t border-gray-100 shrink-0">
+                {attendanceStatus === 'Hadir' ? (
+                  !capturedPhoto ? (
+                    <button 
+                      onClick={takePhoto}
+                      className="bg-indigo-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2"
+                    >
+                      <Camera size={18} /> Ambil Foto
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={retakePhoto}
+                        disabled={isSubmittingAttendance}
+                        className="bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw size={16} /> Foto Ulang
+                      </button>
+                      <button 
+                        onClick={handleConfirmAttendance}
+                        disabled={isSubmittingAttendance}
+                        className="bg-emerald-600 text-white py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {isSubmittingAttendance ? (
+                          <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
+                        ) : (
+                          <><CheckCircle size={16} /> OK, Kirim Presensi</>
+                        )}
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <button 
+                    onClick={handleConfirmAttendance}
+                    disabled={isSubmittingAttendance}
+                    className="bg-indigo-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmittingAttendance ? (
+                      <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
+                    ) : (
+                      <><Save size={18} /> Simpan Presensi</>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
-            <canvas ref={canvasRef} className="hidden" />
-            <div className="bg-white p-10 rounded-t-[40px] flex flex-col items-center gap-8 shadow-[0_-10px_50px_rgba(0,0,0,0.3)]">
-              <div className="w-16 h-1.5 bg-gray-100 rounded-full"></div>
-              <div className="flex items-center gap-12">
-                <button onClick={stopCamera} className="w-14 h-14 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center">
-                  <X size={24} />
-                </button>
-                <button onClick={handleAttendance} className="w-24 h-24 bg-blue-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-blue-200 border-8 border-blue-50 active:scale-90 transition-all">
-                  <Camera size={40} />
-                </button>
-                <div className="w-14 h-14"></div>
-              </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal Guru RA Darusyifa Arjawinangun</p>
-            </div>
-            </div>
-          )}
+          </div>
+        )}
         </div>
       </main>
 

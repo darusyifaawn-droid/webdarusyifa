@@ -793,9 +793,13 @@ export default function DashboardSiswa() {
   }, [user]);
 
   const [showCamera, setShowCamera] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
 
   const startCamera = async () => {
     setShowCamera(true);
+    setCapturedPhoto(null);
+    setIsSubmittingAttendance(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       if (videoRef.current) {
@@ -815,19 +819,77 @@ export default function DashboardSiswa() {
       tracks.forEach(track => track.stop());
     }
     setShowCamera(false);
+    setCapturedPhoto(null);
+    setIsSubmittingAttendance(false);
   };
 
-  const handleAttendance = async () => {
-    if (attendanceStatus === 'Hadir' && !navigator.geolocation) {
-      alert('Geolocation tidak didukung oleh browser Anda.');
+  const takePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    // Scale down resolution for ultra fast capture & light payload (~40KB)
+    const maxDim = 800;
+    let w = video.videoWidth || 640;
+    let h = video.videoHeight || 480;
+    if (w > h) {
+      if (w > maxDim) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      }
+    } else {
+      if (h > maxDim) {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Mirror horizontal for natural selfie view
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, w, h);
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      setCapturedPhoto(photoDataUrl);
+
+      // Stop camera stream tracks while user reviews photo
+      if (video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
+  };
+
+  const retakePhoto = async () => {
+    setCapturedPhoto(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error restarting camera:", err);
+    }
+  };
+
+  const handleConfirmAttendance = async () => {
+    if (attendanceStatus === 'Hadir' && !capturedPhoto) {
+      alert('Silakan ambil foto presensi terlebih dahulu.');
       return;
     }
+
+    if (isSubmittingAttendance) return;
+    setIsSubmittingAttendance(true);
 
     const today = new Date().toISOString().split('T')[0];
     const path = 'attendance';
 
-    // Check if already attended today
     try {
+      // Check if already attended today
       const q = query(
         collection(db, path), 
         where('studentId', '==', user.uid), 
@@ -837,61 +899,47 @@ export default function DashboardSiswa() {
       
       if (!querySnapshot.empty) {
         alert('Anda sudah melakukan absensi hari ini.');
-        if (showCamera) stopCamera();
+        stopCamera();
         return;
       }
 
-      let lat = 0, long = 0;
-      let photoDataUrl = '';
-
-      if (attendanceStatus === 'Hadir') {
-        if (!videoRef.current || !canvasRef.current) return;
-        const context = canvasRef.current.getContext('2d');
-        if (context) {
-          canvasRef.current.width = videoRef.current.videoWidth;
-          canvasRef.current.height = videoRef.current.videoHeight;
-          
-          // Mirror the context
-          context.translate(canvasRef.current.width, 0);
-          context.scale(-1, 1);
-          
-          context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-          photoDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.6); // Compress captured photo
+      const saveRecord = async (lat: number, long: number) => {
+        try {
+          await addDoc(collection(db, 'attendance'), {
+            studentId: user.uid,
+            studentName: userData.name || user.displayName || 'Siswa',
+            date: today,
+            timestamp: serverTimestamp(),
+            status: attendanceStatus,
+            location: { latitude: lat, longitude: long },
+            photo: attendanceStatus === 'Hadir' ? capturedPhoto : ''
+          });
+          alert(`Absensi (${attendanceStatus}) berhasil dicatat!`);
+          stopCamera();
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, 'attendance');
+        } finally {
+          setIsSubmittingAttendance(false);
         }
+      };
 
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          lat = position.coords.latitude;
-          long = position.coords.longitude;
-          await submitAttendance(photoDataUrl, lat, long);
-        }, (err) => {
-          alert('Gagal mendapatkan lokasi: ' + err.message);
-        });
+      if (attendanceStatus === 'Hadir' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            await saveRecord(pos.coords.latitude, pos.coords.longitude);
+          },
+          async (err) => {
+            console.warn('Geolocation error/timeout:', err.message);
+            await saveRecord(0, 0);
+          },
+          { timeout: 5000 }
+        );
       } else {
-        await submitAttendance('', 0, 0);
+        await saveRecord(0, 0);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, path);
-    }
-  };
-
-  const submitAttendance = async (photo: string, lat: number, long: number) => {
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      await addDoc(collection(db, 'attendance'), {
-        studentId: user.uid,
-        studentName: userData.name,
-        date: today,
-        timestamp: serverTimestamp(),
-        status: attendanceStatus,
-        location: { latitude: lat, longitude: long },
-        photo: photo
-      });
-      alert(`Absensi (${attendanceStatus}) berhasil dicatat!`);
-      if (showCamera) stopCamera();
-      setShowCamera(false);
-      setAttendanceStatus('Hadir');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'attendance');
+      setIsSubmittingAttendance(false);
     }
   };
 
@@ -2752,12 +2800,28 @@ export default function DashboardSiswa() {
 
                 {attendanceStatus === 'Hadir' && (
                   <div className="space-y-4">
-                    <div className="relative aspect-video bg-gray-100 rounded-[32px] overflow-hidden border-2 border-gray-100 shadow-inner">
-                      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                    <div className="relative aspect-video bg-slate-900 rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
+                      {!capturedPhoto ? (
+                        <>
+                          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Kamera Live
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <img src={capturedPhoto} alt="Hasil Foto Absen" className="w-full h-full object-cover" />
+                          <div className="absolute top-3 left-3 bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-md">
+                            <CheckCircle size={12} /> Hasil Foto Dikonfirmasi
+                          </div>
+                        </>
+                      )}
                       <canvas ref={canvasRef} className="hidden" />
-                      <div className="absolute inset-0 border-2 border-white/20 pointer-events-none rounded-[32px]"></div>
+                      <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-[32px]"></div>
                     </div>
-                    <p className="text-[10px] text-gray-400 uppercase font-bold text-center">Pastikan wajah terlihat jelas di layar</p>
+                    <p className="text-[10px] text-gray-400 font-bold text-center uppercase tracking-wider">
+                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Periksa foto Anda. Jika sudah oke, klik "OK, Kirim Presensi"'}
+                    </p>
                   </div>
                 )}
 
@@ -2775,12 +2839,49 @@ export default function DashboardSiswa() {
               </div>
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 shrink-0">
-                <button 
-                  onClick={handleAttendance}
-                  className="bg-green-600 text-white w-full py-5 rounded-[24px] font-bold text-sm uppercase tracking-widest hover:bg-green-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-green-100 flex items-center justify-center gap-3"
-                >
-                  {attendanceStatus === 'Hadir' ? <><Camera size={20} /> Ambil Foto & Absen</> : <><Save size={20} /> Simpan Presensi</>}
-                </button>
+                {attendanceStatus === 'Hadir' ? (
+                  !capturedPhoto ? (
+                    <button 
+                      onClick={takePhoto}
+                      className="bg-emerald-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2"
+                    >
+                      <Camera size={18} /> Ambil Foto
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={retakePhoto}
+                        disabled={isSubmittingAttendance}
+                        className="bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw size={16} /> Foto Ulang
+                      </button>
+                      <button 
+                        onClick={handleConfirmAttendance}
+                        disabled={isSubmittingAttendance}
+                        className="bg-emerald-600 text-white py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {isSubmittingAttendance ? (
+                          <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
+                        ) : (
+                          <><CheckCircle size={16} /> OK, Kirim Presensi</>
+                        )}
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <button 
+                    onClick={handleConfirmAttendance}
+                    disabled={isSubmittingAttendance}
+                    className="bg-emerald-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmittingAttendance ? (
+                      <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
+                    ) : (
+                      <><Save size={18} /> Simpan Presensi</>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

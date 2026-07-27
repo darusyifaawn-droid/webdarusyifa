@@ -2228,51 +2228,129 @@ export default function DashboardAdmin() {
       return matchRole && matchKelas && matchStatus;
     });
 
-    const data: any[] = [];
+    if (filteredUsers.length === 0) {
+      alert("Tidak ada data pengguna yang sesuai dengan filter saat ini.");
+      return;
+    }
+
+    // 1. REKAP RINGKASAN PRESENSI (Per Siswa / User)
+    const summaryData = filteredUsers.map((user, idx) => {
+      const userAtts = filteredAttendance.filter(a => a.studentId === user.id);
+      
+      let hadir = 0;
+      let izin = 0;
+      let sakit = 0;
+      let alfa = 0;
+
+      for (const date of uniqueDates) {
+        const att = userAtts.find(a => a.date === date);
+        if (att) {
+          const st = String(att.status || 'HADIR').toLowerCase();
+          if (st.includes('sakit')) {
+            sakit++;
+          } else if (st.includes('izin') || st.includes('ijin')) {
+            izin++;
+          } else if (st.includes('alfa') || st.includes('alpha') || st.includes('tk')) {
+            alfa++;
+          } else {
+            hadir++;
+          }
+        } else {
+          alfa++;
+        }
+      }
+
+      const totalHari = uniqueDates.length;
+      const pct = totalHari > 0 ? `${Math.round((hadir / totalHari) * 100)}%` : '0%';
+
+      return {
+        "No": idx + 1,
+        "Nama Siswa / Pegawai": user.name,
+        "Peran": user.role === 'siswa' ? 'Siswa' : user.role === 'guru' ? 'Guru' : 'Admin',
+        "Kelas": user.kelas || '-',
+        "Jumlah Kehadiran (Hadir)": hadir,
+        "Izin": izin,
+        "Sakit": sakit,
+        "Alfa": alfa,
+        "Total Hari Periode": totalHari,
+        "Persentase Kehadiran (%)": pct
+      };
+    });
+
+    // 2. LOG DETAIL PRESENSI HARIAN
+    const detailData: any[] = [];
+    let detailNo = 1;
 
     for (const date of uniqueDates) {
       for (const user of filteredUsers) {
         const att = filteredAttendance.find(a => a.date === date && a.studentId === user.id);
         
-        let statusDisplay = 'ALPHA';
+        let statusDisplay = 'ALFA';
         if (att?.status) {
           if (Array.isArray(att.status)) {
-            statusDisplay = att.status.map(s => s.replace(/_/g, ' ')).join(', ').toUpperCase();
+            statusDisplay = att.status.map(s => String(s).replace(/_/g, ' ')).join(', ').toUpperCase();
           } else {
             statusDisplay = typeof att.status === 'string' ? att.status.replace(/_/g, ' ').toUpperCase() : 'HADIR';
           }
         } else if (att) {
-           statusDisplay = 'HADIR';
+          statusDisplay = 'HADIR';
         }
 
-        data.push({
-          Tanggal: date,
-          Nama: user.name,
-          Peran: user.role.toUpperCase(),
-          Kelas: user.kelas || '-',
-          Waktu: att?.timestamp ? new Date(att.timestamp.seconds * 1000).toLocaleTimeString() : '-',
-          Status: statusDisplay,
-          Keterangan_Gambar: att?.imageUrl ? 'Ada' : '-',
-          Lokasi: att?.location ? `Lat: ${att.location.latitude}, Lng: ${att.location.longitude}` : '-'
+        let timeStr = '-';
+        if (att?.timestamp) {
+          try {
+            if (att.timestamp.seconds) {
+              timeStr = new Date(att.timestamp.seconds * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            } else if (typeof att.timestamp === 'string') {
+              timeStr = att.timestamp;
+            }
+          } catch (e) {
+            timeStr = '-';
+          }
+        }
+
+        detailData.push({
+          "No": detailNo++,
+          "Tanggal": date,
+          "Nama": user.name,
+          "Peran": user.role === 'siswa' ? 'Siswa' : user.role === 'guru' ? 'Guru' : 'Admin',
+          "Kelas": user.kelas || '-',
+          "Jam Masuk": timeStr,
+          "Status Presensi": statusDisplay,
+          "Bukti Foto": att?.imageUrl ? 'Ada Foto' : '-',
+          "Lokasi GPS": att?.location ? `Lat: ${att.location.latitude}, Lng: ${att.location.longitude}` : '-'
         });
       }
     }
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    if(data.length > 0) {
-      const colWidths = Object.entries(data[0]).map(([k]) => ({ wch: k.length + 5 }));
-      data.forEach(row => {
-          Object.values(row).forEach((v, i) => {
-              if (String(v).length + 5 > colWidths[i].wch) colWidths[i].wch = String(v).length + 5;
-          });
+    const wb = XLSX.utils.book_new();
+
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    const wsDetail = XLSX.utils.json_to_sheet(detailData);
+
+    // Auto Column Widths Calculation helper
+    const autoFitCols = (ws: any, data: any[]) => {
+      if (!data || data.length === 0) return;
+      const colWidths = Object.keys(data[0]).map(key => {
+        let maxLen = key.length;
+        data.forEach(row => {
+          const val = String(row[key] ?? '');
+          if (val.length > maxLen) maxLen = val.length;
+        });
+        return { wch: Math.max(maxLen + 4, 10) };
       });
       ws['!cols'] = colWidths;
-    }
+    };
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Absensi Lengkap");
-    const safeKelas = filterKelas ? `_Kelas_${filterKelas}` : '_Semua';
-    XLSX.writeFile(wb, `Data_Absensi${safeKelas}_${filterDateStart || 'Awal'}_SD_${filterDateEnd || 'Akhir'}.xlsx`);
+    autoFitCols(wsSummary, summaryData);
+    autoFitCols(wsDetail, detailData);
+
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Rekap Presensi");
+    XLSX.utils.book_append_sheet(wb, wsDetail, "Rincian Log Harian");
+
+    const safeKelas = filterKelas ? `_Kelas_${filterKelas.replace(/[^a-zA-Z0-9]/g, '_')}` : '_Semua';
+    const periodeStr = `${filterDateStart || 'Awal'}_SD_${filterDateEnd || 'Akhir'}`;
+    XLSX.writeFile(wb, `Rekap_Presensi${safeKelas}_${periodeStr}.xlsx`);
   };
 
   const exportFinanceToExcel = () => {
