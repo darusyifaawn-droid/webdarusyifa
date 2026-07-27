@@ -2775,22 +2775,25 @@ export default function DashboardSiswa() {
 
         {/* Attendance Modal */}
         {showCamera && (
-          <div className="fixed inset-0 bg-white md:bg-black/60 md:backdrop-blur-md z-[300] flex flex-col items-center justify-center">
-            <div className="bg-white w-full h-full md:h-auto md:max-w-xl md:rounded-[40px] shadow-2xl flex flex-col relative overflow-hidden">
-              <div className="p-6 flex justify-between items-center border-b border-gray-100 shrink-0">
-                <h3 className="font-display font-bold text-xl text-gray-800 uppercase tracking-tight">Presensi Harian</h3>
+          <div className="fixed inset-0 bg-white md:bg-black/60 md:backdrop-blur-md z-[300] flex flex-col items-center justify-center p-0 md:p-4">
+            <div className="bg-white w-full h-[100dvh] md:h-auto md:max-h-[92vh] md:max-w-xl md:rounded-[40px] shadow-2xl flex flex-col relative overflow-hidden">
+              <div className="p-4 sm:p-6 flex justify-between items-center border-b border-gray-100 shrink-0">
+                <h3 className="font-display font-bold text-lg sm:text-xl text-gray-800 uppercase tracking-tight">Presensi Harian Siswa</h3>
                 <button onClick={stopCamera} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"><X size={24} /></button>
               </div>
 
-              <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 flex-1 overflow-y-auto">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest text-center">Pilih Status Kehadiran</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 sm:mb-3 tracking-widest text-center">Pilih Status Kehadiran</label>
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     {['Hadir', 'Sakit', 'Izin', 'Alpha'].map((status) => (
                       <button 
                         key={status}
-                        onClick={() => setAttendanceStatus(status)}
-                        className={`py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${attendanceStatus === status ? 'bg-green-600 text-white shadow-lg shadow-green-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                        onClick={() => {
+                          setAttendanceStatus(status);
+                          if (status !== 'Hadir') setCapturedPhoto(null);
+                        }}
+                        className={`py-2.5 sm:py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${attendanceStatus === status ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
                       >
                         {status === 'Alpha' ? 'Tanpa Keterangan' : status}
                       </button>
@@ -2799,67 +2802,76 @@ export default function DashboardSiswa() {
                 </div>
 
                 {attendanceStatus === 'Hadir' && (
-                  <div className="space-y-4">
-                    <div className="relative aspect-video bg-slate-900 rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="relative aspect-video max-h-[220px] sm:max-h-[300px] w-full bg-slate-900 rounded-2xl sm:rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
                       {!capturedPhoto ? (
                         <>
                           <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1.5">
+                          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1.5 z-10">
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Kamera Live
                           </div>
                         </>
                       ) : (
                         <>
                           <img src={capturedPhoto} alt="Hasil Foto Absen" className="w-full h-full object-cover" />
-                          <div className="absolute top-3 left-3 bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-md">
+                          <div className="absolute top-3 left-3 bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-md z-10">
                             <CheckCircle size={12} /> Hasil Foto Dikonfirmasi
                           </div>
                         </>
                       )}
                       <canvas ref={canvasRef} className="hidden" />
-                      <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-[32px]"></div>
+                      <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-2xl sm:rounded-[32px]"></div>
                     </div>
+
+                    {/* Button directly below camera preview */}
+                    {!capturedPhoto && (
+                      <button 
+                        type="button"
+                        onClick={takePhoto}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 sm:py-4 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-all border-2 border-emerald-500 my-1"
+                      >
+                        <Camera size={20} /> Ambil Foto Sekarang
+                      </button>
+                    )}
+
                     <p className="text-[10px] text-gray-400 font-bold text-center uppercase tracking-wider">
-                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Periksa foto Anda. Jika sudah oke, klik "OK, Kirim Presensi"'}
+                      {!capturedPhoto ? 'Pastikan wajah terlihat jelas di dalam bingkai' : 'Periksa foto Anda. Jika sudah oke, klik "OK, Kirim Presensi" di bawah'}
                     </p>
                   </div>
                 )}
 
                 {attendanceStatus !== 'Hadir' && (
-                  <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-600">
-                      <CheckCircle size={40} />
+                  <div className="py-6 sm:py-10 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                      <CheckCircle size={32} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-800">Status: {attendanceStatus === 'Alpha' ? 'Tanpa Keterangan' : attendanceStatus}</h4>
-                      <p className="text-sm text-gray-500 max-w-xs mt-2">Anda menandai diri sebagai {attendanceStatus}. Silakan klik tombol di bawah untuk kirim.</p>
+                      <h4 className="font-bold text-gray-800 text-sm">Status: {attendanceStatus === 'Alpha' ? 'Tanpa Keterangan' : attendanceStatus}</h4>
+                      <p className="text-xs text-gray-500 max-w-xs mt-1">Anda mencatat kehadiran sebagai {attendanceStatus}. Klik Simpan untuk konfirmasi.</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 shrink-0">
+              <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0 sticky bottom-0 z-30">
                 {attendanceStatus === 'Hadir' ? (
                   !capturedPhoto ? (
-                    <button 
-                      onClick={takePhoto}
-                      className="bg-emerald-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2"
-                    >
-                      <Camera size={18} /> Ambil Foto
-                    </button>
+                    <p className="text-center text-[11px] font-bold text-gray-400 uppercase tracking-wider py-1">
+                      Klik tombol hijau di atas untuk mengambil foto
+                    </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <button 
                         onClick={retakePhoto}
                         disabled={isSubmittingAttendance}
-                        className="bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        className="bg-white border-2 border-slate-200 text-slate-700 py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                       >
                         <RefreshCw size={16} /> Foto Ulang
                       </button>
                       <button 
                         onClick={handleConfirmAttendance}
                         disabled={isSubmittingAttendance}
-                        className="bg-emerald-600 text-white py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="bg-emerald-600 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {isSubmittingAttendance ? (
                           <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
@@ -2873,7 +2885,7 @@ export default function DashboardSiswa() {
                   <button 
                     onClick={handleConfirmAttendance}
                     disabled={isSubmittingAttendance}
-                    className="bg-emerald-600 text-white w-full py-4 rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="bg-emerald-600 text-white w-full py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isSubmittingAttendance ? (
                       <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
