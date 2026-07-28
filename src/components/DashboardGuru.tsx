@@ -761,43 +761,50 @@ export default function DashboardGuru() {
   };
 
   const takePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    // Scale down resolution for ultra fast capture & light payload (~40KB)
-    const maxDim = 800;
-    let w = video.videoWidth || 640;
-    let h = video.videoHeight || 480;
-    if (w > h) {
-      if (w > maxDim) {
-        h = Math.round((h * maxDim) / w);
-        w = maxDim;
+    try {
+      if (!videoRef.current || !canvasRef.current) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      // Scale down resolution for ultra fast capture & light payload (~40KB)
+      const maxDim = 800;
+      let w = video.videoWidth || 640;
+      let h = video.videoHeight || 480;
+      if (w > h) {
+        if (w > maxDim) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        }
+      } else {
+        if (h > maxDim) {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
       }
-    } else {
-      if (h > maxDim) {
-        w = Math.round((w * maxDim) / h);
-        h = maxDim;
+
+      canvas.width = w;
+      canvas.height = h;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Mirror horizontal for natural selfie view
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, w, h);
+        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+        // Safely stop stream and clear srcObject before updating state
+        if (video.srcObject) {
+          const stream = video.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+        }
+
+        setCapturedPhoto(photoDataUrl);
       }
-    }
-
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      // Mirror horizontal for natural selfie view
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, 0, 0, w, h);
-      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      setCapturedPhoto(photoDataUrl);
-
-      // Stop camera stream tracks while user reviews photo
-      if (video.srcObject) {
-        const stream = video.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
+    } catch (err) {
+      console.error("Error taking photo:", err);
+      alert("Terjadi kesalahan saat mengambil foto. Silakan coba lagi.");
     }
   };
 
@@ -3415,22 +3422,22 @@ export default function DashboardGuru() {
                 </div>
 
                 {attendanceStatus === 'Hadir' && (
-                  <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-3 sm:space-y-4 notranslate" translate="no">
                     <div className="relative aspect-video max-h-[220px] sm:max-h-[300px] w-full bg-slate-900 rounded-2xl sm:rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
                       {!capturedPhoto ? (
-                        <>
+                        <div key="live-video-box-guru" className="w-full h-full relative flex items-center justify-center">
                           <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                           <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1.5 z-10">
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Kamera Live
                           </div>
-                        </>
+                        </div>
                       ) : (
-                        <>
+                        <div key="captured-photo-box-guru" className="w-full h-full relative flex items-center justify-center">
                           <img src={capturedPhoto} alt="Hasil Foto Absen" className="w-full h-full object-cover" />
                           <div className="absolute top-3 left-3 bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-md z-10">
                             <CheckCircle size={12} /> Hasil Foto Dikonfirmasi
                           </div>
-                        </>
+                        </div>
                       )}
                       <canvas ref={canvasRef} className="hidden" />
                       <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-2xl sm:rounded-[32px]"></div>
@@ -3439,6 +3446,7 @@ export default function DashboardGuru() {
                     {/* Action Buttons directly below camera / photo preview */}
                     {!capturedPhoto ? (
                       <button 
+                        key="btn-take-photo-guru"
                         type="button"
                         onClick={takePhoto}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 sm:py-4 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-all border-2 border-emerald-500 my-1"
@@ -3446,7 +3454,7 @@ export default function DashboardGuru() {
                         <Camera size={20} /> Ambil Foto Sekarang
                       </button>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3 my-1">
+                      <div key="btn-confirm-group-guru" className="grid grid-cols-2 gap-3 my-1">
                         <button 
                           onClick={retakePhoto}
                           disabled={isSubmittingAttendance}
