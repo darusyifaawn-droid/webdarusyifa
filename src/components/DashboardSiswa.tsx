@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import DriveJuknisModal from './DriveJuknisModal';
 import KaldikIframe from './KaldikIframe';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
@@ -77,6 +78,8 @@ export default function DashboardSiswa() {
   
   // Setoran Modal State
   const [showSetoranModal, setShowSetoranModal] = useState(false);
+  const [showDriveJuknisModal, setShowDriveJuknisModal] = useState(false);
+  const [showJuknisDriveModal, setShowJuknisDriveModal] = useState(false);
   const [activeMaterialForSetoran, setActiveMaterialForSetoran] = useState<any>(null);
   const [setoranLink, setSetoranLink] = useState('');
   const [setoranFileBase64, setSetoranFileBase64] = useState('');
@@ -1577,12 +1580,20 @@ export default function DashboardSiswa() {
                   <h3 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">Modul Hafalan</h3>
                   <p className="text-sm text-gray-400 font-medium">Panduan dan progres hafalan surat, hadist, dan doa.</p>
                 </div>
-                <button
-                  onClick={handleExecutePrintRapotHafalan}
-                  className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
-                >
-                  <Printer size={20} /> Cetak Rapot Hafalan
-                </button>
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <button
+                    onClick={() => setShowJuknisDriveModal(true)}
+                    className="flex-1 sm:flex-none bg-emerald-50 text-emerald-800 border border-emerald-200 px-5 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all shadow-sm"
+                  >
+                    <BookOpen size={18} className="text-emerald-600" /> Juknis Setoran Drive
+                  </button>
+                  <button
+                    onClick={handleExecutePrintRapotHafalan}
+                    className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-100"
+                  >
+                    <Printer size={18} /> Cetak Rapot
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {userData?.kelas?.toLowerCase().includes('utsman') && (
@@ -2564,17 +2575,66 @@ export default function DashboardSiswa() {
                 )}
 
                 {submissionMethod === 'Google Drive' && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Link Google Drive / YouTube</label>
-                    <input 
-                      type="url" 
-                      value={setoranLink}
-                      onChange={(e) => setSetoranLink(e.target.value)}
-                      placeholder="Contoh: https://drive.google.com/..."
-                      className="w-full p-5 bg-gray-50 border border-gray-100 rounded-[24px] outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 font-bold text-gray-800 placeholder-gray-300 transition-all"
-                      required
-                    />
-                    <p className="text-[10px] text-gray-400 mt-3 font-bold px-1 leading-relaxed">Gunakan opsi ini untuk file besar (video/audio). Pastikan link sudah di-set "Public/Everyone with link".</p>
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Link Google Drive / YouTube</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowJuknisDriveModal(true)}
+                          className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 transition-colors"
+                        >
+                          <BookOpen size={12} /> Lihat Juknis
+                        </button>
+                      </div>
+                      <input 
+                        type="url" 
+                        value={setoranLink}
+                        onChange={(e) => setSetoranLink(e.target.value)}
+                        placeholder="Contoh: https://drive.google.com/file/d/..."
+                        className="w-full p-4 bg-gray-50 border border-gray-100 rounded-[20px] outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 font-bold text-gray-800 placeholder-gray-300 transition-all text-sm"
+                        required
+                      />
+                    </div>
+
+                    {/* Ringkasan Juknis Drive */}
+                    <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-4 text-xs space-y-2.5 shadow-2xs">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-emerald-200/60">
+                        <span className="font-black text-emerald-900 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                          <BookOpen size={14} className="text-emerald-600" /> Juknis Ringkas Setoran Drive
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowJuknisDriveModal(true)}
+                          className="text-[10px] font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                        >
+                          Panduan Detail &rarr;
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 text-[11px] text-gray-700 leading-snug">
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                          <p><strong>Buat Folder:</strong> Buka Drive &rarr; Klik <span className="bg-emerald-100 text-emerald-800 font-bold px-1 rounded text-[10px]">+ Baru</span> &rarr; Folder Baru <em>(misal: Setoran Hafalan - Nama)</em>.</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                          <p><strong>Upload Video:</strong> Masuk ke folder &rarr; Upload video/audio hafalan dari Galeri HP.</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                          <p><strong>Atur Akses Editor:</strong> Klik titik tiga (<strong>⋮</strong>) &rarr; <span className="bg-amber-100 text-amber-900 font-bold px-1 rounded text-[10px]">Kelola Akses</span> &rarr; Ubah ke <strong className="text-emerald-800">"Siapa saja yang memiliki link"</strong> dengan peran <strong className="text-emerald-800">Editor / Pengakses Lihat</strong>.</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                          <p><strong>Salin Link:</strong> Klik <strong>Salin Link (Copy Link)</strong> file/folder Drive.</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shrink-0 mt-0.5">5</span>
+                          <p><strong>Tempel & Share:</strong> Paste link pada kolom di atas &rarr; Klik <strong className="text-green-700">Konfirmasi Setoran</strong>.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -2596,6 +2656,102 @@ export default function DashboardSiswa() {
                   {isSetoranSubmitting ? 'Mengirim...' : 'Konfirmasi Setoran'}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Juknis Google Drive Full Modal */}
+        {showJuknisDriveModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[350] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-[32px] p-6 md:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              <button 
+                onClick={() => setShowJuknisDriveModal(false)} 
+                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4 pr-10">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-bold shadow-sm shrink-0">
+                  <BookOpen size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg md:text-xl text-gray-800 tracking-tight">Petunjuk Teknis (Juknis)</h3>
+                  <p className="text-xs text-gray-500 font-medium">Unggah & Setoran via Google Drive</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-xs text-emerald-900 leading-relaxed font-medium mb-6">
+                💡 <strong>Mengapa Google Drive?</strong> Menggunakan link Google Drive memungkinkan Anda mengirim video hafalan berdurasi panjang dengan kualitas video jernih tanpa kendala batasan ukuran file.
+              </div>
+
+              <div className="space-y-4 mb-6">
+                {/* Langkah 1 */}
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">1</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Buat Folder di Google Drive</h4>
+                  </div>
+                  <p className="text-xs text-gray-600 pl-8 leading-relaxed">
+                    Buka aplikasi <strong>Google Drive</strong> di HP/Laptop &rarr; Klik tombol <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">+ Baru</span> &rarr; Pilih <strong>Folder Baru</strong> &rarr; Beri nama misal: <span className="text-emerald-700 font-bold">Setoran Hafalan - [Nama Siswa]</span>.
+                  </p>
+                </div>
+
+                {/* Langkah 2 */}
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Upload Video / Rekaman Hafalan</h4>
+                  </div>
+                  <p className="text-xs text-gray-600 pl-8 leading-relaxed">
+                    Buka folder yang telah Anda buat &rarr; Klik <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">+ Baru / Upload</span> &rarr; Pilih video atau audio rekaman hafalan ananda dari Galeri HP. Tunggu hingga proses pengunggahan selesai.
+                  </p>
+                </div>
+
+                {/* Langkah 3 */}
+                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-600 text-white font-black text-xs flex items-center justify-center shrink-0">3</span>
+                      <h4 className="font-bold text-amber-900 text-sm">Atur Akses Berbagi (Beri Akses Editor / Public)</h4>
+                    </div>
+                    <span className="bg-amber-200 text-amber-950 font-black text-[9px] uppercase px-2 py-0.5 rounded-full shrink-0">Langkah Penting</span>
+                  </div>
+                  <p className="text-xs text-amber-800/90 pl-8 leading-relaxed">
+                    Klik ikon titik tiga (<strong>⋮</strong>) pada file video atau folder &rarr; Pilih <strong>Kelola Akses / Share</strong> &rarr; Ubah Akses Umum dari <em>Dibatasi</em> menjadi <strong className="text-amber-950 underline">"Siapa saja yang memiliki link"</strong> (Anyone with the link) &rarr; Atur peran sebagai <strong className="text-amber-950">Editor / Pengakses Lihat</strong> agar Guru dapat membuka dan memberikan nilai.
+                  </p>
+                </div>
+
+                {/* Langkah 4 */}
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">4</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Salin Link Google Drive</h4>
+                  </div>
+                  <p className="text-xs text-gray-600 pl-8 leading-relaxed">
+                    Klik tombol <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Salin Link (Copy Link)</span> pada Google Drive. Link kini otomatis tersimpan di papan klip (clipboard) HP/perangkat Anda.
+                  </p>
+                </div>
+
+                {/* Langkah 5 */}
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">5</span>
+                    <h4 className="font-bold text-gray-800 text-sm">Tempel Link di Portal & Share / Kirim</h4>
+                  </div>
+                  <p className="text-xs text-gray-600 pl-8 leading-relaxed">
+                    Kembali ke portal ini (pada opsi <strong>Link Drive</strong>) &rarr; <strong>Tempel (Paste)</strong> link pada kolom input &rarr; Klik tombol <strong className="text-green-700 uppercase">Konfirmasi Setoran</strong> untuk mengirimkan hafalan ke guru.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowJuknisDriveModal(false)}
+                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+              >
+                Saya Mengerti, Tutup Panduan
+              </button>
             </div>
           </div>
         )}
@@ -2911,6 +3067,9 @@ export default function DashboardSiswa() {
           </div>
         </div>
       )}
+
+      {/* Drive Juknis Modal */}
+      <DriveJuknisModal isOpen={showDriveJuknisModal || showJuknisDriveModal} onClose={() => { setShowDriveJuknisModal(false); setShowJuknisDriveModal(false); }} />
 
     </div>
   );

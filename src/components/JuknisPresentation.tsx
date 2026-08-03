@@ -4,8 +4,10 @@ import {
   ArrowLeft, ArrowRight, Play, Pause, RotateCcw, Printer, 
   LogIn, BookOpen, Star, CheckCircle, CreditCard, Bell, 
   User, Check, Phone, Laptop, Compass, Heart, Award, 
-  Calendar, Eye, HelpCircle, HelpCircle as QuestionIcon
+  Calendar, Eye, HelpCircle, HelpCircle as QuestionIcon,
+  Share2, Upload, FolderPlus, Link2, CheckCircle2
 } from 'lucide-react';
+import DriveJuknisModal from './DriveJuknisModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Slide {
@@ -16,7 +18,7 @@ interface Slide {
   icon: React.ReactNode;
   content: string[];
   tips?: string;
-  mockup: 'login' | 'dashboard' | 'hafalan' | 'progress' | 'absensi' | 'administrasi' | 'penutup';
+  mockup: 'login' | 'dashboard' | 'hafalan' | 'drive-juknis' | 'progress' | 'absensi' | 'administrasi' | 'penutup';
 }
 
 export default function JuknisPresentation() {
@@ -87,7 +89,23 @@ export default function JuknisPresentation() {
     },
     {
       id: 4,
-      title: "4. Laporan Hasil Belajar (Progress)",
+      title: "4. Juknis Setoran via Google Drive",
+      subtitle: "Petunjuk 5 langkah mudah mengunggah video/audio setoran ke Google Drive",
+      category: "JUKNIS DRIVE",
+      icon: <Share2 className="text-emerald-600 w-12 h-12" />,
+      content: [
+        "1. Buat Folder Drive: Buka Google Drive di HP/Laptop, buat folder khusus 'Setoran Hafalan Ananda'.",
+        "2. Upload Video Setoran: Rekam video hafalan ananda di rumah, lalu unggah file video ke Google Drive.",
+        "3. Berikan Akses Publik (PENTING): Tekan titik tiga (⋮) -> Bagikan (Share) -> Ubah 'Dibatasi' ke 'Siapa saja yang memiliki link' (Viewer/Editor).",
+        "4. Salin Link Drive: Tekan tombol 'Salin Link' (Copy Link).",
+        "5. Tempel di Portal: Masuk Portal -> Menu Hafalan -> Opsi Link Drive -> Tempel (Paste) link & Klik Konfirmasi Setoran."
+      ],
+      tips: "Pastikan status link diubah dari 'Dibatasi' ke 'Siapa saja yang memiliki link' agar Ustadz/Ustadzah dapat memutar video setoran.",
+      mockup: 'drive-juknis'
+    },
+    {
+      id: 5,
+      title: "5. Laporan Hasil Belajar (Progress)",
       subtitle: "Catatan perkembangan akademis, karakter, dan motorik anak",
       category: "LAPORAN BELAJAR",
       icon: <BookOpen className="text-emerald-600 w-12 h-12" />,
@@ -101,8 +119,8 @@ export default function JuknisPresentation() {
       mockup: 'progress'
     },
     {
-      id: 5,
-      title: "5. Memantau Riwayat Kehadiran (Absensi)",
+      id: 6,
+      title: "6. Memantau Riwayat Kehadiran (Absensi)",
       subtitle: "Memastikan kehadiran dan kedisiplinan belajar anak",
       category: "ABSENSI",
       icon: <CheckCircle className="text-emerald-600 w-12 h-12" />,
@@ -116,8 +134,8 @@ export default function JuknisPresentation() {
       mockup: 'absensi'
     },
     {
-      id: 6,
-      title: "6. Kemudahan Administrasi & Pembayaran",
+      id: 7,
+      title: "7. Kemudahan Administrasi & Pembayaran",
       subtitle: "Transparansi iuran bulanan, SPP, dan tabungan iuran sekolah",
       category: "KEUANGAN & ADMINISTRASI",
       icon: <CreditCard className="text-emerald-600 w-12 h-12" />,
@@ -299,6 +317,59 @@ export default function JuknisPresentation() {
                 <p className="text-[10px] text-gray-600 italic bg-amber-50 border border-amber-100 p-2 rounded-lg">
                   "Alhamdulillah Fauzan sudah lancar membaca surat An-Nas. Untuk Al-Falaq mohon dibimbing kembali pelafalan makhraj huruf 'Ain di rumah nggih Bunda."
                 </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'drive-juknis':
+        return (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-md w-full max-w-md mx-auto space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Share2 size={14} className="text-emerald-600" /> Alur Setoran Google Drive
+              </h4>
+              <span className="bg-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded-full font-extrabold">5 Step</span>
+            </div>
+            
+            <div className="space-y-2 text-[10px]">
+              <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[9px] flex-shrink-0">1</span>
+                <div>
+                  <span className="font-bold text-slate-800 block">Buat Folder Drive</span>
+                  <span className="text-slate-500">Buka Drive & buat folder setoran</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[9px] flex-shrink-0">2</span>
+                <div>
+                  <span className="font-bold text-slate-800 block">Upload Video Hafalan</span>
+                  <span className="text-slate-500">Unggah file video/audio ananda</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 p-2 rounded-xl flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-[9px] flex-shrink-0">3</span>
+                <div>
+                  <span className="font-bold text-amber-900 block">Atur Akses 'Siapa saja link'</span>
+                  <span className="text-amber-700 font-bold">Wajib di-set Publik (Viewer/Editor)</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[9px] flex-shrink-0">4</span>
+                <div>
+                  <span className="font-bold text-slate-800 block">Salin Link Drive</span>
+                  <span className="text-slate-500">Klik 'Copy Link' dari Drive</span>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 p-2 rounded-xl flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-[9px] flex-shrink-0">5</span>
+                <div>
+                  <span className="font-bold text-emerald-900 block">Tempel Link & Kirim</span>
+                  <span className="text-emerald-700">Paste di Portal & Konfirmasi</span>
+                </div>
               </div>
             </div>
           </div>
