@@ -3,7 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
-import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, ChevronRight, ArrowRight, Search, PlusCircle, History as HistoryIcon, ExternalLink, Sun, Moon } from 'lucide-react';
+import { Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, CheckCircle, Camera, TrendingUp, BookOpen, Clock, Printer, FileText, AlertCircle, RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, ChevronRight, ArrowRight, ArrowLeft, Search, PlusCircle, History as HistoryIcon, ExternalLink, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import ReactQuill from 'react-quill-new';
@@ -1494,20 +1494,25 @@ export default function DashboardAdmin() {
 
 
  const handleAddIuran = async (e: React.FormEvent) => {
- e.preventDefault();
- if (!financeIuranName || !financeAmount) {
- alert('Mohon isi nama iuran dan nominal.');
- return;
- }
- 
- if (financeIuranStudentIds.length === 0 && financeIuranTarget === 'specific') {
- alert('Mohon pilih minimal satu siswa.');
- return;
- }
+    e.preventDefault();
+    const selectedCategory = iuranCategories.find(c => c.id === selectedCategoryId);
+    const resolvedName = financeIuranName || selectedCategory?.name || '';
+    const resolvedAmount = Number(financeAmount || selectedCategory?.amount || selectedCategory?.nominal || 0);
 
- try {
- const amount = Number(financeAmount);
- let targetStudents = [];
+    if (!resolvedName || resolvedAmount <= 0) {
+      alert('Mohon pilih kategori iuran atau tentukan nama dan nominal iuran.');
+      return;
+    }
+    
+    if (financeIuranStudentIds.length === 0 && (financeIuranTarget === 'specific' || financeSubTab === 'penetapan')) {
+      alert('Mohon pilih minimal satu siswa.');
+      return;
+    }
+
+    try {
+      const amount = resolvedAmount;
+      const effectiveIuranName = resolvedName;
+      let targetStudents = [];
  const selectedCategory = iuranCategories.find(c => c.id === selectedCategoryId);
  
  // Fix: If in penetration tab, prioritize specific selected students
@@ -1536,7 +1541,7 @@ export default function DashboardAdmin() {
  const batchId = Date.now().toString();
 
  const newArrearDetailBase = {
- name: financeIuranName,
+ name: effectiveIuranName,
  category: categoryName,
  categoryId: selectedCategoryId || null,
  amount: amount,
@@ -4804,74 +4809,79 @@ export default function DashboardAdmin() {
               />
             ) : (
               <div className="space-y-6">
-                {/* Sub-tab Header & Back button */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setFinanceSubTab('dashboard')}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs flex items-center gap-2 transition-colors shadow-xs"
-                    >
-                      ← Kembali ke Dashboard Administrasi
-                    </button>
-                    <div className="hidden sm:block text-slate-300">|</div>
-                    <h3 className="text-base font-black text-slate-900 capitalize">
-                      {financeSubTab === 'grup' && 'Transaksi & Grup Iuran'}
-                      {financeSubTab === 'penetapan' && 'Penetapan & Penagihan Iuran'}
-                      {financeSubTab === 'validasi' && 'Validasi Pembayaran'}
-                      {financeSubTab === 'riwayat' && 'Arsip Log & Transaksi'}
-                      {financeSubTab === 'setelan' && 'Pengaturan Administrasi'}
-                      {financeSubTab === 'laporan' && 'Laporan Rekap Keuangan'}
-                    </h3>
+                {/* Sub-tab Header & Navigation */}
+                <div className="bg-white p-5 sm:p-6 rounded-[2.5rem] border border-slate-100 shadow-xs space-y-4">
+                  {/* Top Zone: Back button + Title & Context Badge + Quick Actions */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setFinanceSubTab('dashboard')}
+                        className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+                        title="Kembali ke Dashboard Utama Keuangan"
+                      >
+                        <ArrowLeft size={14} />
+                        <span>Dashboard</span>
+                      </button>
+                      <div className="h-5 w-px bg-slate-200" />
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
+                          {financeSubTab === 'grup' && 'Transaksi & Grup Iuran'}
+                          {financeSubTab === 'penetapan' && 'Penetapan & Penagihan Iuran'}
+                          {financeSubTab === 'validasi' && 'Validasi Pembayaran Siswa'}
+                          {financeSubTab === 'riwayat' && 'Arsip Log & Transaksi'}
+                          {financeSubTab === 'setelan' && 'Pengaturan Administrasi'}
+                          {financeSubTab === 'laporan' && 'Laporan Rekap Keuangan'}
+                        </h3>
+                        <p className="text-[11px] font-semibold text-slate-400">
+                          Portal Administrasi Keuangan RA Darusyifa
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start md:self-auto">
+                      <button
+                        onClick={exportFinanceToExcel}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-sm shadow-emerald-200 transition-all active:scale-95 cursor-pointer"
+                      >
+                        <Download size={14} />
+                        <span>Export Excel</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 overflow-x-auto scrolling-touch">
-                    <button
-                      onClick={() => setFinanceSubTab('dashboard')}
-                      className="px-3 py-2 rounded-xl text-xs font-bold transition-all text-slate-600 hover:bg-slate-50"
-                    >
-                      Dashboard
-                    </button>
-                    <button
-                      onClick={() => setFinanceSubTab('grup')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${financeSubTab === 'grup' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Transaksi & Grup
-                    </button>
-                    <button
-                      onClick={() => setFinanceSubTab('penetapan')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${financeSubTab === 'penetapan' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Penetapan Iuran
-                    </button>
-                    <button
-                      onClick={() => setFinanceSubTab('validasi')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all relative ${financeSubTab === 'validasi' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Validasi
-                      {payments.filter(p => p.status === 'pending').length > 0 && (
-                        <span className="ml-1.5 px-1.5 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full">
-                          {payments.filter(p => p.status === 'pending').length}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setFinanceSubTab('riwayat')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${financeSubTab === 'riwayat' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Arsip
-                    </button>
-                    <button
-                      onClick={() => setFinanceSubTab('setelan')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${financeSubTab === 'setelan' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Setelan
-                    </button>
-                    <button
-                      onClick={exportFinanceToExcel}
-                      className="px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-600 text-white hover:bg-emerald-500 transition-all flex items-center gap-1.5 shadow-xs"
-                    >
-                      <Download size={14} /> Export Excel
-                    </button>
+                  {/* Bottom Zone: Modern Segmented Tab Buttons */}
+                  <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200/60 rounded-2xl overflow-x-auto custom-scrollbar">
+                    {[
+                      { id: 'dashboard', label: 'Dashboard', icon: BarChart },
+                      { id: 'grup', label: 'Transaksi & Grup', icon: CreditCard },
+                      { id: 'penetapan', label: 'Penetapan Iuran', icon: PlusCircle },
+                      { id: 'validasi', label: 'Validasi', icon: CheckCircle, badge: payments.filter(p => p.status === 'pending').length },
+                      { id: 'riwayat', label: 'Arsip Transaksi', icon: HistoryIcon },
+                      { id: 'laporan', label: 'Laporan Rekap', icon: FileText },
+                      { id: 'setelan', label: 'Setelan', icon: Settings },
+                    ].map((tab) => {
+                      const isActive = financeSubTab === tab.id;
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setFinanceSubTab(tab.id as any)}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-white text-emerald-700 shadow-sm border border-slate-100 font-black'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
+                          }`}
+                        >
+                          <Icon size={14} className={isActive ? 'text-emerald-600' : 'text-slate-400'} />
+                          <span>{tab.label}</span>
+                          {tab.badge && tab.badge > 0 ? (
+                            <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full shadow-2xs">
+                              {tab.badge}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
