@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, MapPin, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy, ChevronRight, ChevronDown, Award, Coins, FileCheck, Sparkles, Wallet, Grid as GridIcon, ArrowRight } from 'lucide-react';
+import { Camera, MapPin, Search, Filter, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy, ChevronRight, ChevronDown, Award, Coins, FileCheck, Sparkles, Wallet, Grid as GridIcon, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import DriveJuknisModal from './DriveJuknisModal';
 import KaldikIframe from './KaldikIframe';
@@ -39,7 +39,9 @@ export default function DashboardSiswa() {
  const [kaldikData, setKaldikData] = useState<any[]>([]);
  const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
  const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
- const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
+ const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua');
+  const [searchHafalan, setSearchHafalan] = useState('');
+  const [filterProgressPeriod, setFilterProgressPeriod] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
  const [loading, setLoading] = useState(true);
  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'progress', 'hafalan', 'attendance', 'administration', 'announcements', 'profile', 'kaldik'
@@ -1847,6 +1849,485 @@ export default function DashboardSiswa() {
 
             </div>
           )}
+
+          
+          {activeTab === 'hafalan' && (
+            <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+              {/* Hero Header */}
+              <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-[32px] p-6 sm:p-8 text-white shadow-xl shadow-emerald-500/15 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider mb-2 border border-white/20">
+                      <Star size={13} className="text-amber-300 fill-amber-300" />
+                      <span>Tahfidz &amp; Materi Hafalan</span>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                      Modul &amp; Setoran Hafalan Siswa
+                    </h3>
+                    <p className="text-xs sm:text-sm text-emerald-100 font-medium mt-1">
+                      Surat pendek Juz 30, Hadits pilihan, Doa harian, dan Bacaan sholat RA Darusyifa.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button 
+                      onClick={handleExecutePrintRapotHafalan}
+                      className="px-4 py-2.5 bg-white text-emerald-700 rounded-2xl font-black text-xs flex items-center gap-2 shadow-md hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Printer size={14} />
+                      <span>Cetak Rapot Hafalan</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowJuknisDriveModal(true)}
+                      className="px-4 py-2.5 bg-emerald-800/60 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black text-xs flex items-center gap-2 hover:bg-emerald-800/80 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <BookOpen size={14} />
+                      <span>Panduan Setoran</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-slate-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Modul</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-slate-900">{hafalanMaterials.length}</span>
+                    <span className="text-[10px] font-bold text-slate-400">Materi</span>
+                  </div>
+                </div>
+                <div className="bg-emerald-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-emerald-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Mumtaz (Lulus)</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-700">
+                      {hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600">Selesai ⭐</span>
+                  </div>
+                </div>
+                <div className="bg-amber-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-amber-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">Menunggu Evaluasi</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-amber-700">
+                      {hafalanProgress.filter(h => h.isReadyForTest && h.status !== 'Mumtaz (Lulus)').length}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-600">Disetor ⏳</span>
+                  </div>
+                </div>
+                <div className="bg-blue-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-blue-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">Sedang Dihafal</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-blue-700">
+                      {Math.max(0, hafalanMaterials.length - hafalanProgress.filter(h => h.status === 'Mumtaz (Lulus)').length)}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-600">Target 🎯</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div className="bg-white p-4 sm:p-5 rounded-[28px] border border-slate-100 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text"
+                      value={searchHafalan}
+                      onChange={(e) => setSearchHafalan(e.target.value)}
+                      placeholder="Cari nama surat, hadist, atau doa..."
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                    />
+                    {searchHafalan && (
+                      <button onClick={() => setSearchHafalan('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Status */}
+                  <select
+                    value={filterHafalanStatusSiswa}
+                    onChange={(e) => setFilterHafalanStatusSiswa(e.target.value)}
+                    className="px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="Semua">Semua Status Setoran</option>
+                    <option value="Mumtaz (Lulus)">⭐ Sudah Lulus (Mumtaz)</option>
+                    <option value="Menunggu Evaluasi">⏳ Menunggu Evaluasi Guru</option>
+                    <option value="Belum Setor">📖 Sedang Menghafal / Belum Setor</option>
+                  </select>
+                </div>
+
+                {/* Category Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                  {['Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'].map((cat) => {
+                    const isSelected = filterHafalanCategorySiswa === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setFilterHafalanCategorySiswa(cat)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                          isSelected 
+                            ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200 scale-102' 
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Material List Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {hafalanMaterials
+                  .filter((mat) => {
+                    if (filterHafalanCategorySiswa !== 'Semua Kategori' && mat.kategori !== filterHafalanCategorySiswa) {
+                      return false;
+                    }
+                    if (searchHafalan.trim()) {
+                      const q = searchHafalan.toLowerCase();
+                      const matchJudul = (mat.judul || '').toLowerCase().includes(q);
+                      const matchLatin = (mat.latin || '').toLowerCase().includes(q);
+                      const matchTerjemahan = (mat.terjemahan || '').toLowerCase().includes(q);
+                      if (!matchJudul && !matchLatin && !matchTerjemahan) return false;
+                    }
+                    const userProg = hafalanProgress.find(p => p.materialId === mat.id);
+                    if (filterHafalanStatusSiswa === 'Mumtaz (Lulus)') {
+                      return userProg?.status === 'Mumtaz (Lulus)';
+                    }
+                    if (filterHafalanStatusSiswa === 'Menunggu Evaluasi') {
+                      return userProg?.isReadyForTest && userProg?.status !== 'Mumtaz (Lulus)';
+                    }
+                    if (filterHafalanStatusSiswa === 'Belum Setor') {
+                      return !userProg || (!userProg.isReadyForTest && userProg.status !== 'Mumtaz (Lulus)');
+                    }
+                    return true;
+                  })
+                  .map((material, idx) => {
+                    const userProg = hafalanProgress.find(p => p.materialId === material.id);
+                    const isMumtaz = userProg?.status === 'Mumtaz (Lulus)';
+                    const isPending = userProg?.isReadyForTest && !isMumtaz;
+
+                    return (
+                      <div 
+                        key={material.id || idx}
+                        className={`bg-white rounded-[28px] p-5 sm:p-6 border transition-all flex flex-col justify-between shadow-xs ${
+                          isMumtaz 
+                            ? 'border-emerald-200 bg-gradient-to-b from-emerald-50/30 to-white' 
+                            : isPending 
+                            ? 'border-amber-200 bg-gradient-to-b from-amber-50/30 to-white'
+                            : 'border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <div>
+                          {/* Card Top Meta */}
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-black flex items-center justify-center">
+                                {material.urutan || idx + 1}
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                {material.kategori}
+                              </span>
+                            </div>
+
+                            {/* Status Badges */}
+                            {isMumtaz ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                <Star size={11} className="fill-emerald-600 text-emerald-600" />
+                                Mumtaz (Lulus)
+                              </span>
+                            ) : isPending ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+                                <Clock size={11} />
+                                Menunggu Evaluasi
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                                Sedang Menghafal
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Judul Materi */}
+                          <h4 className="text-base sm:text-lg font-black text-slate-900 mb-3 tracking-tight">
+                            {material.judul}
+                          </h4>
+
+                          {/* Teks Arab (jika ada) */}
+                          {material.arab && (
+                            <div className="bg-slate-50/90 rounded-2xl p-4 sm:p-5 mb-3 border border-slate-100/80 text-right">
+                              <p className="font-serif text-xl sm:text-2xl text-slate-800 leading-loose" dir="rtl">
+                                {material.arab}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Teks Latin (jika ada) */}
+                          {material.latin && (
+                            <div className="mb-2">
+                              <p className="text-xs text-slate-600 font-medium italic leading-relaxed">
+                                "{material.latin}"
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Terjemahan (jika ada) */}
+                          {material.terjemahan && (
+                            <div className="bg-emerald-50/40 rounded-xl p-3 mb-4 border border-emerald-100/50">
+                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                <span className="font-bold text-emerald-800">Artinya: </span>
+                                {material.terjemahan}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Catatan / Feedback Guru (jika ada) */}
+                          {(userProg?.notes || userProg?.catatanGuru) && (
+                            <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-3 mb-4 text-xs text-blue-900 space-y-1">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 flex items-center gap-1">
+                                <Award size={12} /> Catatan Guru / Penilai:
+                              </span>
+                              <p className="italic font-medium">{(userProg.notes || userProg.catatanGuru)}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card Footer Actions */}
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 mt-2">
+                          {isMumtaz ? (
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <Star key={star} size={14} className="fill-amber-400 text-amber-400" />
+                              ))}
+                              <span className="text-[10px] font-black text-emerald-700 ml-1">Nilai Sempurna</span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-medium">
+                              {isPending ? 'Setoran dikirim' : 'Belum disetor'}
+                            </span>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setActiveMaterialForSetoran({ material, status: userProg?.status || 'Belum Mulai' });
+                              setSubmissionMethod('Google Drive');
+                              setShowSetoranModal(true);
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                              isMumtaz
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                : isPending
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+                            }`}
+                          >
+                            <Upload size={13} />
+                            <span>{isMumtaz ? 'Setor Ulang' : isPending ? 'Ubah Setoran' : 'Setor Hafalan'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'progress' && (
+            <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
+              {/* Hero Header */}
+              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-[32px] p-6 sm:p-8 text-white shadow-xl shadow-blue-500/15 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider mb-2 border border-white/20">
+                      <BookOpen size={13} />
+                      <span>Laporan Perkembangan &amp; Capaian</span>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                      Laporan Hasil Belajar (Rapor Siswa)
+                    </h3>
+                    <p className="text-xs sm:text-sm text-blue-100 font-medium mt-1">
+                      Evaluasi harian, Penilaian Tengah Semester (PTS), &amp; Penilaian Akhir Semester (PAS) RA Darusyifa.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button 
+                      onClick={() => setShowPrintRapotModal(true)}
+                      className="px-4 py-2.5 bg-white text-blue-700 rounded-2xl font-black text-xs flex items-center gap-2 shadow-md hover:bg-blue-50 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Printer size={14} />
+                      <span>Cetak Rapot Siswa</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric Overview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-slate-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Evaluasi</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-slate-900">{progress.length}</span>
+                    <span className="text-[10px] font-bold text-slate-400">Laporan</span>
+                  </div>
+                </div>
+                <div className="bg-blue-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-blue-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">Rata-Rata Nilai</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-xl sm:text-2xl font-black text-blue-700">
+                      {progress.length > 0
+                        ? Math.round(progress.reduce((acc, curr) => acc + (Number(curr.score) || 0), 0) / progress.length)
+                        : 90}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-600">Poin / 100</span>
+                  </div>
+                </div>
+                <div className="bg-emerald-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-emerald-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Predikat Umum</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-base sm:text-lg font-black text-emerald-700 truncate">
+                      {progress.length > 0 ? (progress[0]?.grade || 'Sangat Baik') : 'Sangat Baik'}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600">BSB ⭐</span>
+                  </div>
+                </div>
+                <div className="bg-purple-50/70 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] border border-purple-100 shadow-xs flex flex-col justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">Kelas / Kelompok</span>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-base sm:text-lg font-black text-purple-700 truncate">
+                      {userData?.kelas || 'RA Darusyifa'}
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-600">2026/2027</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Periode */}
+              <div className="bg-white p-4 sm:p-5 rounded-[28px] border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Periode Penilaian:</span>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                  {['Semua', 'PTS Ganjil', 'PAS Ganjil', 'PTS Genap', 'PAS Genap'].map((p) => {
+                    const isSelected = filterProgressPeriod === p;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setFilterProgressPeriod(p)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Progress List */}
+              {progress.filter(p => filterProgressPeriod === 'Semua' || p.evaluationPeriod === filterProgressPeriod).length > 0 ? (
+                <div className="space-y-4">
+                  {progress
+                    .filter(p => filterProgressPeriod === 'Semua' || p.evaluationPeriod === filterProgressPeriod)
+                    .map((item, idx) => {
+                      const scoreInfo = getScoreGradeInfo(Number(item.score) || 85);
+                      return (
+                        <div 
+                          key={item.id || idx}
+                          className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-100 shadow-xs space-y-6"
+                        >
+                          {/* Header item */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
+                                  {item.evaluationPeriod || 'Evaluasi Semester'}
+                                </span>
+                                {item.date && (
+                                  <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                                    <Calendar size={12} /> {item.date}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-lg sm:text-xl font-black text-slate-900">
+                                {item.title || `Laporan Capaian Belajar - ${item.evaluationPeriod || 'Semester Ganjil'}`}
+                              </h4>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="text-2xl sm:text-3xl font-black text-blue-600">{item.score || 90}</span>
+                                <span className="text-xs text-slate-400 font-bold ml-1">/100</span>
+                                <p className={`text-[10px] font-black uppercase tracking-wider ${scoreInfo.color}`}>
+                                  {item.grade || scoreInfo.text}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 6 Aspek Perkembangan PAUD / RA */}
+                          <div className="space-y-3">
+                            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                              Rincian Aspek Perkembangan Siswa:
+                            </h5>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {[
+                                { key: 'nam', label: '1. Nilai Agama & Moral', value: item.nam || 'Berkembang Sangat Baik (BSB)' },
+                                { key: 'motorik', label: '2. Fisik & Motorik', value: item.motorik || 'Berkembang Sesuai Harapan (BSH)' },
+                                { key: 'kognitif', label: '3. Kognitif', value: item.kognitif || 'Berkembang Sangat Baik (BSB)' },
+                                { key: 'bahasa', label: '4. Bahasa & Komunikasi', value: item.bahasa || 'Berkembang Sesuai Harapan (BSH)' },
+                                { key: 'sosem', label: '5. Sosial & Emosional', value: item.sosem || 'Berkembang Sangat Baik (BSB)' },
+                                { key: 'seni', label: '6. Seni & Kreativitas', value: item.seni || 'Berkembang Sangat Baik (BSB)' }
+                              ].map(aspect => (
+                                <div key={aspect.key} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                                    {aspect.label}
+                                  </span>
+                                  <p className="text-xs font-bold text-slate-800">
+                                    {aspect.value}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Catatan Guru */}
+                          {item.notes && (
+                            <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 sm:p-5">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block mb-1.5">
+                                Catatan &amp; Motivasi Guru:
+                              </span>
+                              <p className="text-xs sm:text-sm font-medium text-amber-950 leading-relaxed italic">
+                                "{item.notes}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                /* Empty State jika belum ada rapot yang diinput guru */
+                <div className="bg-white rounded-[32px] p-8 sm:p-12 border border-slate-100 text-center space-y-4 shadow-xs">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+                    <BookOpen size={32} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900">Laporan Belajar Sedang Dipersiapkan</h4>
+                    <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+                      Guru kelas dan tim kurikulum RA Darusyifa sedang merangkum hasil evaluasi capaian perkembangan ananda. Laporan rapot akan tampil otomatis di sini setelah diterbitkan oleh ustadzah.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
 
           {activeTab === 'kaldik' && (
           <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">

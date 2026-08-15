@@ -353,7 +353,108 @@ export default function DashboardOrangTua() {
  </div>
  )}
 
- {/* Profile & Settings Tab */}
+ 
+        {/* Attendance Tab */}
+        {activeTab === 'attendance' && (
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Riwayat Kehadiran Anak</h3>
+                <p className="text-slate-500 font-medium">Rekap presensi dan kedisiplinan ananda di sekolah</p>
+              </div>
+              <CheckCircle className="text-emerald-600 opacity-20" size={48} />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Total Hadir</p>
+                <p className="text-2xl font-black text-emerald-700 mt-1">
+                  {attendance.filter(a => a.status === 'Hadir').length} Hari
+                </p>
+              </div>
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-800">Izin</p>
+                <p className="text-2xl font-black text-blue-700 mt-1">
+                  {attendance.filter(a => a.status === 'Izin').length} Hari
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Sakit</p>
+                <p className="text-2xl font-black text-amber-700 mt-1">
+                  {attendance.filter(a => a.status === 'Sakit').length} Hari
+                </p>
+              </div>
+              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-800">Alpa</p>
+                <p className="text-2xl font-black text-rose-700 mt-1">
+                  {attendance.filter(a => a.status === 'Alpa').length} Hari
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4">
+              <h4 className="font-black text-xs uppercase tracking-widest text-slate-400">Log Presensi Terkini</h4>
+              {attendance.slice(0, 15).map((att: any, idx: number) => (
+                <div key={att.id || idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      att.status === 'Hadir' ? 'bg-emerald-500' :
+                      att.status === 'Izin' ? 'bg-blue-500' :
+                      att.status === 'Sakit' ? 'bg-amber-500' : 'bg-rose-500'
+                    }`} />
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{att.date}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{att.notes || 'Presensi harian'}</p>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                    att.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
+                    att.status === 'Izin' ? 'bg-blue-100 text-blue-800' :
+                    att.status === 'Sakit' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {att.status}
+                  </span>
+                </div>
+              ))}
+              {attendance.length === 0 && (
+                <p className="text-center py-8 text-slate-400 text-sm font-medium">Belum ada rekaman presensi.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Announcements Tab */}
+        {activeTab === 'announcements' && (
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Informasi &amp; Pengumuman Sekolah</h3>
+                <p className="text-slate-500 font-medium">Surat edaran, agenda kegiatan, dan berita RA Darusyifa</p>
+              </div>
+              <Bell className="text-indigo-600 opacity-20" size={48} />
+            </div>
+
+            <div className="space-y-4">
+              {announcements.map((ann: any, idx: number) => (
+                <div key={ann.id || idx} className="bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                      {ann.category || 'PENGUMUMAN'}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">{ann.date || 'Terbaru'}</span>
+                  </div>
+                  <h4 className="text-base font-black text-slate-900">{ann.title}</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">{ann.content}</p>
+                </div>
+              ))}
+              {announcements.length === 0 && (
+                <p className="text-center py-8 text-slate-400 text-sm font-medium">Belum ada pengumuman baru.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Profile & Settings Tab */}
  {activeTab === 'profile' && (
  <div className="space-y-8 max-w-2xl mx-auto md:mx-0">
  <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">

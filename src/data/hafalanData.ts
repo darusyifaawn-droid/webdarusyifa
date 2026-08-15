@@ -18,6 +18,7 @@ export interface StudentHafalanProgress {
  status: HafalanStatus;
  stars: number; // 0 to 5
  catatanGuru: string;
+  notes?: string;
  isReadyForTest: boolean;
  updatedAt: string;
  recordingDataUrl?: string;
