@@ -24,19 +24,19 @@ body {
     font-family: var(--font-display);
   }
   .markdown-body {
-    @apply text-gray-600 leading-relaxed text-sm md:text-base;
+    @apply text-slate-600 leading-relaxed text-sm md:text-base;
   }
   .markdown-body p {
     @apply mb-4 last:mb-0;
   }
   .markdown-body h1 {
-    @apply text-2xl font-bold mb-4 text-gray-800;
+    @apply text-2xl font-bold mb-4 text-slate-800;
   }
   .markdown-body h2 {
-    @apply text-xl font-bold mb-3 text-gray-800;
+    @apply text-xl font-bold mb-3 text-slate-800;
   }
   .markdown-body h3 {
-    @apply text-lg font-bold mb-2 text-gray-800;
+    @apply text-lg font-bold mb-2 text-slate-800;
   }
   .markdown-body ul {
     @apply list-disc pl-5 mb-4 space-y-1;
@@ -48,22 +48,22 @@ body {
     @apply pl-1;
   }
   .markdown-body strong {
-    @apply font-bold text-gray-800;
+    @apply font-bold text-slate-800;
   }
   .markdown-body blockquote {
-    @apply border-l-4 border-gray-200 pl-4 italic my-4;
+    @apply border-l-4 border-slate-200 pl-4 italic my-4 text-slate-700;
   }
   .markdown-body code {
-    @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-sm font-mono;
   }
 
   /* 3D Visual System */
   .glass-3d {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.05)];
+    @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.05)] text-slate-900;
   }
 
   .card-3d {
-    @apply bg-white border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-300;
+    @apply bg-white border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-300 text-slate-900;
   }
 
   .card-3d:hover {
