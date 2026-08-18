@@ -3673,10 +3673,10 @@ export default function DashboardAdmin() {
                     </p>
                   </div>
 
-                  {/* Mosque Artwork Vector Banner */}
-                  <div className="w-full md:w-80 h-32 sm:h-36 md:h-28 rounded-2xl overflow-hidden shadow-xs border border-emerald-200/50 shrink-0 bg-emerald-100/30">
+                  {/* Dashboard Artwork Vector Banner */}
+                  <div className="w-full md:w-80 h-36 sm:h-40 md:h-32 rounded-2xl overflow-hidden shadow-xs border border-emerald-200/60 shrink-0 bg-white">
                     <img 
-                      src="/mosque_banner.jpg" 
+                      src="/dashboard_illustration.png" 
                       alt="Ilustrasi RA Darusyifa" 
                       className="w-full h-full object-cover object-center" 
                     />
