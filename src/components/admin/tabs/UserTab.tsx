@@ -107,6 +107,25 @@ export default function UserTab({
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Online status helper
+  const isUserOnline = (u: any) => {
+    if (!u) return false;
+    if (u.isOnline === true) return true;
+    const now = Date.now();
+    let lastActive = 0;
+    if (typeof u.lastActiveTimestamp === 'number') {
+      lastActive = u.lastActiveTimestamp;
+    } else if (u.lastActiveTimestamp?.seconds) {
+      lastActive = u.lastActiveTimestamp.seconds * 1000;
+    } else if (u.lastActiveAt) {
+      lastActive = new Date(u.lastActiveAt).getTime();
+    }
+    if (lastActive > 0 && Math.abs(now - lastActive) < 15 * 60 * 1000) {
+      return true;
+    }
+    return false;
+  };
+
   // Pagination Math
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -373,22 +392,37 @@ export default function UserTab({
                       {/* IDENTITAS */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3.5">
-                          {u.photoURL ? (
-                            <img 
-                              src={u.photoURL} 
-                              alt={u.name} 
-                              className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-                              {getInitials(u.name)}
-                            </div>
-                          )}
+                          <div className="relative shrink-0">
+                            {u.photoURL ? (
+                              <img 
+                                src={u.photoURL} 
+                                alt={u.name} 
+                                className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                                {getInitials(u.name)}
+                              </div>
+                            )}
+                            {isUserOnline(u) && (
+                              <span 
+                                className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs" 
+                                title="Pengguna sedang aktif online"
+                              />
+                            )}
+                          </div>
                           <div className="min-w-0">
-                            <h4 className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight truncate">
-                              {u.name}
-                            </h4>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight truncate">
+                                {u.name}
+                              </h4>
+                              {isUserOnline(u) && (
+                                <span className="px-1.5 py-0.2 bg-emerald-100/80 text-emerald-800 rounded text-[9px] font-black tracking-tight">
+                                  ONLINE
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[9px] font-black text-indigo-500 uppercase tracking-wider mt-0.5">
                               {getSubLabel(u)}
                             </p>
@@ -534,23 +568,35 @@ export default function UserTab({
             >
               {/* Left: Avatar + Name + Sublabel */}
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                {u.photoURL ? (
-                  <img 
-                    src={u.photoURL} 
-                    alt={u.name} 
-                    className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-                    {getInitials(u.name)}
-                  </div>
-                )}
+                <div className="relative shrink-0">
+                  {u.photoURL ? (
+                    <img 
+                      src={u.photoURL} 
+                      alt={u.name} 
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                      {getInitials(u.name)}
+                    </div>
+                  )}
+                  {isUserOnline(u) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                  )}
+                </div>
                 
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-slate-900 text-xs tracking-tight truncate">
-                    {u.name}
-                  </h4>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="font-bold text-slate-900 text-xs tracking-tight truncate">
+                      {u.name}
+                    </h4>
+                    {isUserOnline(u) && (
+                      <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[8px] font-black tracking-tight">
+                        ONLINE
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[9px] font-black text-indigo-500 uppercase tracking-wider mt-0.5 truncate">
                     {getSubLabel(u)}
                   </p>

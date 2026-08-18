@@ -34,6 +34,7 @@ import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
 import FinanceArusTab from './admin/tabs/FinanceArusTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
+import AbsensiTab from './admin/tabs/AbsensiTab';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -199,6 +200,7 @@ export default function DashboardAdmin() {
  
  // Photo Viewer State
  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
  
  const [loading, setLoading] = useState(true);
  const navigate = useNavigate();
@@ -3662,24 +3664,26 @@ export default function DashboardAdmin() {
           {activeTab === 'overview' && (
             <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-300">
               {/* 1. Welcome Hero Banner */}
-              <div className="bg-gradient-to-r from-emerald-50/90 via-emerald-50/70 to-emerald-100/50 border border-emerald-100/80 rounded-3xl p-5 sm:p-7 md:p-8 relative overflow-hidden shadow-xs">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-6 relative z-10">
-                  <div className="max-w-xl">
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
+              <div className="bg-gradient-to-r from-emerald-50/90 via-emerald-50/60 to-teal-50/80 border border-emerald-100/80 rounded-3xl p-6 sm:p-7 md:p-8 relative overflow-hidden shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                  <div className="max-w-2xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100/70 border border-emerald-200/60 rounded-full text-emerald-800 text-[11px] font-black uppercase tracking-wider mb-2.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Sistem Manajemen Sekolah</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
                       Assalamu'alaikum, <span className="text-emerald-700">Admin RA</span> 👋
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-600 font-medium mt-2 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1.5 leading-relaxed">
                       Selamat datang di Portal RA Darusyifa Arjawinangun. Kelola sekolah dengan mudah dan menyenangkan.
                     </p>
                   </div>
 
-                  {/* Dashboard Artwork Vector Banner */}
-                  <div className="w-full md:w-80 h-36 sm:h-40 md:h-32 rounded-2xl overflow-hidden shadow-xs border border-emerald-200/60 shrink-0 bg-white">
-                    <img 
-                      src="/dashboard_illustration.png" 
-                      alt="Ilustrasi RA Darusyifa" 
-                      className="w-full h-full object-cover object-center" 
-                    />
+                  <div className="hidden lg:flex items-center gap-3 shrink-0">
+                    <div className="px-4 py-3 bg-white/80 backdrop-blur-xs rounded-2xl border border-emerald-100 shadow-2xs text-right">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Portal</p>
+                      <p className="text-xs font-black text-emerald-700">Aktif & Terhubung</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4676,331 +4680,17 @@ export default function DashboardAdmin() {
  )}
 
  {activeTab === 'attendance' && (
- <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
- <div className="card-3d p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
- <div>
- <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kelola Absensi</h3>
- <p className="text-gray-400 text-sm font-medium">Filter dan monitoring kehadiran warga sekolah.</p>
- </div>
- <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
- <button 
- onClick={exportAttendanceToExcel}
- className="bg-indigo-50 text-indigo-600 border border-indigo-100 hover:border-indigo-300 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-indigo-100 transition-colors inline-flex items-center gap-2"
- >
- <Download size={14} /> Export Excel
- </button>
- <select 
- value={filterKelas}
- onChange={(e) => setFilterKelas(e.target.value)}
- className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-600"
- >
- <option value="">Semua Kelas</option>
- {schoolClasses.map((c: any) => (
- <option key={c.id} value={c.name}>{c.name}</option>
- ))}
- </select>
- <div className="flex bg-gray-100 p-1 rounded-2xl">
- {['semua', 'siswa', 'guru'].map(role => (
- <button
- key={role}
- onClick={() => setFilterRole(role as any)}
- className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterRole === role ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
- >
- {role}
- </button>
- ))}
- </div>
- </div>
- </div>
+          <AbsensiTab
+            attendance={attendance}
+            allUsers={allUsers}
+            schoolClasses={schoolClasses}
+            exportAttendanceToExcel={exportAttendanceToExcel}
+            setSelectedPhoto={setSelectedPhoto}
+            setSelectedLocation={setSelectedLocation}
+          />
+        )}
 
- <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
- {[
- { label: 'Hadir', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'hadir').length, color: 'text-green-600', bg: 'bg-green-50' },
- { label: 'Sakit', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'sakit').length, color: 'text-blue-600', bg: 'bg-blue-50' },
- { label: 'Izin', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'izin').length, color: 'text-purple-600', bg: 'bg-purple-50' },
- { label: 'Alpha', count: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'tk' || (a.status || '').toLowerCase() === 'alpha').length, color: 'text-red-600', bg: 'bg-red-50' },
- ].map((s, i) => (
- <div key={i} className={`${s.bg} p-6 rounded-[2rem] border border-white flex flex-col items-center justify-center text-center shadow-sm`}>
- <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
- <h4 className={`text-2xl font-black ${s.color}`}>{s.count}</h4>
- </div>
- ))}
- </div>
-
- <div className="grid lg:grid-cols-2 gap-8">
- <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
- <h4 className="text-lg font-black text-gray-800 mb-6 tracking-tight">Statistik Kehadiran</h4>
- <div className="h-64">
- <ResponsiveContainer width="100%" height="100%">
- <PieChart>
- <Pie
- data={[
- { name: 'Hadir', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'hadir').length, color: '#16a34a' },
- { name: 'Sakit', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'sakit').length, color: '#2563eb' },
- { name: 'Izin', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'izin').length, color: '#9333ea' },
- { name: 'Alpha', value: filteredAttendance.filter(a => (a.status || '').toLowerCase() === 'tk' || (a.status || '').toLowerCase() === 'alpha').length, color: '#dc2626' },
- ]}
- innerRadius={60}
- outerRadius={80}
- paddingAngle={5}
- dataKey="value"
- >
- {[
- { color: '#16a34a' },
- { color: '#2563eb' },
- { color: '#9333ea' },
- { color: '#dc2626' },
- ].map((entry, index) => (
- <Cell key={`cell-${index}`} fill={entry.color} />
- ))}
- </Pie>
- <Tooltip />
- <Legend />
- </PieChart>
- </ResponsiveContainer>
- </div>
- </div>
-
- <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
- <h4 className="text-lg font-black text-gray-800 mb-6 tracking-tight">Tren Mingguan</h4>
- <div className="h-64">
- <ResponsiveContainer width="100%" height="100%">
- <ReBarChart data={(() => {
- const days = [];
- for (let i = 6; i >= 0; i--) {
- const d = new Date();
- d.setDate(d.getDate() - i);
- const dateStr = d.toISOString().split('T')[0];
- days.push({
- name: dateStr.split('-').slice(1).reverse().join('/'),
- hadir: attendance.filter(a => a.date === dateStr && (a.status || '').toLowerCase() === 'hadir').length
- });
- }
- return days;
- })()}>
- <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
- <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
- <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
- <Tooltip 
- contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
- />
- <Bar dataKey="hadir" fill="#16a34a" radius={[6, 6, 0, 0]} barSize={20} />
- </ReBarChart>
- </ResponsiveContainer>
- </div>
- </div>
- </div>
-
- <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
- <div className="p-4 md:p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/20">
- <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
- <div className="flex items-center gap-2">
- <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Dari</span>
- <input type="date" value={filterDateStart} onChange={(e) => setFilterDateStart(e.target.value)} className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
- </div>
- <div className="flex items-center gap-2">
- <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Sampai</span>
- <input type="date" value={filterDateEnd} onChange={(e) => setFilterDateEnd(e.target.value)} className="w-full sm:w-auto p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
- </div>
- </div>
-
- <div className="flex items-center gap-3">
- {selectedAttendanceIds.length > 0 && (
- <button 
- onClick={handleBulkDeleteAttendance}
- className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
- >
- <Trash2 size={14} /> Hapus ({selectedAttendanceIds.length})
- </button>
- )}
- <button 
- onClick={() => {
- if (selectedAttendanceIds.length === filteredAttendance.length) {
- setSelectedAttendanceIds([]);
- } else {
- setSelectedAttendanceIds(filteredAttendance.map(a => a.id));
- }
- }}
- className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
- >
- {selectedAttendanceIds.length === filteredAttendance.length ? 'Batal Pilih' : 'Pilih Semua'}
- </button>
- </div>
- </div>
-
- {/* Desktop Table View */}
- <div className="hidden md:block overflow-x-auto">
- <table className="w-full text-left">
- <thead className="bg-gray-100/50 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
- <tr>
- <th className="px-8 py-5 w-10">
- <input 
- type="checkbox"
- checked={filteredAttendance.length > 0 && selectedAttendanceIds.length === filteredAttendance.length}
- onChange={() => {
- if (selectedAttendanceIds.length === filteredAttendance.length) {
- setSelectedAttendanceIds([]);
- } else {
- setSelectedAttendanceIds(filteredAttendance.map(a => a.id));
- }
- }}
- className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
- />
- </th>
- <th className="px-8 py-5">Subjek</th>
- <th className="px-8 py-5">Waktu Presensi</th>
- <th className="px-8 py-5">Status</th>
- <th className="px-8 py-5 text-center">Dokumentasi</th>
- <th className="px-8 py-5 text-center">Lokasi</th>
- <th className="px-8 py-5 text-right">Aksi</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-gray-50">
- {filteredAttendance.map((a) => {
- const student = allUsers.find(u => u.id === a.studentId);
- return (
- <tr key={a.id} className={`hover:bg-gray-50/50 transition-colors group ${selectedAttendanceIds.includes(a.id) ? 'bg-blue-50/30' : ''}`}>
- <td className="px-8 py-6 w-10">
- <input 
- type="checkbox"
- checked={selectedAttendanceIds.includes(a.id)}
- onChange={() => {
- if (selectedAttendanceIds.includes(a.id)) {
- setSelectedAttendanceIds(prev => prev.filter(id => id !== a.id));
- } else {
- setSelectedAttendanceIds(prev => [...prev, a.id]);
- }
- }}
- className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
- />
- </td>
- <td className="px-8 py-6">
- <div className="font-bold text-gray-800 ">{student?.name || 'Unknown'}</div>
- <div className="text-[10px] font-black text-gray-400 uppercase tracking-tight">{student?.role === 'guru' ? 'STAFF GURU' : (student?.kelas || 'SISWA')}</div>
- </td>
- <td className="px-8 py-6">
- <div className="text-sm font-bold text-gray-600">{a.date}</div>
- <span className="text-[10px] text-gray-400 font-bold uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</span>
- </td>
- <td className="px-8 py-6">
- <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
- (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 
- (a.status || '').toLowerCase() === 'sakit' ? 'bg-blue-100 text-blue-700' :
- (a.status || '').toLowerCase() === 'izin' ? 'bg-purple-100 text-purple-700' :
- 'bg-red-100 text-red-700'
- }`}>
- {a.status}
- </span>
- </td>
- <td className="px-8 py-6 text-center">
- {a.photo ? (
- <img 
- src={a.photo} 
- alt="Absensi" 
- className="h-12 w-12 object-cover rounded-2xl border-2 border-white shadow-md mx-auto cursor-pointer hover:scale-110 transition-transform" 
- onClick={() => setSelectedPhoto(a.photo)} 
- />
- ) : (
- <span className="text-[10px] font-bold text-gray-300 uppercase italic">Tanpa Foto</span>
- )}
- </td>
- <td className="px-8 py-6 text-center">
- <a href={`https://www.google.com/maps?q=${a.location?.latitude},${a.location?.longitude}`} target="_blank" rel="noreferrer" className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl inline-flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm">
- <MapPin size={18} />
- </a>
- </td>
- <td className="px-8 py-6 text-right">
- <button onClick={async () => {
- if(window.confirm('Hapus data absensi ini?')) {
- try {
- await deleteDoc(doc(db, 'attendance', a.id));
- alert('Absensi berhasil dihapus!');
- } catch (error) {
- handleFirestoreError(error, OperationType.DELETE, `attendance/${a.id}`);
- }
- }
- }} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl inline-flex items-center justify-center hover:bg-red-600 hover:text-white transition-all group-hover:shadow-lg">
- <Trash2 size={18} />
- </button>
- </td>
- </tr>
- );
- })}
- </tbody>
- </table>
- </div>
-
- {/* Mobile Card View */}
- <div className="md:hidden divide-y divide-gray-100">
- {filteredAttendance.map((a) => {
- const student = allUsers.find(u => u.id === a.studentId);
- return (
- <div key={a.id} className="p-5 flex flex-col gap-4">
- <div className="flex justify-between items-start">
- <div className="min-w-0">
- <h4 className="font-bold text-gray-800 text-sm truncate uppercase tracking-tight">{student?.name || 'Unknown'}</h4>
- <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mt-1">{student?.role === 'guru' ? 'STAFF GURU' : (student?.kelas || 'SISWA')}</p>
- </div>
- <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${
- (a.status || '').toLowerCase() === 'hadir' ? 'bg-green-100 text-green-700' : 
- (a.status || '').toLowerCase() === 'sakit' ? 'bg-blue-100 text-blue-700' :
- (a.status || '').toLowerCase() === 'izin' ? 'bg-purple-100 text-purple-700' :
- 'bg-red-100 text-red-700'
- }`}>
- {a.status}
- </span>
- </div>
- 
- <div className="flex items-center justify-between">
- <div className="flex items-center gap-3">
- <div className="text-white">
- {a.photo ? (
- <img 
- src={a.photo} 
- alt="Absensi" 
- className="h-12 w-12 object-cover rounded-xl border border-gray-100 shadow-sm cursor-pointer" 
- onClick={() => setSelectedPhoto(a.photo)} 
- />
- ) : (
- <div className="h-12 w-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300">
- <Camera size={18} />
- </div>
- )}
- </div>
- <div>
- <div className="text-xs font-bold text-gray-600">{a.date}</div>
- <div className="text-[10px] text-gray-400 font-bold uppercase">{a.timestamp ? new Date(a.timestamp.seconds * 1000).toLocaleTimeString() : ''}</div>
- </div>
- </div>
- <div className="flex gap-2">
- <a href={`https://www.google.com/maps?q=${a.location?.latitude},${a.location?.longitude}`} target="_blank" rel="noreferrer" className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center active:bg-blue-600 active:text-white transition-all">
- <MapPin size={18} />
- </a>
- <button onClick={async () => {
- if(window.confirm('Hapus data absensi ini?')) {
- try {
- await deleteDoc(doc(db, 'attendance', a.id));
- alert('Absensi berhasil dihapus!');
- } catch (error) {
- handleFirestoreError(error, OperationType.DELETE, `attendance/${a.id}`);
- }
- }
- }} className="w-10 h-10 bg-red-50 text-red-400 rounded-xl flex items-center justify-center active:bg-red-600 active:text-white transition-all">
- <Trash2 size={18} />
- </button>
- </div>
- </div>
- </div>
- );
- })}
- </div>
- </div>
- </div>
- )}
-
-
-
- {activeTab === 'materials' && (
+        {activeTab === 'materials' && (
  <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
  <div className="card-3d p-8">
  <h3 className="text-2xl font-black text-gray-800 tracking-tight">Kumpulan Materi Guru</h3>

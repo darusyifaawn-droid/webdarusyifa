@@ -709,7 +709,18 @@ export default function DashboardSiswa() {
  const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
  if (currentUser) {
  try {
- const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+ let userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+ let docId = currentUser.uid;
+
+ if (!userDoc.exists() && currentUser.email) {
+ const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
+ const snap = await getDocs(q);
+ if (!snap.empty) {
+ userDoc = snap.docs[0];
+ docId = userDoc.id;
+ }
+ }
+
  if (!userDoc.exists() || userDoc.data().role !== 'siswa') {
  navigate('/login');
  return;
@@ -717,12 +728,24 @@ export default function DashboardSiswa() {
  
  setUser(currentUser);
  const data = userDoc.data();
- setUserData(data);
+ setUserData({ id: docId, ...data });
  setEditName(data.name);
  setEditWhatsapp(data.whatsapp || '');
  setEditPhoto(data.photoURL || '');
  setEditTempatLahir(data.tempatLahir || '');
  setEditTanggalLahir(data.tanggalLahir || '');
+
+ const isMobile = typeof window !== 'undefined' && (
+ window.innerWidth < 768 || 
+ /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+ );
+ await updateDoc(doc(db, 'users', docId), {
+ isOnline: true,
+ lastActiveAt: new Date().toISOString(),
+ lastActiveTimestamp: Date.now(),
+ lastActiveDevice: isMobile ? 'Mobile' : 'Desktop',
+ deviceType: isMobile ? 'mobile' : 'desktop'
+ }).catch(() => {});
  } catch (error) {
  console.error('Error verifying siswa role:', error);
  navigate('/login');
