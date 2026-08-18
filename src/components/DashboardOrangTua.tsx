@@ -436,15 +436,38 @@ export default function DashboardOrangTua() {
 
             <div className="space-y-4">
               {announcements.map((ann: any, idx: number) => (
-                <div key={ann.id || idx} className="bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                      {ann.category || 'PENGUMUMAN'}
+                <div key={ann.id || idx} className="bg-white border border-slate-100 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl space-y-3.5 shadow-xs w-full max-w-full overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                      {ann.target && ann.target !== 'all' ? `Khusus ${ann.target.replace('kelas_', 'Kelas ')}` : (ann.category || 'PENGUMUMAN')}
                     </span>
-                    <span className="text-xs text-slate-400 font-bold">{ann.date || 'Terbaru'}</span>
+                    <span className="text-[11px] text-slate-400 font-bold">
+                      {ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (ann.date || 'Terbaru')}
+                    </span>
                   </div>
-                  <h4 className="text-base font-black text-slate-900">{ann.title}</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed">{ann.content}</p>
+                  <h4 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{ann.title}</h4>
+                  
+                  <div className="w-full max-w-full overflow-x-auto my-1">
+                    <div 
+                      className="prose prose-slate max-w-none text-slate-700 text-xs sm:text-sm leading-relaxed announcement-html-content break-words"
+                      dangerouslySetInnerHTML={{ __html: ann.content }}
+                    />
+                  </div>
+
+                  {ann.attachments && ann.attachments.length > 0 && (
+                    <div className="mt-2 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                      {ann.attachments.map((file: any, fIdx: number) => (
+                        <div key={fIdx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600">
+                          {file.type?.includes('image') ? <ImageIcon size={13} className="text-blue-500" /> : <FileText size={13} className="text-rose-500" />}
+                          <span className="max-w-[150px] truncate">{file.name || 'Lampiran'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pt-1">
+                    Oleh: {ann.author || 'RA Darusyifa'}
+                  </div>
                 </div>
               ))}
               {announcements.length === 0 && (

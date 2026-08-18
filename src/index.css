@@ -145,4 +145,90 @@ body {
   .ql-align-center { text-align: center; }
   .ql-align-right { text-align: right; }
   .ql-align-justify { text-align: justify; }
+
+  /* Responsive Rich Text & Announcement Content (Mobile-First) */
+  .announcement-html-content,
+  .prose {
+    max-width: 100% !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .announcement-html-content p,
+  .prose p {
+    margin-bottom: 0.75rem !important;
+    line-height: 1.65 !important;
+  }
+
+  .announcement-html-content p:last-child,
+  .prose p:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .announcement-html-content table,
+  .prose table {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-collapse: collapse !important;
+    margin: 1.25rem 0 !important;
+    font-size: 0.8125rem !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.875rem !important;
+    background-color: #ffffff !important;
+  }
+
+  .announcement-html-content table th,
+  .prose table th {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+    font-weight: 800 !important;
+    text-align: left !important;
+    padding: 0.625rem 0.875rem !important;
+    border: 1px solid #e2e8f0 !important;
+    white-space: nowrap !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .announcement-html-content table td,
+  .prose table td {
+    padding: 0.5rem 0.75rem !important;
+    color: #334155 !important;
+    border: 1px solid #e2e8f0 !important;
+    vertical-align: top !important;
+    min-width: 85px !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .announcement-html-content table tr:nth-child(even),
+  .prose table tr:nth-child(even) {
+    background-color: #f8fafc !important;
+  }
+
+  .announcement-html-content table tr:hover,
+  .prose table tr:hover {
+    background-color: #f1f5f9 !important;
+  }
+
+  .announcement-html-content img,
+  .prose img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 0.875rem !important;
+    margin: 0.75rem 0 !important;
+  }
+
+  .announcement-html-content pre,
+  .announcement-html-content code,
+  .prose pre,
+  .prose code {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    word-break: break-all !important;
+  }
 }
