@@ -89,8 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (userDocSnap.exists()) {
             currentResolvedDocId = docId;
-            setUserData({ id: docId, ...userDocSnap.data() } as UserData);
+            const uData = userDocSnap.data();
+            setUserData({ id: docId, ...uData } as UserData);
             
+            // Sync to users/{uid} if docId was a custom/different ID so Firestore rules succeed
+            if (docId !== currentUser.uid) {
+              setDoc(doc(db, 'users', currentUser.uid), { ...uData, id: currentUser.uid, originalDocId: docId }, { merge: true }).catch(() => {});
+            }
+
             // Initial presence update
             updatePresence(currentUser.uid, docId, true);
 

@@ -848,6 +848,7 @@ export default function DashboardSiswa() {
  const [showCamera, setShowCamera] = useState(false);
  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
  const [isSubmittingAttendance, setIsSubmittingAttendance] = useState(false);
+ const [attendanceNote, setAttendanceNote] = useState('');
 
  const startCamera = async () => {
  setShowCamera(true);
@@ -874,6 +875,7 @@ export default function DashboardSiswa() {
  setShowCamera(false);
  setCapturedPhoto(null);
  setIsSubmittingAttendance(false);
+ setAttendanceNote('');
  };
 
  const takePhoto = () => {
@@ -971,6 +973,8 @@ export default function DashboardSiswa() {
  date: today,
  timestamp: serverTimestamp(),
  status: attendanceStatus,
+ note: attendanceNote || '',
+ keterangan: attendanceNote || '',
  location: { latitude: lat, longitude: long },
  photo: attendanceStatus === 'Hadir' ? capturedPhoto : ''
  });
@@ -1161,14 +1165,21 @@ export default function DashboardSiswa() {
           { id: 'overview', label: 'Beranda', icon: Home },
           { id: 'progress', label: 'Akademik', icon: BookOpen },
           { id: 'administration', label: 'Keuangan', icon: Wallet },
-          { id: 'announcements', label: 'Notifikasi', icon: Bell, badge: announcements.length > 0 ? announcements.length : 3 },
-          { id: 'profile', label: 'Profil', icon: User },
+          { id: 'announcements', label: 'Notifikasi', icon: Bell, badge: announcements.length > 0 ? announcements.length : 0 },
+          { id: 'menu', label: 'Menu', icon: Menu, isMenu: true },
         ].map((item) => {
-          const isActive = activeTab === item.id;
+          const isActive = item.isMenu ? isSidebarOpen : activeTab === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
+              onClick={() => {
+                if (item.isMenu) {
+                  setIsSidebarOpen(true);
+                } else {
+                  setActiveTab(item.id as any);
+                  setIsSidebarOpen(false);
+                }
+              }}
               className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 relative ${isActive ? 'text-blue-600 font-black' : 'text-slate-400 hover:text-slate-600 font-medium'}`}
             >
               <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-blue-50 text-blue-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
@@ -3652,17 +3663,17 @@ export default function DashboardSiswa() {
 
  {/* Attendance Modal */}
  {showCamera && (
- <div className="fixed inset-0 bg-white md:bg-black/60 md:backdrop-blur-md z-[300] flex flex-col items-center justify-center p-0 md:p-4">
- <div className="bg-white w-full h-[100dvh] md:h-auto md:max-h-[92vh] md:max-w-xl md:rounded-[40px] shadow-2xl flex flex-col relative overflow-hidden">
- <div className="p-4 sm:p-6 flex justify-between items-center border-b border-gray-100 shrink-0">
+ <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-3 sm:p-4">
+ <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col relative max-h-[92vh] overflow-hidden">
+ <div className="p-4 sm:p-5 flex justify-between items-center border-b border-gray-100 shrink-0">
  <h3 className="font-display font-bold text-lg sm:text-xl text-gray-800 uppercase tracking-tight">Presensi Harian Siswa</h3>
  <button onClick={stopCamera} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"><X size={24} /></button>
  </div>
 
- <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 flex-1 overflow-y-auto">
+ <div className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
  <div>
- <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 sm:mb-3 tracking-widest text-center">Pilih Status Kehadiran</label>
- <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+ <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest text-center">Pilih Status Kehadiran</label>
+ <div className="grid grid-cols-2 gap-2 sm:gap-3">
  {['Hadir', 'Sakit', 'Izin', 'Alpha'].map((status) => (
  <button 
  key={status}
@@ -3670,7 +3681,7 @@ export default function DashboardSiswa() {
  setAttendanceStatus(status);
  if (status !== 'Hadir') setCapturedPhoto(null);
  }}
- className={`py-2.5 sm:py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${attendanceStatus === status ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+ className={`py-2.5 sm:py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${attendanceStatus === status ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
  >
  {status === 'Alpha' ? 'Tanpa Keterangan' : status}
  </button>
@@ -3679,8 +3690,8 @@ export default function DashboardSiswa() {
  </div>
 
  {attendanceStatus === 'Hadir' && (
- <div className="space-y-3 sm:space-y-4 notranslate" translate="no">
- <div className="relative aspect-video max-h-[220px] sm:max-h-[300px] w-full bg-slate-900 rounded-2xl sm:rounded-[32px] overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
+ <div className="space-y-3 notranslate" translate="no">
+ <div className="relative aspect-video max-h-[220px] sm:max-h-[280px] w-full bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-100 shadow-inner flex items-center justify-center">
  {!capturedPhoto ? (
  <div key="live-video-box" className="w-full h-full relative flex items-center justify-center">
  <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
@@ -3697,7 +3708,7 @@ export default function DashboardSiswa() {
  </div>
  )}
  <canvas ref={canvasRef} className="hidden" />
- <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-2xl sm:rounded-[32px]"></div>
+ <div className="absolute inset-0 border-2 border-white/10 pointer-events-none rounded-2xl"></div>
  </div>
 
  {/* Action Buttons directly below camera / photo preview */}
@@ -3706,23 +3717,23 @@ export default function DashboardSiswa() {
  key="btn-take-photo"
  type="button"
  onClick={takePhoto}
- className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 sm:py-4 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-all border-2 border-emerald-500 my-1"
+ className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-all border-2 border-emerald-500 cursor-pointer"
  >
  <Camera size={20} /> Ambil Foto Sekarang
  </button>
  ) : (
- <div key="btn-confirm-group" className="grid grid-cols-2 gap-3 my-1">
+ <div key="btn-confirm-group" className="grid grid-cols-2 gap-3">
  <button 
  onClick={retakePhoto}
  disabled={isSubmittingAttendance}
- className="bg-white border-2 border-slate-300 text-slate-700 py-3.5 sm:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
+ className="bg-white border-2 border-slate-300 text-slate-700 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-100 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
  >
  <RefreshCw size={16} /> Foto Ulang
  </button>
  <button 
  onClick={handleConfirmAttendance}
  disabled={isSubmittingAttendance}
- className="bg-emerald-600 text-white py-3.5 sm:py-4 rounded-2xl font-bold text-xs sm:text-sm uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50"
+ className="bg-emerald-600 text-white py-3.5 rounded-2xl font-bold text-xs sm:text-sm uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
  >
  {isSubmittingAttendance ? (
  <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
@@ -3740,33 +3751,45 @@ export default function DashboardSiswa() {
  )}
 
  {attendanceStatus !== 'Hadir' && (
- <div className="py-6 sm:py-10 flex flex-col items-center justify-center text-center space-y-3">
- <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
- <CheckCircle size={32} />
+ <div className="space-y-4 animate-in fade-in duration-200">
+ <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl flex items-center gap-3">
+ <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+ <CheckCircle size={20} />
  </div>
  <div>
- <h4 className="font-bold text-gray-800 text-sm">Status: {attendanceStatus === 'Alpha' ? 'Tanpa Keterangan' : attendanceStatus}</h4>
- <p className="text-xs text-gray-500 max-w-xs mt-1">Anda mencatat kehadiran sebagai {attendanceStatus}. Klik Simpan untuk konfirmasi.</p>
+ <h4 className="font-bold text-slate-800 text-xs sm:text-sm">Status: {attendanceStatus === 'Alpha' ? 'Tanpa Keterangan' : attendanceStatus}</h4>
+ <p className="text-[11px] text-slate-500">Silakan isi alasan/keterangan bila diperlukan, lalu simpan presensi.</p>
  </div>
- </div>
- )}
  </div>
 
- {attendanceStatus !== 'Hadir' && (
- <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0 sticky bottom-0 z-30">
+ <div>
+ <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+ Keterangan / Alasan ({attendanceStatus})
+ </label>
+ <textarea
+ value={attendanceNote}
+ onChange={(e) => setAttendanceNote(e.target.value)}
+ placeholder={`Tuliskan alasan atau catatan ${attendanceStatus} di sini (misal: Demam tinggi sejak pagi / Ada urusan keluarga)...`}
+ rows={3}
+ className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+ />
+ </div>
+
  <button 
+ type="button"
  onClick={handleConfirmAttendance}
  disabled={isSubmittingAttendance}
- className="bg-emerald-600 text-white w-full py-3.5 sm:py-4 rounded-xl sm:rounded-[24px] font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
+ className="bg-emerald-600 hover:bg-emerald-700 text-white w-full py-3.5 sm:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
  >
  {isSubmittingAttendance ? (
  <span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Menyimpan...</span>
  ) : (
- <><Save size={18} /> Simpan Presensi</>
+ <><Save size={18} /> Simpan Keterangan Presensi</>
  )}
  </button>
  </div>
  )}
+ </div>
  </div>
  </div>
  )}

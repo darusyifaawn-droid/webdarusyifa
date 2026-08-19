@@ -248,7 +248,7 @@ export default function JuknisPresentation() {
  <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">A</div>
  <div>
  <h4 className="text-xs font-bold text-gray-800 ">Ahmad Fauzan</h4>
- <p className="text-[9px] text-gray-500">Siswa Kelas A - Thoriq Bin Ziyad</p>
+ <p className="text-[9px] text-gray-500">Siswa Kelas UTSMAN BIN AFFAN</p>
  </div>
  </div>
  <span className="bg-green-100 text-green-800 text-[9px] px-2 py-0.5 rounded-full font-bold">AKTIF</span>

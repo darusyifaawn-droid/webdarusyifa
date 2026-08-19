@@ -111,7 +111,7 @@ service cloud.firestore {
     // Settings
     match /settings/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isGuru();
     }
 
     // Classes

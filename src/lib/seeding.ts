@@ -7,7 +7,7 @@ export async function seedHafalanMaterials() {
  const classesSnapshot = await getDocs(collection(db, 'classes'));
  if (classesSnapshot.empty) {
  const batch = writeBatch(db);
- ['Utsman', 'Umar Bin Khattab'].forEach(name => {
+ ['UTSMAN BIN AFFAN', 'UMAR BIN KHATTAB'].forEach(name => {
  const ref = doc(collection(db, 'classes'));
  batch.set(ref, { name, createdAt: new Date().toISOString() });
  });

@@ -3380,19 +3380,19 @@ export default function DashboardAdmin() {
         </div>
       </aside>
 
- {/* Bottom Navigation Bar (Mobile) */}
+      {/* Bottom Navigation Bar (Mobile) - 5 tabs with Menu (Garis Tiga) */}
       <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-8px_25px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-3 z-[100]"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-8px_25px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-3 z-50"
         style={{ WebkitBackdropFilter: 'blur(16px)' }}
       >
         {/* Beranda */}
         <button
           onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
           className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            activeTab === 'overview' ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            activeTab === 'overview' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <Home size={20} className={activeTab === 'overview' ? 'text-emerald-600' : 'text-slate-400'} />
+          <Home size={20} className={activeTab === 'overview' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
           <span className="text-[10px] tracking-tight">Beranda</span>
         </button>
 
@@ -3400,10 +3400,10 @@ export default function DashboardAdmin() {
         <button
           onClick={() => { setActiveTab('finance'); setFinanceSubTab('grup'); setIsSidebarOpen(false); }}
           className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            activeTab === 'finance' ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            activeTab === 'finance' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <CreditCard size={20} className={activeTab === 'finance' ? 'text-emerald-600' : 'text-slate-400'} />
+          <CreditCard size={20} className={activeTab === 'finance' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
           <span className="text-[10px] tracking-tight">Transaksi</span>
         </button>
 
@@ -3422,11 +3422,11 @@ export default function DashboardAdmin() {
         <button
           onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
           className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all relative ${
-            activeTab === 'announcements' ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            activeTab === 'announcements' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <div className="relative">
-            <Bell size={20} className={activeTab === 'announcements' ? 'text-emerald-600' : 'text-slate-400'} />
+            <Bell size={20} className={activeTab === 'announcements' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
             {payments.filter(p => p.status === 'pending').length > 0 && (
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
             )}
@@ -3434,15 +3434,15 @@ export default function DashboardAdmin() {
           <span className="text-[10px] tracking-tight">Notifikasi</span>
         </button>
 
-        {/* Profil */}
+        {/* Menu (Garis Tiga) */}
         <button
-          onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
+          onClick={() => { setIsSidebarOpen(true); }}
           className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            activeTab === 'profile' ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <User size={20} className={activeTab === 'profile' ? 'text-emerald-600' : 'text-slate-400'} />
-          <span className="text-[10px] tracking-tight">Profil</span>
+          <Menu size={20} className={isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
+          <span className="text-[10px] tracking-tight">Menu</span>
         </button>
       </div>
 
@@ -3593,10 +3593,11 @@ export default function DashboardAdmin() {
               <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
             </button>
 
-            {/* Profile Chip */}
+            {/* Profile Chip & Desktop Logout */}
             <div 
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-3 pl-4 border-l border-slate-100 cursor-pointer group"
+              title="Buka Pengaturan Profil Admin"
             >
               <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0">
                 {userData?.photoURL ? (
@@ -3605,59 +3606,76 @@ export default function DashboardAdmin() {
                   <img src="/logo_ra.jpeg" alt="Admin" className="w-full h-full object-cover" />
                 )}
               </div>
-              <div>
+              <div className="text-left">
                 <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                  Admin RA
+                  {userData?.name || 'Admin RA'}
                 </h4>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                   SUPER ADMIN
                 </p>
               </div>
             </div>
+
+            <button
+              onClick={async () => {
+                await auth.signOut();
+                navigate('/login');
+              }}
+              className="hidden md:flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all active:scale-95 border border-rose-100 cursor-pointer shadow-2xs ml-1"
+              title="Keluar Sesi Akun Admin"
+            >
+              <LogOut size={14} />
+              <span>Keluar</span>
+            </button>
           </div>
         </header>
 
-        {/* Mobile Header (Garis 3 di samping kiri Logo & Nama Sekolah) */}
-        <div className="md:hidden bg-white border-b border-slate-100 px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-[100] shadow-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer shrink-0"
-              title="Menu"
-            >
-              <Menu size={22} />
-            </button>
-
-            <div className="w-8 h-8 overflow-hidden rounded-xl border border-emerald-600/15 p-0.5 bg-white shadow-xs flex items-center justify-center shrink-0">
+        {/* Mobile Header Bar - Matching Screenshot Style without Top Hamburger */}
+        <div className="md:hidden bg-white/95 border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-xs backdrop-blur-md" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-emerald-50/40 shadow-xs flex items-center justify-center">
               <img 
                 src="/logo_ra.jpeg" 
                 alt="Logo RA Darusyifa" 
                 className="w-full h-full object-contain" 
               />
             </div>
-
-            <div className="text-left min-w-0">
-              <h2 className="font-display font-black text-slate-900 tracking-tight text-xs leading-none truncate">
-                RA Darusyifa
-              </h2>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 leading-none">
-                ARJAWINANGUN
-              </p>
+            <div>
+              <h2 className="font-display font-black text-slate-900 text-[15px] leading-tight">Portal Admin</h2>
+              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">RA DARUSYIFA ARJAWINANGUN</p>
             </div>
           </div>
 
-          <button 
-            onClick={() => setActiveTab('announcements')}
-            className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer shrink-0 ml-2"
-            title="Notifikasi"
-          >
-            <Bell size={20} />
-            {payments.filter(p => p.status === 'pending').length > 0 ? (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
-            ) : (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
-            )}
-          </button>
+          <div className="flex items-center gap-2.5">
+            {/* Notification Bell */}
+            <button 
+              onClick={() => setActiveTab('announcements')}
+              className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 hover:text-emerald-600 transition-all relative active:scale-95 shadow-xs"
+              title="Notifikasi"
+            >
+              <Bell size={18} />
+              {payments.filter(p => p.status === 'pending').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  {payments.filter(p => p.status === 'pending').length > 9 ? '9+' : payments.filter(p => p.status === 'pending').length}
+                </span>
+              )}
+            </button>
+
+            {/* Profile Avatar with Chevron */}
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs text-xs font-bold text-slate-700">
+                {userData?.photoURL ? (
+                  <img src={userData.photoURL} alt="Foto Profil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <img src="/logo_ra.jpeg" alt="Admin" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 pb-32 md:pb-12 flex-1 w-full">
@@ -4060,7 +4078,7 @@ export default function DashboardAdmin() {
                     <h3 className="text-xl font-black text-gray-800 mb-6">Tambah Kategori Kelas</h3>
                     <form onSubmit={handleAddClassCategory} className="space-y-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Nama Kelas Baru (Cth: KELAS A1, KELAS B2)</label>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Nama Kelas Baru (Cth: UTSMAN BIN AFFAN, UMAR BIN KHATTAB)</label>
                         <input 
                           type="text" 
                           value={newClassName}
@@ -4124,7 +4142,7 @@ export default function DashboardAdmin() {
  <button 
  onClick={() => {
  const ws = XLSX.utils.json_to_sheet([
- { Nama: "Contoh Siswa", Email: "siswa1@ra.com", Password: "password123", Kelas: "KELAS A", WhatsApp: "08123456789" }
+ { Nama: "Contoh Siswa", Email: "siswa1@ra.com", Password: "password123", Kelas: "UTSMAN BIN AFFAN", WhatsApp: "08123456789" }
  ]);
  const wb = XLSX.utils.book_new();
  XLSX.utils.book_append_sheet(wb, ws, "FormatSiswa");
@@ -5454,6 +5472,26 @@ export default function DashboardAdmin() {
  Update Password
  </button>
  </form>
+ </div>
+
+ <div className="mt-12 pt-8 border-t border-gray-100">
+ <div className="bg-rose-50/80 border border-rose-100 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+ <div>
+ <h4 className="text-base font-bold text-rose-900">Keluar Sesi Akun</h4>
+ <p className="text-xs text-rose-600 mt-0.5">Akhiri sesi akses administrasi di perangkat ini.</p>
+ </div>
+ <button
+ type="button"
+ onClick={async () => {
+ await auth.signOut();
+ navigate('/login');
+ }}
+ className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-rose-200 transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
+ >
+ <LogOut size={16} />
+ <span>Keluar Akun</span>
+ </button>
+ </div>
  </div>
  </div>
  )}

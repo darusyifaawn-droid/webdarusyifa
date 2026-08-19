@@ -562,51 +562,62 @@ export default function AbsensiTab({
           </div>
 
           {/* Date Range Picker (Dari Tanggal - Sampai Tanggal) */}
-          <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 bg-slate-50 border border-slate-200/80 p-1.5 rounded-2xl">
-            <div className="flex items-center gap-1.5 px-2">
-              <CalendarIcon size={14} className="text-emerald-600 shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Periode:</span>
+          <div className="w-full lg:w-auto bg-slate-50 border border-slate-200/80 p-2 sm:p-1.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            
+            {/* Header label on mobile */}
+            <div className="flex items-center justify-between sm:justify-start gap-1.5 px-1 sm:px-2">
+              <div className="flex items-center gap-1.5">
+                <CalendarIcon size={14} className="text-emerald-600 shrink-0" />
+                <span className="text-[11px] font-black text-slate-700 sm:text-slate-500">Rentang Tanggal:</span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 sm:hidden bg-emerald-100/60 px-2 py-0.5 rounded-md uppercase">
+                {filterDatePreset === 'today' ? 'Hari Ini' : filterDatePreset === '7days' ? '7 Hari' : filterDatePreset === 'month' ? 'Bulan Ini' : filterDatePreset === 'all' ? 'Semua' : 'Bebas'}
+              </span>
             </div>
             
-            {/* Input Dari Tanggal */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold text-slate-400">Dari:</span>
-              <input 
-                type="date"
-                value={filterDateStart}
-                onChange={(e) => {
-                  setFilterDateStart(e.target.value);
-                  setFilterDatePreset('custom');
-                }}
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
-                title="Pilih tanggal mulai"
-              />
-            </div>
+            {/* Inputs 2-Column Grid on Mobile, Inline on Desktop */}
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+              {/* Input Dari Tanggal */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                <span className="text-[10px] font-black uppercase text-slate-400 sm:text-slate-500 sm:normal-case ml-1 sm:ml-0">Dari:</span>
+                <input 
+                  type="date"
+                  value={filterDateStart}
+                  onChange={(e) => {
+                    setFilterDateStart(e.target.value);
+                    setFilterDatePreset('custom');
+                  }}
+                  className="w-full sm:w-auto px-2.5 py-2 sm:py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs text-center sm:text-left"
+                  title="Pilih tanggal mulai"
+                />
+              </div>
 
-            <ArrowRight size={13} className="text-slate-300 hidden sm:block shrink-0" />
-            <span className="text-slate-400 text-xs font-bold sm:hidden">-</span>
+              <div className="hidden sm:flex items-center justify-center">
+                <ArrowRight size={13} className="text-slate-300 shrink-0" />
+              </div>
 
-            {/* Input Sampai Tanggal */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold text-slate-400">Sampai:</span>
-              <input 
-                type="date"
-                value={filterDateEnd}
-                onChange={(e) => {
-                  setFilterDateEnd(e.target.value);
-                  setFilterDatePreset('custom');
-                }}
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
-                title="Pilih tanggal selesai"
-              />
+              {/* Input Sampai Tanggal */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                <span className="text-[10px] font-black uppercase text-slate-400 sm:text-slate-500 sm:normal-case ml-1 sm:ml-0">Sampai:</span>
+                <input 
+                  type="date"
+                  value={filterDateEnd}
+                  onChange={(e) => {
+                    setFilterDateEnd(e.target.value);
+                    setFilterDatePreset('custom');
+                  }}
+                  className="w-full sm:w-auto px-2.5 py-2 sm:py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs text-center sm:text-left"
+                  title="Pilih tanggal selesai"
+                />
+              </div>
             </div>
           </div>
 
           {/* Quick Date Presets */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto">
+          <div className="grid grid-cols-4 sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 w-full sm:w-auto">
             <button 
               onClick={() => setFilterDatePreset('today')}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`py-2 sm:py-1.5 px-2 sm:px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center sm:whitespace-nowrap ${
                 filterDatePreset === 'today' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -614,7 +625,7 @@ export default function AbsensiTab({
             </button>
             <button 
               onClick={() => setFilterDatePreset('7days')}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`py-2 sm:py-1.5 px-2 sm:px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center sm:whitespace-nowrap ${
                 filterDatePreset === '7days' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -622,7 +633,7 @@ export default function AbsensiTab({
             </button>
             <button 
               onClick={() => setFilterDatePreset('month')}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`py-2 sm:py-1.5 px-2 sm:px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center sm:whitespace-nowrap ${
                 filterDatePreset === 'month' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -630,7 +641,7 @@ export default function AbsensiTab({
             </button>
             <button 
               onClick={() => setFilterDatePreset('all')}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`py-2 sm:py-1.5 px-2 sm:px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer text-center sm:whitespace-nowrap ${
                 filterDatePreset === 'all' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
