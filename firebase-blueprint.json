@@ -102,6 +102,48 @@
         "createdAt": { "type": "object" }
       },
       "required": ["amount", "date", "type", "description"]
+    },
+    "SalarySlip": {
+      "title": "SalarySlip",
+      "description": "Teacher payroll records and salary slips",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "teacherEmail": { "type": "string" },
+        "teacherNip": { "type": "string" },
+        "teacherJabatan": { "type": "string" },
+        "assignedClass": { "type": "string" },
+        "bulan": { "type": "string" },
+        "tahun": { "type": "number" },
+        "periode": { "type": "string" },
+        "tanggalTerbit": { "type": "string", "format": "date" },
+        "gajiPokok": { "type": "number" },
+        "tunjanganJabatan": { "type": "number" },
+        "tunjanganWaliKelas": { "type": "number" },
+        "tunjanganTransport": { "type": "number" },
+        "tunjanganMakan": { "type": "number" },
+        "tunjanganKehadiran": { "type": "number" },
+        "insentifBonus": { "type": "number" },
+        "rincianTunjanganLain": { "type": "array" },
+        "totalPenerimaan": { "type": "number" },
+        "potonganBpjs": { "type": "number" },
+        "potonganKoperasi": { "type": "number" },
+        "potonganAbsen": { "type": "number" },
+        "potonganPinjaman": { "type": "number" },
+        "rincianPotonganLain": { "type": "array" },
+        "totalPotongan": { "type": "number" },
+        "gajiBersih": { "type": "number" },
+        "status": { "type": "string", "enum": ["Draft", "Diterbitkan", "Dibayarkan"] },
+        "metodePembayaran": { "type": "string" },
+        "catatan": { "type": "string" },
+        "namaKepsek": { "type": "string" },
+        "nipKepsek": { "type": "string" },
+        "qrVerificationCode": { "type": "string" },
+        "createdAt": { "type": "object" },
+        "updatedAt": { "type": "object" }
+      },
+      "required": ["teacherId", "teacherName", "bulan", "tahun", "totalPenerimaan", "totalPotongan", "gajiBersih"]
     }
   },
   "firestore": {
@@ -112,6 +154,7 @@
     "/payments/{paymentId}": { "schema": "Payment", "description": "Payment and savings history" },
     "/hafalan_materials/{materialId}": { "schema": "HafalanMaterial", "description": "Memorization modules" },
     "/hafalan_progress/{progressId}": { "description": "Student memorization progress" },
-    "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" }
+    "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" },
+    "/salary_slips/{slipId}": { "schema": "SalarySlip", "description": "Teacher salary slips" }
   }
 }

@@ -148,5 +148,15 @@ service cloud.firestore {
     match /finance_transactions/{id} {
       allow read, write: if isAdmin();
     }
+
+    // Salary Slips
+    match /salary_slips/{id} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.teacherId == request.auth.uid ||
+        (request.auth.token.email != null && resource.data.teacherEmail == request.auth.token.email)
+      );
+      allow write: if isAdmin();
+    }
   }
 }

@@ -17,7 +17,8 @@ import {
   AlertTriangle, 
   FileText, 
   CheckCircle,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -31,7 +32,7 @@ interface FinanceDashboardOverviewProps {
   displayTotalPaidOnline: number;
   displayTotalPaid: number;
   exportFinanceToExcel: () => void;
-  setFinanceSubTab: (tab: 'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan') => void;
+  setFinanceSubTab: (tab: 'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji') => void;
   setShowTabunganModal?: (val: boolean) => void;
   setShowManageFinanceModal?: (val: boolean) => void;
   setActiveTab?: (tab: string) => void;
@@ -378,25 +379,45 @@ export default function FinanceDashboardOverview({
 
           {/* Card 2: Tabungan Siswa */}
           <div 
-            onClick={() => {
-              if (setShowTabunganModal) setShowTabunganModal(true);
-              else setFinanceSubTab('grup');
-            }}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer flex flex-col justify-between group"
+            onClick={() => setFinanceSubTab('tabungan')}
+            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <Coins size={20} />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-blue-700 transition-colors">
-                Tabungan Siswa
+              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
+                Laporan Tabungan Siswa
               </h4>
               <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                Kelola setoran dan saldo tabungan siswa.
+                Tarik data tabungan rinci per periode, mutasi setoran & penarikan.
               </p>
             </div>
             <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-blue-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={14} />
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Slip Gaji Guru */}
+          <div 
+            onClick={() => setFinanceSubTab('slip_gaji')}
+            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer flex flex-col justify-between group"
+          >
+            <div>
+              <div className="w-11 h-11 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <Wallet size={20} />
+              </div>
+              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-teal-700 transition-colors">
+                Slip Gaji Guru
+              </h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                Input otomatis slip gaji, rincian potongan, & barcode kepala sekolah.
+              </p>
+            </div>
+            <div className="flex justify-end mt-4">
+              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-teal-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
                 <ArrowRight size={14} />
               </div>
             </div>

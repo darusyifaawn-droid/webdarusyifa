@@ -10,7 +10,7 @@ import {
   RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, 
   ChevronRight, ArrowRight, ArrowLeft, Search, PlusCircle, History as HistoryIcon, 
   ExternalLink, Sun, Moon, Wallet, QrCode, Scan, Home, LayoutDashboard, Check, 
-  Sparkles, Layers
+  Sparkles, Layers, Coins
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -32,6 +32,8 @@ import KaldikIframe from './KaldikIframe';
 import FinanceRiwayatTab from './admin/tabs/FinanceRiwayatTab';
 import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
 import FinanceArusTab from './admin/tabs/FinanceArusTab';
+import FinanceSlipGajiTab from './admin/tabs/FinanceSlipGajiTab';
+import FinanceTabunganTab from './admin/tabs/FinanceTabunganTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import AbsensiTab from './admin/tabs/AbsensiTab';
@@ -228,7 +230,8 @@ export default function DashboardAdmin() {
  const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
  const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
- const [financeSubTab, setFinanceSubTab] = useState<'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan'>('dashboard');
+ const [financeSubTab, setFinanceSubTab] = useState<'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji'>('dashboard');
+ const [salarySlips, setSalarySlips] = useState<any[]>([]);
  const [hafalanSubTab, setHafalanSubTab] = useState<'modul' | 'progress'>('modul');
  const [financeIuranStudentIds, setFinanceIuranStudentIds] = useState<string[]>([]);
  const [filterFinanceKelas, setFilterFinanceKelas] = useState('');
@@ -609,6 +612,12 @@ export default function DashboardAdmin() {
  handleFirestoreError(error, OperationType.LIST, 'iuran_categories');
  });
 
+ const unsubSalarySlips = onSnapshot(collection(db, 'salary_slips'), (snapshot) => {
+ setSalarySlips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+ }, (error) => {
+ handleFirestoreError(error, OperationType.LIST, 'salary_slips');
+ });
+
  return () => {
  unsubUsers();
  unsubAttendance();
@@ -622,6 +631,7 @@ export default function DashboardAdmin() {
  unsubMaterials();
  unsubHafalan();
  unsubCategories();
+ unsubSalarySlips();
  };
  }, [user]);
 
@@ -3223,24 +3233,21 @@ export default function DashboardAdmin() {
                     <div className="pl-4 pr-1 py-1 space-y-1 animate-in fade-in duration-200">
                       {[
                         { id: 'dashboard', label: 'Dashboard Administrasi', isDot: true },
+                        { id: 'tabungan', label: 'Laporan Tabungan Rinci' },
+                        { id: 'slip_gaji', label: 'Slip Gaji Guru' },
                         { id: 'grup', label: 'Transaksi & Pembayaran' },
-                        { id: 'tabungan', label: 'Tabungan Siswa', onClick: () => setShowTabunganModal(true) },
                         { id: 'penetapan', label: 'Penagihan Iuran' },
                         { id: 'validasi', label: 'Validasi Pembayaran', count: pendingCount },
                         { id: 'riwayat', label: 'Arsip Transaksi' },
                         { id: 'laporan', label: 'Laporan Keuangan' },
                         { id: 'setelan', label: 'Pengaturan Administrasi' },
                       ].map((sub) => {
-                        const isSubActive = (sub.id === 'tabungan' ? showTabunganModal : financeSubTab === sub.id);
+                        const isSubActive = financeSubTab === sub.id;
                         return (
                           <button
                             key={sub.id}
                             onClick={() => {
-                              if (sub.onClick) {
-                                sub.onClick();
-                              } else {
-                                setFinanceSubTab(sub.id as any);
-                              }
+                              setFinanceSubTab(sub.id as any);
                               setIsSidebarOpen(false);
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-all ${
@@ -5080,6 +5087,8 @@ export default function DashboardAdmin() {
                       <div className="h-5 w-px bg-slate-200" />
                       <div>
                         <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
+                          {financeSubTab === 'tabungan' && 'Laporan & Tarik Data Tabungan Rinci'}
+                          {financeSubTab === 'slip_gaji' && 'Manajemen Slip Gaji Guru & Barcode Kepsek'}
                           {financeSubTab === 'grup' && 'Transaksi & Grup Iuran'}
                           {financeSubTab === 'penetapan' && 'Penetapan & Penagihan Iuran'}
                           {financeSubTab === 'validasi' && 'Validasi Pembayaran Siswa'}
@@ -5108,6 +5117,8 @@ export default function DashboardAdmin() {
                   <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200/60 rounded-2xl overflow-x-auto custom-scrollbar">
                     {[
                       { id: 'dashboard', label: 'Dashboard', icon: BarChart },
+                      { id: 'tabungan', label: 'Data Tabungan', icon: Coins },
+                      { id: 'slip_gaji', label: 'Slip Gaji Guru', icon: Wallet },
                       { id: 'grup', label: 'Transaksi & Grup', icon: CreditCard },
                       { id: 'penetapan', label: 'Penetapan Iuran', icon: PlusCircle },
                       { id: 'validasi', label: 'Validasi', icon: CheckCircle, badge: payments.filter(p => p.status === 'pending').length },
@@ -5139,6 +5150,28 @@ export default function DashboardAdmin() {
                     })}
                   </div>
                 </div>
+
+                {/* Sub Tab: Tarik & Laporan Data Tabungan Rinci */}
+                {financeSubTab === 'tabungan' && (
+                  <FinanceTabunganTab
+                    payments={payments}
+                    allUsers={allUsers}
+                    schoolClasses={schoolClasses}
+                    onOpenTabunganModal={() => setShowTabunganModal(true)}
+                    handlePrintReceipt={handlePrintReceipt}
+                    settings={settings}
+                  />
+                )}
+
+                {/* Sub Tab: Manajemen Slip Gaji Guru */}
+                {financeSubTab === 'slip_gaji' && (
+                  <FinanceSlipGajiTab
+                    salarySlips={salarySlips}
+                    allUsers={allUsers}
+                    schoolClasses={schoolClasses}
+                    settings={settings}
+                  />
+                )}
 
                 {/* Sub Tab: Grup Iuran */}
                 {financeSubTab === 'grup' && (

@@ -31,6 +31,7 @@ import GuruProgressRapotTab from './guru/GuruProgressRapotTab';
 import GuruHafalanTab from './guru/GuruHafalanTab';
 import GuruAttendanceTab from './guru/GuruAttendanceTab';
 import GuruProfileTab from './guru/GuruProfileTab';
+import GuruSlipGajiTab from './guru/GuruSlipGajiTab';
 
 export default function DashboardGuru() {
   const { user: authUser, userData: authUserData } = useAuth();
@@ -38,6 +39,7 @@ export default function DashboardGuru() {
   const [userData, setUserData] = useState<any>(authUserData);
   const [students, setStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [salarySlips, setSalarySlips] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
   const [kaldikData, setKaldikData] = useState<any[]>([]);
   const [materialsData, setMaterialsData] = useState<any[]>([]);
@@ -267,6 +269,10 @@ export default function DashboardGuru() {
       }
     }, () => {});
 
+    const unsubSalarySlips = onSnapshot(collection(db, 'salary_slips'), (snapshot) => {
+      setSalarySlips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, () => {});
+
     return () => {
       unsubStudents();
       unsubProgress();
@@ -281,6 +287,7 @@ export default function DashboardGuru() {
       unsubKaldik();
       unsubMaterials();
       unsubHafalanMaterials();
+      unsubSalarySlips();
     };
   }, [user, userData?.assignedClass, userData?.kelas]);
 
@@ -888,6 +895,7 @@ export default function DashboardGuru() {
   const navMenuItems = [
     { id: 'overview', label: 'Beranda Guru', icon: BarChartIcon },
     { id: 'students', label: 'Daftar Siswa', icon: Users },
+    { id: 'slip-gaji', label: 'Slip Gaji Saya', icon: Wallet },
     { id: 'penilaian-kelas', label: 'Penilaian Kelas', icon: Edit },
     { id: 'progress', label: 'Rapot Belajar', icon: GraduationCap },
     { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
@@ -1451,6 +1459,15 @@ export default function DashboardGuru() {
               onChangePassword={handleChangePasswordProfile}
               onPhotoFileChange={handleProfilePhotoChange}
               onLogout={handleLogout}
+            />
+          )}
+
+          {activeTab === 'slip-gaji' && (
+            <GuruSlipGajiTab
+              salarySlips={salarySlips}
+              userData={userData}
+              user={user}
+              settings={settings}
             />
           )}
         </div>
