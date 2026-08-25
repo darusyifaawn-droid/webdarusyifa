@@ -18,7 +18,8 @@ import {
   FileText, 
   CheckCircle,
   ChevronRight,
-  Wallet
+  Wallet,
+  Banknote
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -32,7 +33,7 @@ interface FinanceDashboardOverviewProps {
   displayTotalPaidOnline: number;
   displayTotalPaid: number;
   exportFinanceToExcel: () => void;
-  setFinanceSubTab: (tab: 'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji') => void;
+  setFinanceSubTab: (tab: 'dashboard' | 'setoran_cash' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji') => void;
   setShowTabunganModal?: (val: boolean) => void;
   setShowManageFinanceModal?: (val: boolean) => void;
   setActiveTab?: (tab: string) => void;
@@ -368,6 +369,29 @@ export default function FinanceDashboardOverview({
               </h4>
               <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                 Catat pembayaran SPP, pendaftaran, buku, dan transaksi lainnya.
+              </p>
+            </div>
+            <div className="flex justify-end mt-4">
+              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={14} />
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Setoran Cash Bendahara ke Kepsek */}
+          <div 
+            onClick={() => setFinanceSubTab('setoran_cash')}
+            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between group"
+          >
+            <div>
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                <Banknote size={20} />
+              </div>
+              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
+                Setoran Cash (Bendahara ➔ Kepsek)
+              </h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                Alur penyerahan uang tunai resmi, verifikasi 2 tingkat, & Bukti Setoran Cash sah.
               </p>
             </div>
             <div className="flex justify-end mt-4">

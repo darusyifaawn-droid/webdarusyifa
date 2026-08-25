@@ -158,5 +158,11 @@ service cloud.firestore {
       );
       allow write: if isAdmin();
     }
+
+    // Cash Deposits (Setoran Cash Bendahara ke Kepsek/Yayasan)
+    match /cash_deposits/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
   }
 }

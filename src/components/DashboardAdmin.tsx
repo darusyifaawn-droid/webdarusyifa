@@ -10,7 +10,7 @@ import {
   RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, 
   ChevronRight, ArrowRight, ArrowLeft, Search, PlusCircle, History as HistoryIcon, 
   ExternalLink, Sun, Moon, Wallet, QrCode, Scan, Home, LayoutDashboard, Check, 
-  Sparkles, Layers, Coins
+  Sparkles, Layers, Coins, Banknote
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -34,6 +34,7 @@ import FinanceSetelanTab from './admin/tabs/FinanceSetelanTab';
 import FinanceArusTab from './admin/tabs/FinanceArusTab';
 import FinanceSlipGajiTab from './admin/tabs/FinanceSlipGajiTab';
 import FinanceTabunganTab from './admin/tabs/FinanceTabunganTab';
+import FinanceSetoranCashTab from './admin/tabs/FinanceSetoranCashTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import AbsensiTab from './admin/tabs/AbsensiTab';
@@ -230,7 +231,7 @@ export default function DashboardAdmin() {
  const [rankingClassFilter, setRankingClassFilter] = useState('Semua');
  const [filterKeuanganStatus, setFilterKeuanganStatus] = useState<'semua' | 'menunggak' | 'lunas'>('semua');
  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
- const [financeSubTab, setFinanceSubTab] = useState<'dashboard' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji'>('dashboard');
+ const [financeSubTab, setFinanceSubTab] = useState<'dashboard' | 'setoran_cash' | 'grup' | 'penetapan' | 'validasi' | 'riwayat' | 'setelan' | 'laporan' | 'tabungan' | 'slip_gaji'>('dashboard');
  const [salarySlips, setSalarySlips] = useState<any[]>([]);
  const [hafalanSubTab, setHafalanSubTab] = useState<'modul' | 'progress'>('modul');
  const [financeIuranStudentIds, setFinanceIuranStudentIds] = useState<string[]>([]);
@@ -5117,6 +5118,7 @@ export default function DashboardAdmin() {
                   <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200/60 rounded-2xl overflow-x-auto custom-scrollbar">
                     {[
                       { id: 'dashboard', label: 'Dashboard', icon: BarChart },
+                      { id: 'setoran_cash', label: 'Setoran Cash (Bendahara)', icon: Banknote },
                       { id: 'tabungan', label: 'Data Tabungan', icon: Coins },
                       { id: 'slip_gaji', label: 'Slip Gaji Guru', icon: Wallet },
                       { id: 'grup', label: 'Transaksi & Grup', icon: CreditCard },
@@ -5150,6 +5152,18 @@ export default function DashboardAdmin() {
                     })}
                   </div>
                 </div>
+
+                {/* Sub Tab: Setoran Cash Bendahara ke Kepsek / Yayasan */}
+                {financeSubTab === 'setoran_cash' && (
+                  <FinanceSetoranCashTab
+                    payments={payments}
+                    allUsers={allUsers}
+                    user={user}
+                    settings={settings}
+                    iuranCategories={iuranCategories}
+                    schoolClasses={schoolClasses}
+                  />
+                )}
 
                 {/* Sub Tab: Tarik & Laporan Data Tabungan Rinci */}
                 {financeSubTab === 'tabungan' && (

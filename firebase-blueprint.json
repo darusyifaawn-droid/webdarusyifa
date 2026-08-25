@@ -144,6 +144,39 @@
         "updatedAt": { "type": "object" }
       },
       "required": ["teacherId", "teacherName", "bulan", "tahun", "totalPenerimaan", "totalPotongan", "gajiBersih"]
+    },
+    "CashDeposit": {
+      "title": "CashDeposit",
+      "description": "Cash handover deposits from treasurer to principal or foundation",
+      "type": "object",
+      "properties": {
+        "depositNumber": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "periodType": { "type": "string", "enum": ["Harian", "Mingguan", "Bulanan", "Custom"] },
+        "depositType": { "type": "string", "enum": ["Tabungan", "Iuran Bulanan", "Uang Kegiatan", "PPDB / Pendaftaran", "Penjualan Buku / Seragam", "Lainnya"] },
+        "source": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "treasurerId": { "type": "string" },
+        "treasurerName": { "type": "string" },
+        "treasurerNip": { "type": "string" },
+        "treasurerTitle": { "type": "string" },
+        "treasurerVerified": { "type": "boolean" },
+        "treasurerVerifiedAt": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "receiverNip": { "type": "string" },
+        "receiverTitle": { "type": "string" },
+        "principalVerified": { "type": "boolean" },
+        "principalVerifiedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["menunggu_verifikasi_bendahara", "menunggu_verifikasi_kepsek", "disahkan", "ditolak"] },
+        "rejectionReason": { "type": "string" },
+        "qrVerificationCode": { "type": "string" },
+        "createdAt": { "type": "object" },
+        "updatedAt": { "type": "object" }
+      },
+      "required": ["depositNumber", "date", "amount", "depositType", "status", "treasurerName", "receiverName"]
     }
   },
   "firestore": {
@@ -155,6 +188,7 @@
     "/hafalan_materials/{materialId}": { "schema": "HafalanMaterial", "description": "Memorization modules" },
     "/hafalan_progress/{progressId}": { "description": "Student memorization progress" },
     "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" },
-    "/salary_slips/{slipId}": { "schema": "SalarySlip", "description": "Teacher salary slips" }
+    "/salary_slips/{slipId}": { "schema": "SalarySlip", "description": "Teacher salary slips" },
+    "/cash_deposits/{depositId}": { "schema": "CashDeposit", "description": "Treasurer cash deposits to principal and foundation" }
   }
 }
