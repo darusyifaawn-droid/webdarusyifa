@@ -3,7 +3,8 @@ import {
   Star, Search, Filter, BookOpen, CheckCircle, Clock, 
   Printer, Play, Video, Mic, ExternalLink, Sparkles, ChevronRight, 
   Award, Plus, Edit, Trash2, X, Save, AlertCircle, ChevronLeft,
-  ChevronsLeft, ChevronsRight, Layers, FileText, CheckCircle2, RotateCcw
+  ChevronsLeft, ChevronsRight, Layers, FileText, CheckCircle2, RotateCcw,
+  Tag, FolderPlus, Settings2, Edit3, Check
 } from 'lucide-react';
 import { 
   collection, doc, addDoc, setDoc, updateDoc, deleteDoc, 
@@ -11,7 +12,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { handleFirestoreError, OperationType } from '../../lib/firestoreUtils';
-import { StudentHafalanProgress, HafalanStatus, HafalanMaterial, staticHafalanMaterials } from '../../data/hafalanData';
+import { StudentHafalanProgress, HafalanStatus, HafalanMaterial, HafalanCategory, DEFAULT_HAFALAN_CATEGORIES, staticHafalanMaterials } from '../../data/hafalanData';
+import { useEffect } from 'react';
+import { onSnapshot } from 'firebase/firestore';
 
 interface GuruHafalanTabProps {
   hafalanProgress: StudentHafalanProgress[];
@@ -51,11 +54,14 @@ export default function GuruHafalanTab({
   const [modulPage, setModulPage] = useState(1);
   const [modulPerPage, setModulPerPage] = useState(8);
 
+  // --- Category Data (Admin-managed, Read-only for Guru/Wali Kelas) ---
+  const [customCategories, setCustomCategories] = useState<HafalanCategory[]>([]);
+
   // --- Modal states for Material Management (Tambah / Edit) ---
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<HafalanMaterial | null>(null);
   const [formJudul, setFormJudul] = useState('');
-  const [formKategori, setFormKategori] = useState<'Surat Pendek' | 'Hadist' | 'Doa Sehari-hari' | 'Bacaan Sholat'>('Surat Pendek');
+  const [formKategori, setFormKategori] = useState<string>('Surat Pendek');
   const [formKelas, setFormKelas] = useState<'Utsman' | 'Umar Bin Khattab' | string>('Utsman');
   const [formUrutan, setFormUrutan] = useState(1);
   const [formArab, setFormArab] = useState('');
@@ -63,6 +69,17 @@ export default function GuruHafalanTab({
   const [formTerjemahan, setFormTerjemahan] = useState('');
   const [isSavingMaterial, setIsSavingMaterial] = useState(false);
   const [isSyncingDefaults, setIsSyncingDefaults] = useState(false);
+
+  // Real-time listener for hafalan_categories from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'hafalan_categories'), (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HafalanCategory));
+      setCustomCategories(docs);
+    }, (err) => {
+      console.error('Error fetching hafalan categories:', err);
+    });
+    return () => unsub();
+  }, []);
 
   // --- Modal states for Direct Evaluation (Input Nilai Langsung) ---
   const [showDirectEvalModal, setShowDirectEvalModal] = useState(false);
@@ -78,12 +95,17 @@ export default function GuruHafalanTab({
   const studentMap = useMemo(() => new Map(effectiveStudents.map(s => [s.id, s])), [effectiveStudents]);
   const materialMap = useMemo(() => new Map(hafalanMaterials.map(m => [m.id, m])), [hafalanMaterials]);
 
-  // Categories list
+  // Combined Categories list (defaults + custom categories + existing material categories)
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(hafalanMaterials.map(m => m.kategori).filter(Boolean)));
-    if (cats.length === 0) return ['Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'];
-    return cats;
-  }, [hafalanMaterials]);
+    const customNames = customCategories.map(c => c.name?.trim()).filter(Boolean);
+    const materialCats = hafalanMaterials.map(m => m.kategori?.trim()).filter(Boolean);
+    const combined = Array.from(new Set([
+      ...DEFAULT_HAFALAN_CATEGORIES,
+      ...customNames,
+      ...materialCats
+    ]));
+    return combined;
+  }, [customCategories, hafalanMaterials]);
 
   // Classes list - only official classes UTSMAN BIN AFFAN and UMAR BIN KHATTAB
   const classOptions = useMemo(() => {
@@ -221,7 +243,7 @@ export default function GuruHafalanTab({
   const handleOpenAddMaterial = () => {
     setEditingMaterial(null);
     setFormJudul('');
-    setFormKategori('Surat Pendek');
+    setFormKategori(categories[0] || 'Surat Pendek');
     setFormKelas(userData?.assignedClass || userData?.kelas || 'UTSMAN BIN AFFAN');
     setFormUrutan(hafalanMaterials.length + 1);
     setFormArab('');
@@ -233,7 +255,7 @@ export default function GuruHafalanTab({
   const handleOpenEditMaterial = (mat: HafalanMaterial) => {
     setEditingMaterial(mat);
     setFormJudul(mat.judul);
-    setFormKategori(mat.kategori);
+    setFormKategori(mat.kategori || 'Surat Pendek');
     setFormKelas(mat.kelas || 'Utsman');
     setFormUrutan(mat.urutan || 1);
     setFormArab(mat.arab || '');
@@ -253,7 +275,7 @@ export default function GuruHafalanTab({
     try {
       const payload: any = {
         judul: formJudul.trim(),
-        kategori: formKategori,
+        kategori: formKategori || categories[0] || 'Surat Pendek',
         kelas: formKelas,
         urutan: Number(formUrutan) || 1,
         arab: formArab.trim(),
@@ -503,6 +525,8 @@ export default function GuruHafalanTab({
                 <span>Sinkron Standar</span>
               </button>
 
+
+
               <button
                 type="button"
                 onClick={handleOpenAddMaterial}
@@ -513,14 +537,18 @@ export default function GuruHafalanTab({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={handleOpenDirectEval}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-200 transition-all cursor-pointer"
-            >
-              <Award size={16} />
-              <span>+ Input Nilai Hafalan</span>
-            </button>
+            <>
+
+
+              <button
+                type="button"
+                onClick={handleOpenDirectEval}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-200 transition-all cursor-pointer"
+              >
+                <Award size={16} />
+                <span>+ Input Nilai Hafalan</span>
+              </button>
+            </>
           )}
 
           {/* Subtab Toggle */}
@@ -1006,17 +1034,17 @@ export default function GuruHafalanTab({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori</label>
+                <div className="sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kategori *</label>
                   <select
                     value={formKategori}
-                    onChange={(e) => setFormKategori(e.target.value as any)}
+                    onChange={(e) => setFormKategori(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
                   >
-                    <option value="Surat Pendek">Surat Pendek</option>
-                    <option value="Hadist">Hadist</option>
-                    <option value="Doa Sehari-hari">Doa Sehari-hari</option>
-                    <option value="Bacaan Sholat">Bacaan Sholat</option>
+                    {categories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1251,6 +1279,7 @@ export default function GuruHafalanTab({
           </div>
         </div>
       )}
-    </div>
+
+          </div>
   );
 }

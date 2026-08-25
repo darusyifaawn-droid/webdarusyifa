@@ -6,7 +6,7 @@ import { Camera, MapPin, Search, Filter, CheckCircle, Clock, Calendar, User, Log
 import { motion, AnimatePresence } from 'motion/react';
 import DriveJuknisModal from './DriveJuknisModal';
 import KaldikIframe from './KaldikIframe';
-import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus } from '../data/hafalanData';
+import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, DEFAULT_HAFALAN_CATEGORIES } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
@@ -41,6 +41,12 @@ export default function DashboardSiswa() {
  const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
  const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua');
   const [searchHafalan, setSearchHafalan] = useState('');
+
+  const studentHafalanCategories = React.useMemo(() => {
+    const fromMats = hafalanMaterials.map(m => m.kategori?.trim()).filter(Boolean);
+    const combined = ['Semua Kategori', ...DEFAULT_HAFALAN_CATEGORIES, ...fromMats];
+    return Array.from(new Set(combined));
+  }, [hafalanMaterials]);
   const [filterProgressPeriod, setFilterProgressPeriod] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
  const [loading, setLoading] = useState(true);
  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -2009,7 +2015,7 @@ export default function DashboardSiswa() {
 
                 {/* Category Pills */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                  {['Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'].map((cat) => {
+                  {studentHafalanCategories.map((cat) => {
                     const isSelected = filterHafalanCategorySiswa === cat;
                     return (
                       <button

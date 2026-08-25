@@ -1,14 +1,30 @@
 export type HafalanStatus = 'Belum Mulai' | 'Sedang Menghafal' | 'Lancar' | 'Mumtaz (Lulus)';
 
+export const DEFAULT_HAFALAN_CATEGORIES = [
+  'Surat Pendek',
+  'Hadist',
+  'Doa Sehari-hari',
+  'Bacaan Sholat'
+] as const;
+
+export interface HafalanCategory {
+  id?: string;
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  createdAt?: any;
+  createdBy?: string;
+}
+
 export interface HafalanMaterial {
- id: string;
- kelas: 'Utsman' | 'Umar Bin Khattab';
- kategori: 'Surat Pendek' | 'Hadist' | 'Doa Sehari-hari' | 'Bacaan Sholat';
- judul: string;
- arab?: string;
- latin?: string;
- terjemahan?: string;
- urutan: number;
+  id: string;
+  kelas: 'Utsman' | 'Umar Bin Khattab' | string;
+  kategori: string;
+  judul: string;
+  arab?: string;
+  latin?: string;
+  terjemahan?: string;
+  urutan: number;
 }
 
 export interface StudentHafalanProgress {

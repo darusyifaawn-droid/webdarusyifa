@@ -91,6 +91,12 @@ service cloud.firestore {
       allow write: if isAdmin() || isGuru();
     }
 
+    // Rules for Hafalan Categories (Admin only can manage categories)
+    match /hafalan_categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // Rules for Hafalan Progress
     match /hafalan_progress/{progressId} {
       allow read: if isSignedIn() && (

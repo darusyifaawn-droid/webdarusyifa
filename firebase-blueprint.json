@@ -77,8 +77,8 @@
       "description": "Memorization modules",
       "type": "object",
       "properties": {
-        "kelas": { "type": "string", "enum": ["Utsman", "Umar Bin Khattab"] },
-        "kategori": { "type": "string", "enum": ["Surat Pendek", "Hadist", "Doa Sehari-hari", "Bacaan Sholat"] },
+        "kelas": { "type": "string" },
+        "kategori": { "type": "string" },
         "judul": { "type": "string" },
         "arab": { "type": "string" },
         "latin": { "type": "string" },
@@ -87,6 +87,18 @@
         "createdAt": { "type": "object" }
       },
       "required": ["kelas", "kategori", "judul", "urutan"]
+    },
+    "HafalanCategory": {
+      "title": "HafalanCategory",
+      "description": "Custom categories for hafalan / memorization materials",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["name"]
     },
     "FinanceTransaction": {
       "title": "FinanceTransaction",
@@ -186,6 +198,7 @@
     "/attendance/{attendanceId}": { "schema": "Attendance", "description": "Global attendance records" },
     "/payments/{paymentId}": { "schema": "Payment", "description": "Payment and savings history" },
     "/hafalan_materials/{materialId}": { "schema": "HafalanMaterial", "description": "Memorization modules" },
+    "/hafalan_categories/{categoryId}": { "schema": "HafalanCategory", "description": "Custom categories for hafalan materials" },
     "/hafalan_progress/{progressId}": { "description": "Student memorization progress" },
     "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" },
     "/salary_slips/{slipId}": { "schema": "SalarySlip", "description": "Teacher salary slips" },
