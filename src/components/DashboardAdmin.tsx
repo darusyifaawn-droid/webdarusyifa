@@ -272,144 +272,286 @@ export default function DashboardAdmin() {
  const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
  const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
 
- const isFinanceFiltered = filterFinanceIuranName || filterFinanceCategory || filterFinanceStartDate || filterFinanceEndDate || filterFinanceStudentName || filterFinanceKelas || filterKeuanganStatus !== 'semua';
- 
- // Available Iurans for filtering (categorized)
- const availableIuranDetails = Array.from(new Set(allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').flatMap(u => (u.arrears_details || []).map((d: any) => JSON.stringify({ name: d.name, category: d.category || 'Umum' })))))
- .map(s => JSON.parse(s));
+  const isFinanceFiltered = Boolean(
+    filterFinanceIuranName || 
+    filterFinanceCategory || 
+    filterFinanceStartDate || 
+    filterFinanceEndDate || 
+    filterFinanceStudentName || 
+    filterFinanceKelas || 
+    filterFinanceMethod ||
+    (filterKeuanganStatus && filterKeuanganStatus !== 'semua')
+  );
 
- const filteredAvailableIuranNames = Array.from(new Set(
- availableIuranDetails
- .filter(d => !filterFinanceCategory || d.category === filterFinanceCategory)
- .map(d => d.name)
- )).sort();
+  // Available Iurans for filtering (categorized)
+  const availableIuranDetails = Array.from(new Set(allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').flatMap(u => (u.arrears_details || []).map((d: any) => JSON.stringify({ name: d.name, category: d.category || 'Umum' })))))
+    .map(s => JSON.parse(s));
 
- const filteredAttendance = attendance.filter(a => {
- const student = allUsers.find(u => u.id === a.studentId);
- if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
- if (filterRole !== 'semua' && student.role !== filterRole) return false;
- if (filterKelas && student.role === 'siswa') {
- const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
- const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
- if (!uK.includes(fK) && !fK.includes(uK)) return false;
- }
- if (filterDateStart && a.date < filterDateStart) return false;
- if (filterDateEnd && a.date > filterDateEnd) return false;
- return true;
- });
+  const filteredAvailableIuranNames = Array.from(new Set(
+    availableIuranDetails
+      .filter(d => !filterFinanceCategory || d.category === filterFinanceCategory)
+      .map(d => d.name)
+  )).sort();
 
- const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
- if (u.role !== 'siswa') return u;
+  const filteredAttendance = attendance.filter(a => {
+    const student = allUsers.find(u => u.id === a.studentId);
+    if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
+    if (filterRole !== 'semua' && student.role !== filterRole) return false;
+    if (filterKelas && student.role === 'siswa') {
+      const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const fK = filterKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!uK.includes(fK) && !fK.includes(uK)) return false;
+    }
+    if (filterDateStart && a.date < filterDateStart) return false;
+    if (filterDateEnd && a.date > filterDateEnd) return false;
+    return true;
+  });
 
- // Apply basic user filters first
- const searchLower = filterFinanceStudentName.toLowerCase();
- const matchesName = u.name.toLowerCase().includes(searchLower);
- const matchesNISN = u.nisn && u.nisn.toLowerCase().includes(searchLower);
- 
- if (filterFinanceStudentName && !matchesName && !matchesNISN) {
- return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, hideByFilter: true };
- }
- if (filterFinanceKelas && u.kelas !== filterFinanceKelas) {
- return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, hideByFilter: true };
- }
+  const isFinanceCategoryMatch = (cat?: string, name?: string, desc?: string, targetCat?: string): boolean => {
+    if (!targetCat || !targetCat.trim()) return true;
+    const f = targetCat.toLowerCase().trim();
+    const c = (cat || '').toLowerCase().trim();
+    const n = (name || '').toLowerCase().trim();
+    const d = (desc || '').toLowerCase().trim();
 
- let filteredArrears = 0;
- const details = u.arrears_details || [];
- details.forEach((d: any) => {
- let match = true;
- if (filterFinanceIuranName && !d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
- if (filterFinanceCategory) {
- const catName = d.category || 'Umum';
- if (catName !== filterFinanceCategory) match = false;
- }
- if (filterFinanceStartDate && d.date < filterFinanceStartDate) match = false;
- if (filterFinanceEndDate && d.date > filterFinanceEndDate) match = false;
- if (match) filteredArrears += d.amount;
- });
+    if (c && (c === f || c.includes(f) || (f.length >= 3 && f.includes(c)))) return true;
+    if (n && (n === f || n.includes(f) || (f.length >= 3 && f.includes(n)))) return true;
+    if (d && (d === f || d.includes(f))) return true;
 
- let filteredSavings = 0;
- payments.forEach(p => {
- if (p.studentId !== u.id) return;
- let match = true;
- if (filterFinanceCategory) {
- const pCat = p.iuranCategory || 'Umum';
- if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
- }
- if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
- if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
- if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
- if (!match) return;
- if (p.type === 'tabungan') filteredSavings += Number(p.amount || 0);
- else if (p.method === 'Tabungan') filteredSavings -= Number(p.amount || 0);
- });
+    return false;
+  };
 
- // Calculate filtered paid
- let filteredPaid = 0;
- payments.forEach(p => {
- if (p.studentId !== u.id) return;
- if (p.status === 'pending' || p.status === 'rejected') return;
- if (p.type === 'tagihan' || p.type === 'tabungan') return;
- let match = true;
- if (filterFinanceCategory) {
- const pCat = p.iuranCategory || 'Umum';
- if (pCat !== filterFinanceCategory) match = false;
- }
- if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
- if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
- if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
- 
- if (match) filteredPaid += Number(p.amount || 0);
- });
+  const isFinanceMethodMatch = (payMethod?: string, targetMethod?: string): boolean => {
+    if (!targetMethod || !targetMethod.trim()) return true;
+    const t = targetMethod.toLowerCase().trim();
+    const m = (payMethod || '').toLowerCase().trim();
+    if (t === 'tunai' || t === 'cash') {
+      return m === 'tunai' || m === 'cash' || m === '';
+    }
+    if (t === 'transfer') {
+      return m === 'transfer';
+    }
+    if (t === 'tabungan') {
+      return m === 'tabungan';
+    }
+    if (t === 'campuran') {
+      return m === 'campuran';
+    }
+    return m === t;
+  };
 
- if ((filterFinanceIuranName || filterFinanceCategory) && !filterFinanceStartDate && !filterFinanceEndDate) {
- filteredSavings = u.savings || 0;
- }
+  const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
+    if (u.role !== 'siswa' || (u.status || 'Aktif') !== 'Aktif') return u;
 
- let hideByStatus = false;
- if (filterKeuanganStatus === 'lunas' && filteredArrears > 0) hideByStatus = true;
- if (filterKeuanganStatus === 'menunggak' && filteredArrears === 0) hideByStatus = true;
+    // Apply basic user filters first (search by name or NISN)
+    const searchLower = (filterFinanceStudentName || '').toLowerCase().trim();
+    const matchesName = u.name && u.name.toLowerCase().includes(searchLower);
+    const matchesNISN = u.nisn && u.nisn.toLowerCase().includes(searchLower);
+    
+    if (filterFinanceStudentName && !matchesName && !matchesNISN) {
+      return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, viewTagihan: 0, paidCash: 0, paidTransfer: 0, paidTabungan: 0, hideByFilter: true };
+    }
+    
+    // Class filter with fuzzy matching (e.g. 'UMAR BIN KHATTAB' vs 'Kelas Umar Bin Khattab' vs 'Umar')
+    if (filterFinanceKelas) {
+      const uK = (u.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const fK = filterFinanceKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanUK = uK.replace(/^kelas/i, '');
+      const cleanFK = fK.replace(/^kelas/i, '');
+      const isMatch = uK === fK || cleanUK === cleanFK || uK.includes(cleanFK) || cleanFK.includes(cleanUK) || uK.includes(fK) || fK.includes(uK);
+      if (!isMatch) {
+        return { ...u, viewArrears: 0, viewSavings: 0, viewPaid: 0, viewTagihan: 0, paidCash: 0, paidTransfer: 0, paidTabungan: 0, hideByFilter: true };
+      }
+    }
 
- return {
- ...u,
- viewArrears: filteredArrears,
- viewSavings: filteredSavings,
- viewPaid: filteredPaid,
- hideByFilter: hideByStatus
- };
- }).filter(u => u.role === 'siswa' && !u.hideByFilter) : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
+    // Filter arrears details by category, name, and dates
+    let filteredArrears = 0;
+    let hasCategoryArrear = false;
+    const details = u.arrears_details || [];
+    details.forEach((d: any) => {
+      let match = true;
+      if (filterFinanceIuranName && !d.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase().trim())) match = false;
+      if (filterFinanceCategory) {
+        const catMatch = isFinanceCategoryMatch(d.category, d.name, '', filterFinanceCategory);
+        if (!catMatch) match = false;
+      }
+      if (filterFinanceStartDate && d.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && d.date > filterFinanceEndDate) match = false;
+      if (match) {
+        filteredArrears += Number(d.amount) || 0;
+        hasCategoryArrear = true;
+      }
+    });
 
- const displayTotalPaid = isFinanceFiltered
- ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewPaid || 0), 0)
- : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    let filteredSavings = 0;
+    payments.forEach(p => {
+      if (p.studentId !== u.id) return;
+      let match = true;
+      if (filterFinanceCategory) {
+        const catMatch = isFinanceCategoryMatch(p.iuranCategory || p.category, p.iuranName, p.description, filterFinanceCategory);
+        if (p.type === 'tagihan' && !catMatch) match = false;
+      }
+      if (filterFinanceMethod && !isFinanceMethodMatch(p.method, filterFinanceMethod)) match = false;
+      if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+      if (!match) return;
+      if (p.type === 'tabungan' || p.type === 'tabungan_masuk') filteredSavings += Number(p.amount || 0);
+      else if (p.type === 'tabungan_keluar' || p.method === 'Tabungan') filteredSavings -= Number(p.amount || 0);
+    });
 
- const displayTotalPaidOnline = isFinanceFiltered
- ? payments.filter(p => {
- if (p.status === 'pending' || p.status === 'rejected') return false;
- if (p.type === 'tagihan' || p.type === 'tabungan') return false;
- if (p.method !== 'Transfer') return false;
- let match = true;
- if (filterFinanceCategory) {
- const pCat = p.iuranCategory || 'Umum';
- if (pCat !== filterFinanceCategory) match = false;
- }
- if (filterFinanceKelas) {
- const student = allUsers.find(u => u.id === p.studentId);
- if (!student || student.kelas !== filterFinanceKelas) match = false;
- }
- if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
- if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
- return match;
- }).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
- : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    // Calculate filtered paid
+    let filteredPaid = 0;
+    let paidCash = 0;
+    let paidTransfer = 0;
+    let paidTabungan = 0;
+    let hasCategoryPayment = false;
 
- const displayTotalTunggakan = isFinanceFiltered 
- ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
- : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0);
- 
- const displayTotalTabungan = isFinanceFiltered
- ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewSavings || 0), 0)
- : allUsers.filter(u => (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.savings || 0), 0);
+    payments.forEach(p => {
+      if (p.studentId !== u.id) return;
+      if (p.status === 'pending' || p.status === 'rejected' || p.status === 'ditolak') return;
+      if (p.type === 'tagihan' || p.type === 'tabungan' || p.type === 'tabungan_masuk' || p.type === 'tabungan_keluar') return;
+      let match = true;
+      if (filterFinanceCategory) {
+        const catMatch = isFinanceCategoryMatch(p.iuranCategory || p.category, p.iuranName, p.description, filterFinanceCategory);
+        if (!catMatch) match = false;
+      }
+      if (filterFinanceMethod && !isFinanceMethodMatch(p.method, filterFinanceMethod)) match = false;
+      if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+      if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+      
+      if (match) {
+        const amt = Number(p.amount || 0);
+        filteredPaid += amt;
+        hasCategoryPayment = true;
 
+        const m = (p.method || '').toLowerCase();
+        if (m === 'transfer') {
+          paidTransfer += amt;
+        } else if (m === 'tabungan') {
+          paidTabungan += amt;
+        } else if (m === 'campuran') {
+          if (p.mixedDetails) {
+            paidTabungan += Number(p.mixedDetails.fromSavings || 0);
+            paidCash += Number(p.mixedDetails.fromCash || 0);
+          } else {
+            paidCash += amt;
+          }
+        } else {
+          paidCash += amt;
+        }
+      }
+    });
+
+    if ((filterFinanceIuranName || filterFinanceCategory) && !filterFinanceStartDate && !filterFinanceEndDate) {
+      filteredSavings = u.savings || 0;
+    }
+
+    let hideByFilter = false;
+
+    // When category is filtered, exclude students that have 0 obligations (neither arrears nor payments in that category)
+    if (filterFinanceCategory) {
+      if (!hasCategoryArrear && !hasCategoryPayment) {
+        hideByFilter = true;
+      }
+    }
+
+    // When payment method is filtered, only show students with payments matching the method (or arrears in category)
+    if (filterFinanceMethod && filteredPaid === 0 && !hasCategoryArrear) {
+      hideByFilter = true;
+    }
+
+    // Status filter (Lunas / Menunggak)
+    if (filterKeuanganStatus === 'lunas') {
+      if (filteredArrears > 0) hideByFilter = true;
+      if (filterFinanceCategory && filteredPaid === 0 && filteredArrears === 0) hideByFilter = true;
+    } else if (filterKeuanganStatus === 'menunggak') {
+      if (filteredArrears === 0) hideByFilter = true;
+    }
+
+    return {
+      ...u,
+      viewArrears: filteredArrears,
+      viewSavings: filteredSavings,
+      viewPaid: filteredPaid,
+      viewTagihan: filteredArrears + filteredPaid,
+      paidCash,
+      paidTransfer,
+      paidTabungan,
+      hideByFilter
+    };
+  }).filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && !u.hideByFilter) 
+  : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').map(u => {
+      let paidCash = 0;
+      let paidTransfer = 0;
+      let paidTabungan = 0;
+
+      const sumDibayar = payments
+        .filter(p => p.studentId === u.id && p.status !== 'pending' && p.status !== 'rejected' && p.status !== 'ditolak' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.type !== 'tabungan_masuk' && p.type !== 'tabungan_keluar')
+        .reduce((acc, curr) => {
+          const amt = Number(curr.amount) || 0;
+          const m = (curr.method || '').toLowerCase();
+          if (m === 'transfer') paidTransfer += amt;
+          else if (m === 'tabungan') paidTabungan += amt;
+          else if (m === 'campuran') {
+            if (curr.mixedDetails) {
+              paidTabungan += Number(curr.mixedDetails.fromSavings || 0);
+              paidCash += Number(curr.mixedDetails.fromCash || 0);
+            } else {
+              paidCash += amt;
+            }
+          } else paidCash += amt;
+          return acc + amt;
+        }, 0);
+      const sisa = u.arrears || 0;
+      return {
+        ...u,
+        viewArrears: sisa,
+        viewSavings: u.savings || 0,
+        viewPaid: sumDibayar,
+        viewTagihan: sisa + sumDibayar,
+        paidCash,
+        paidTransfer,
+        paidTabungan
+      };
+  });
+
+  const displayTotalPaid = isFinanceFiltered
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewPaid || 0), 0)
+    : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.status !== 'ditolak' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.type !== 'tabungan_masuk' && p.type !== 'tabungan_keluar').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+  const displayTotalPaidOnline = isFinanceFiltered
+    ? payments.filter(p => {
+        if (p.status === 'pending' || p.status === 'rejected' || p.status === 'ditolak') return false;
+        if (p.type === 'tagihan' || p.type === 'tabungan' || p.type === 'tabungan_masuk' || p.type === 'tabungan_keluar') return false;
+        if (p.method !== 'Transfer') return false;
+        let match = true;
+        if (filterFinanceCategory) {
+          const catMatch = isFinanceCategoryMatch(p.iuranCategory || p.category, p.iuranName, p.description, filterFinanceCategory);
+          if (!catMatch) match = false;
+        }
+        if (filterFinanceKelas) {
+          const student = allUsers.find(u => u.id === p.studentId);
+          if (!student) return false;
+          const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const fK = filterFinanceKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cleanUK = uK.replace(/^kelas/i, '');
+          const cleanFK = fK.replace(/^kelas/i, '');
+          const isMatch = uK === fK || cleanUK === cleanFK || uK.includes(cleanFK) || cleanFK.includes(cleanUK) || uK.includes(fK) || fK.includes(uK);
+          if (!isMatch) match = false;
+        }
+        if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
+        if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
+        return match;
+      }).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+    : payments.filter(p => p.status !== 'pending' && p.status !== 'rejected' && p.status !== 'ditolak' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.type !== 'tabungan_masuk' && p.type !== 'tabungan_keluar' && p.method === 'Transfer').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+  const displayTotalTunggakan = isFinanceFiltered 
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewArrears || 0), 0)
+    : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.arrears || 0), 0);
+  
+  const displayTotalTabungan = isFinanceFiltered
+    ? filteredUsersForFinance.filter(u => u.role === 'siswa').reduce((acc, curr) => acc + (curr.viewSavings || 0), 0)
+    : allUsers.filter(u => (u.status || 'Aktif') === 'Aktif').reduce((acc, curr) => acc + (curr.savings || 0), 0);
  useEffect(() => {
  if (showManageFinanceModal && selectedStudentForFinance) {
  const q = query(
@@ -2385,7 +2527,7 @@ export default function DashboardAdmin() {
     // 1. Master List Siswa (Filtered students or all active students)
     const students = filteredUsersForFinance && filteredUsersForFinance.length > 0 
       ? filteredUsersForFinance 
-      : allUsers.filter(u => u.role === 'siswa');
+      : allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif');
 
     // Calculate totals for summary row
     let grandTotalTagihan = 0;
@@ -2395,12 +2537,14 @@ export default function DashboardAdmin() {
 
     // 1. REKAPITULASI PER SISWA
     const studentMasterData = students.map((s: any, index: number) => {
-      const studentArrears = isFinanceFiltered ? (s.viewArrears || 0) : (s.arrears || 0);
-      const studentSavings = isFinanceFiltered ? (s.viewSavings || 0) : (s.savings || 0);
+      const studentArrears = s.viewArrears !== undefined ? s.viewArrears : (s.arrears || 0);
+      const studentSavings = s.viewSavings !== undefined ? s.viewSavings : (s.savings || 0);
       
       // Calculate total paid by this student
-      const studentPayments = payments.filter(p => p.studentId === s.id && p.status !== 'rejected' && p.type !== 'tagihan');
-      const totalPaid = studentPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+      const totalPaid = s.viewPaid !== undefined 
+        ? s.viewPaid 
+        : payments.filter(p => p.studentId === s.id && p.status !== 'pending' && p.status !== 'rejected' && p.status !== 'ditolak' && p.type !== 'tagihan' && p.type !== 'tabungan' && p.type !== 'tabungan_masuk' && p.type !== 'tabungan_keluar').reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+      
       const totalTagihan = totalPaid + studentArrears;
 
       grandTotalTagihan += totalTagihan;
@@ -2410,44 +2554,50 @@ export default function DashboardAdmin() {
 
       // Unpaid items list
       const unpaidItems = (s.arrears_details || [])
-        .map((d: any) => `${d.name || 'Iuran'} (Rp ${(d.amount || 0).toLocaleString('id-ID')})`)
+        .filter((d: any) => {
+          if (!filterFinanceCategory) return true;
+          return isFinanceCategoryMatch(d.category, d.name, '', filterFinanceCategory);
+        })
+        .map((d: any) => d.name ? (d.name + ' (Rp ' + (Number(d.amount) || 0).toLocaleString('id-ID') + ')') : ('Iuran (Rp ' + (Number(d.amount) || 0).toLocaleString('id-ID') + ')'))
         .join('; ');
 
       let statusKeuangan = 'LUNAS';
-      if (studentArrears > 0) {
+      if (studentArrears > 0 && totalPaid > 0) {
+        statusKeuangan = 'CICILAN / SEBAGIAN';
+      } else if (studentArrears > 0) {
         statusKeuangan = 'MENUNGGAK';
       } else if (totalTagihan === 0) {
         statusKeuangan = 'BEBAS IURAN';
       }
 
       return {
-        "No": index + 1,
-        "NIS / NISN": s.nisn || s.nis || s.id || '-',
-        "Nama Siswa": s.name || 'Tanpa Nama',
-        "Kelas": s.kelas || '-',
-        "Status Siswa": s.status || 'Aktif',
-        "Total Tagihan (Rp)": totalTagihan,
-        "Total Terbayar (Rp)": totalPaid,
-        "Sisa Tunggakan (Rp)": studentArrears,
-        "Saldo Tabungan (Rp)": studentSavings,
-        "Status Pembayaran": statusKeuangan,
-        "Rincian Item Menunggak": unpaidItems || '-'
+        'No': index + 1,
+        'NIS / NISN': s.nisn || s.nis || s.id || '-',
+        'Nama Siswa': s.name || 'Tanpa Nama',
+        'Kelas': s.kelas || '-',
+        'Status Siswa': s.status || 'Aktif',
+        'Total Tagihan (Rp)': totalTagihan,
+        'Total Terbayar (Rp)': totalPaid,
+        'Sisa Tunggakan (Rp)': studentArrears,
+        'Saldo Tabungan (Rp)': studentSavings,
+        'Status Pembayaran': statusKeuangan,
+        'Rincian Item Menunggak': unpaidItems || '-'
       };
     });
 
     // Add Grand Total row for sheet 1
     const summaryRow = {
-      "No": "",
-      "NIS / NISN": "",
-      "Nama Siswa": "TOTAL KESELURUHAN",
-      "Kelas": `${students.length} Siswa`,
-      "Status Siswa": "",
-      "Total Tagihan (Rp)": grandTotalTagihan,
-      "Total Terbayar (Rp)": grandTotalTerbayar,
-      "Sisa Tunggakan (Rp)": grandTotalTunggakan,
-      "Saldo Tabungan (Rp)": grandTotalTabungan,
-      "Status Pembayaran": grandTotalTunggakan > 0 ? "ADA TUNGGAKAN" : "SEMUA LUNAS",
-      "Rincian Item Menunggak": ""
+      'No': '',
+      'NIS / NISN': '',
+      'Nama Siswa': 'TOTAL KESELURUHAN',
+      'Kelas': students.length + ' Siswa',
+      'Status Siswa': '',
+      'Total Tagihan (Rp)': grandTotalTagihan,
+      'Total Terbayar (Rp)': grandTotalTerbayar,
+      'Sisa Tunggakan (Rp)': grandTotalTunggakan,
+      'Saldo Tabungan (Rp)': grandTotalTabungan,
+      'Status Pembayaran': grandTotalTunggakan > 0 ? 'MENUNGGAK (' + students.filter((u: any) => (u.viewArrears || u.arrears || 0) > 0).length + ' Siswa)' : 'SEMUA LUNAS',
+      'Rincian Item Menunggak': ''
     };
 
     const sheet1Data = [...studentMasterData, summaryRow];
@@ -2455,29 +2605,30 @@ export default function DashboardAdmin() {
     // 2. RINCIAN DETAIL TUNGGAKAN & TAGIHAN PER SISWA
     const arrearsDetailRows: any[] = [];
     let arrearsNo = 1;
+
     students.forEach((s: any) => {
       if (s.arrears_details && s.arrears_details.length > 0) {
         s.arrears_details.forEach((detail: any) => {
           let match = true;
           if (isFinanceFiltered) {
-            if (filterFinanceIuranName && !detail.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase())) match = false;
+            if (filterFinanceIuranName && !detail.name.toLowerCase().includes(filterFinanceIuranName.toLowerCase().trim())) match = false;
             if (filterFinanceCategory) {
-              const catName = detail.category || 'Umum';
-              if (catName !== filterFinanceCategory) match = false;
+              const catMatch = isFinanceCategoryMatch(detail.category, detail.name, '', filterFinanceCategory);
+              if (!catMatch) match = false;
             }
             if (filterFinanceStartDate && detail.date < filterFinanceStartDate) match = false;
             if (filterFinanceEndDate && detail.date > filterFinanceEndDate) match = false;
           }
           if (match) {
             arrearsDetailRows.push({
-              "No": arrearsNo++,
-              "Nama Siswa": s.name || '-',
-              "Kelas": s.kelas || '-',
-              "Kategori Iuran": detail.category || 'Umum',
-              "Tanggal Tagihan": detail.date || '-',
-              "Nama Tagihan / Iuran": detail.name || 'Iuran',
-              "Nominal Tagihan (Rp)": Number(detail.amount) || 0,
-              "Status": "Belum Dibayar"
+              'No': arrearsNo++,
+              'Nama Siswa': s.name || '-',
+              'Kelas': s.kelas || '-',
+              'Kategori Iuran': detail.category || 'Umum',
+              'Tanggal Tagihan': detail.date || '-',
+              'Nama Tagihan / Iuran': detail.name || 'Iuran',
+              'Nominal Tagihan (Rp)': Number(detail.amount) || 0,
+              'Status': 'Belum Dibayar'
             });
           }
         });
@@ -2490,16 +2641,23 @@ export default function DashboardAdmin() {
         if (!isFinanceFiltered) return true;
         let match = true;
         if (filterFinanceCategory) {
-          const pCat = p.iuranCategory || 'Umum';
-          if (p.type === 'tagihan' && pCat !== filterFinanceCategory) match = false;
+          const catMatch = isFinanceCategoryMatch(p.iuranCategory || p.category, p.iuranName, p.description, filterFinanceCategory);
+          if (p.type === 'tagihan' && !catMatch) match = false;
         }
-        if (filterFinanceMethod && p.method !== filterFinanceMethod) match = false;
+        if (filterFinanceMethod && !isFinanceMethodMatch(p.method, filterFinanceMethod)) match = false;
         if (filterFinanceStartDate && p.date < filterFinanceStartDate) match = false;
         if (filterFinanceEndDate && p.date > filterFinanceEndDate) match = false;
         
         const student = allUsers.find(u => u.id === p.studentId);
-        if (filterFinanceStudentName && student && !student.name.toLowerCase().includes(filterFinanceStudentName.toLowerCase())) match = false;
-        if (filterFinanceClass && student && student.kelas !== filterFinanceClass) match = false;
+        if (filterFinanceStudentName && student && !student.name.toLowerCase().includes(filterFinanceStudentName.toLowerCase().trim()) && (!student.nisn || !student.nisn.toLowerCase().includes(filterFinanceStudentName.toLowerCase().trim()))) match = false;
+        if (filterFinanceKelas && student) {
+          const uK = (student.kelas || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const fK = filterFinanceKelas.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const cleanUK = uK.replace(/^kelas/i, '');
+          const cleanFK = fK.replace(/^kelas/i, '');
+          const isMatch = uK === fK || cleanUK === cleanFK || uK.includes(cleanFK) || cleanFK.includes(cleanUK) || uK.includes(fK) || fK.includes(uK);
+          if (!isMatch) match = false;
+        }
         
         return match;
       })
@@ -2516,21 +2674,21 @@ export default function DashboardAdmin() {
         }
 
         let jenisTx = 'Pembayaran Iuran';
-        if (pay.type === 'tabungan') jenisTx = 'Setor Tabungan';
+        if (pay.type === 'tabungan' || pay.type === 'tabungan_masuk') jenisTx = 'Setor Tabungan';
         else if (pay.type === 'tabungan_keluar') jenisTx = 'Tarik Tabungan';
 
         return {
-          "No": idx + 1,
-          "No. Referensi": pay.id || `TX-${idx + 1}`,
-          "Waktu & Tanggal": dateText,
-          "Nama Siswa": pay.studentName || student?.name || 'Siswa tidak ditemukan',
-          "Kelas": pay.kelas || student?.kelas || '-',
-          "Jenis Transaksi": jenisTx,
-          "Kategori": pay.iuranCategory || pay.category || 'Umum',
-          "Keterangan / Item": pay.description || pay.iuranName || jenisTx,
-          "Nominal (Rp)": Number(pay.amount) || 0,
-          "Metode Pembayaran": pay.method || (pay.type?.includes('tabungan') ? 'Tunai (Tabungan)' : 'Tunai'),
-          "Status Transaksi": pay.status === 'lunas' || pay.status === 'approved' || pay.status === 'verified' ? 'BERHASIL' : pay.status === 'pending' ? 'MENUNGGU VALIDASI' : pay.status === 'ditolak' ? 'DITOLAK' : (pay.status || 'BERHASIL')
+          'No': idx + 1,
+          'No. Referensi': pay.id || ('TX-' + (idx + 1)),
+          'Waktu & Tanggal': dateText,
+          'Nama Siswa': pay.studentName || student?.name || 'Siswa tidak ditemukan',
+          'Kelas': pay.kelas || student?.kelas || '-',
+          'Jenis Transaksi': jenisTx,
+          'Kategori': pay.iuranCategory || pay.category || 'Umum',
+          'Keterangan / Item': pay.description || pay.iuranName || jenisTx,
+          'Nominal (Rp)': Number(pay.amount) || 0,
+          'Metode Pembayaran': pay.method || (pay.type && pay.type.includes('tabungan') ? 'Tunai (Tabungan)' : 'Tunai'),
+          'Status Transaksi': pay.status === 'lunas' || pay.status === 'approved' || pay.status === 'verified' ? 'BERHASIL' : pay.status === 'pending' ? 'MENUNGGU VALIDASI' : pay.status === 'ditolak' ? 'DITOLAK' : (pay.status || 'BERHASIL')
         };
       });
 
@@ -5281,6 +5439,7 @@ export default function DashboardAdmin() {
                     setFilterFinanceStudentName={setFilterFinanceStudentName}
                     filterFinanceCategory={filterFinanceCategory}
                     setFilterFinanceCategory={setFilterFinanceCategory}
+                    filterFinanceMethod={filterFinanceMethod}
                     setFilterFinanceMethod={setFilterFinanceMethod}
                     setFilterFinanceStartDate={setFilterFinanceStartDate}
                     setFilterFinanceEndDate={setFilterFinanceEndDate}

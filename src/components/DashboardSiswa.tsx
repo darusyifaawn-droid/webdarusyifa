@@ -227,91 +227,105 @@ export default function DashboardSiswa() {
  setPaymentSubmitting(true);
  try {
  if (paymentMethod === 'Tabungan') {
- if ((userData.savings || 0) < activeDetailToPay.amount) {
- alert('Saldo tabungan tidak mencukupi untuk pembayaran ini.');
- setPaymentSubmitting(false);
- return;
- }
- 
- await addDoc(collection(db, 'payments'), {
- studentId: user.uid,
- amount: activeDetailToPay.amount,
- description: `Pembayaran Iuran: ${activeDetailToPay.name}`,
- type: 'pembayaran',
- method: 'Tabungan',
- status: 'pending',
- date: new Date().toISOString().split('T')[0],
- arrearDetailId: activeDetailToPay.id,
- createdAt: serverTimestamp()
- });
- 
- alert('Permintaan potong tabungan terkirim. Menunggu validasi bendahara.');
- } else if (paymentMethod === 'Campuran') {
- const savingsAmount = Number(mixedSavingsAmount) || 0;
- const cashAmount = Number(mixedCashAmount) || 0;
- const total = savingsAmount + cashAmount;
+      if ((userData.savings || 0) < activeDetailToPay.amount) {
+        alert('Saldo tabungan tidak mencukupi untuk pembayaran ini.');
+        setPaymentSubmitting(false);
+        return;
+      }
 
- if (savingsAmount > (userData.savings || 0)) {
- alert('Input nominal tabungan melebihi saldo yang Anda miliki.');
- setPaymentSubmitting(false);
- return;
- }
+      await addDoc(collection(db, 'payments'), {
+        studentId: user.uid,
+        studentName: userData.name || '',
+        kelas: userData.kelas || '',
+        iuranCategory: activeDetailToPay.category || 'Umum',
+        category: activeDetailToPay.category || 'Umum',
+        iuranName: activeDetailToPay.name || 'Iuran',
+        amount: activeDetailToPay.amount,
+        description: 'Pembayaran Iuran: ' + activeDetailToPay.name,
+        type: 'pembayaran',
+        method: 'Tabungan',
+        status: 'pending',
+        date: new Date().toISOString().split('T')[0],
+        arrearDetailId: activeDetailToPay.id,
+        createdAt: serverTimestamp()
+      });
+      
+      alert('Permintaan potong tabungan terkirim. Menunggu validasi bendahara.');
+    } else if (paymentMethod === 'Campuran') {
+      const savingsAmount = Number(mixedSavingsAmount) || 0;
+      const cashAmount = Number(mixedCashAmount) || 0;
+      const total = savingsAmount + cashAmount;
 
- if (total < activeDetailToPay.amount) {
- if (!window.confirm(`Total Rp ${total.toLocaleString()} kurang dari tagihan Rp ${activeDetailToPay.amount.toLocaleString()}. Ajukan sebagai pembayaran sebagian?`)) {
- setPaymentSubmitting(false);
- return;
- }
- }
+      if (savingsAmount > (userData.savings || 0)) {
+        alert('Input nominal tabungan melebihi saldo yang Anda miliki.');
+        setPaymentSubmitting(false);
+        return;
+      }
 
- await addDoc(collection(db, 'payments'), {
- studentId: user.uid,
- amount: total,
- description: `Pembayaran Iuran: ${activeDetailToPay.name} (Campuran: Tabungan Rp ${savingsAmount.toLocaleString()} & Transfer/Tunai Rp ${cashAmount.toLocaleString()})`,
- type: 'pembayaran',
- method: 'Campuran',
- status: 'pending',
- proofStr: paymentProof || null,
- date: new Date().toISOString().split('T')[0],
- arrearDetailId: activeDetailToPay.id,
- createdAt: serverTimestamp(),
- mixedDetails: {
- fromSavings: savingsAmount,
- fromCash: cashAmount
- }
- });
+      if (total < activeDetailToPay.amount) {
+        if (!window.confirm('Total Rp ' + total.toLocaleString() + ' kurang dari tagihan Rp ' + activeDetailToPay.amount.toLocaleString() + '. Ajukan sebagai pembayaran sebagian?')) {
+          setPaymentSubmitting(false);
+          return;
+        }
+      }
 
- alert('Permintaan pembayaran campuran terkirim. Menunggu validasi admin.');
- } else {
- if (paymentMethod === 'Transfer' && !paymentProof) {
- alert('Mohon unggah bukti pembayaran transfer.');
- setPaymentSubmitting(false);
- return;
- }
- if (paymentMethod === 'Tunai' && !paymentMeetDate) {
- alert('Mohon tentukan jadwal pertemuan dengan bendahara.');
- setPaymentSubmitting(false);
- return;
- }
- 
- await addDoc(collection(db, 'payments'), {
- studentId: user.uid,
- amount: activeDetailToPay.amount,
- description: `Pembayaran Iuran: ${activeDetailToPay.name}`,
- type: 'pembayaran',
- method: paymentMethod,
- status: 'pending',
- proofStr: paymentMethod === 'Transfer' ? paymentProof : null,
- meetDate: paymentMethod === 'Tunai' ? paymentMeetDate : null,
- date: new Date().toISOString().split('T')[0],
- arrearDetailId: activeDetailToPay.id,
- createdAt: serverTimestamp()
- });
- 
- alert(paymentMethod === 'Tunai' ? 'Permintaan pertemuan (Tunai) terkirim. Menunggu jadwal dari admin.' : 'Permintaan pembayaran berhasil dikirim. Menunggu validasi admin.');
- }
- 
- setShowPaymentModal(false);
+      await addDoc(collection(db, 'payments'), {
+        studentId: user.uid,
+        studentName: userData.name || '',
+        kelas: userData.kelas || '',
+        iuranCategory: activeDetailToPay.category || 'Umum',
+        category: activeDetailToPay.category || 'Umum',
+        iuranName: activeDetailToPay.name || 'Iuran',
+        amount: total,
+        description: 'Pembayaran Iuran: ' + activeDetailToPay.name + ' (Campuran: Tabungan Rp ' + savingsAmount.toLocaleString() + ' & Transfer/Tunai Rp ' + cashAmount.toLocaleString() + ')',
+        type: 'pembayaran',
+        method: 'Campuran',
+        status: 'pending',
+        proofStr: paymentProof || null,
+        date: new Date().toISOString().split('T')[0],
+        arrearDetailId: activeDetailToPay.id,
+        createdAt: serverTimestamp(),
+        mixedDetails: {
+          fromSavings: savingsAmount,
+          fromCash: cashAmount
+        }
+      });
+
+      alert('Permintaan pembayaran campuran terkirim. Menunggu validasi admin.');
+    } else {
+      if (paymentMethod === 'Transfer' && !paymentProof) {
+        alert('Mohon unggah bukti pembayaran transfer.');
+        setPaymentSubmitting(false);
+        return;
+      }
+      if (paymentMethod === 'Tunai' && !paymentMeetDate) {
+        alert('Mohon tentukan jadwal pertemuan dengan bendahara.');
+        setPaymentSubmitting(false);
+        return;
+      }
+      
+      await addDoc(collection(db, 'payments'), {
+        studentId: user.uid,
+        studentName: userData.name || '',
+        kelas: userData.kelas || '',
+        iuranCategory: activeDetailToPay.category || 'Umum',
+        category: activeDetailToPay.category || 'Umum',
+        iuranName: activeDetailToPay.name || 'Iuran',
+        amount: activeDetailToPay.amount,
+        description: 'Pembayaran Iuran: ' + activeDetailToPay.name,
+        type: 'pembayaran',
+        method: paymentMethod,
+        status: 'pending',
+        proofStr: paymentMethod === 'Transfer' ? paymentProof : null,
+        meetDate: paymentMethod === 'Tunai' ? paymentMeetDate : null,
+        date: new Date().toISOString().split('T')[0],
+        arrearDetailId: activeDetailToPay.id,
+        createdAt: serverTimestamp()
+      });
+      
+      alert(paymentMethod === 'Tunai' ? 'Permintaan pertemuan (Tunai) terkirim. Menunggu jadwal dari admin.' : 'Permintaan pembayaran berhasil dikirim. Menunggu validasi admin.');
+    }
+    setShowPaymentModal(false);
  setActiveDetailToPay(null);
  setPaymentProof('');
  setPaymentMeetDate('');
