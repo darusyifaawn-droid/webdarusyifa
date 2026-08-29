@@ -170,5 +170,17 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // Competition Events (Lomba & Kegiatan)
+    match /competition_events/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isGuru();
+    }
+
+    // Competition Participants (Hasil Nilai & Piagam Lomba)
+    match /competition_participants/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isGuru();
+    }
   }
 }

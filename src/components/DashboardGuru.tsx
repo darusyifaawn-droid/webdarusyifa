@@ -32,6 +32,7 @@ import GuruHafalanTab from './guru/GuruHafalanTab';
 import GuruAttendanceTab from './guru/GuruAttendanceTab';
 import GuruProfileTab from './guru/GuruProfileTab';
 import GuruSlipGajiTab from './guru/GuruSlipGajiTab';
+import CompetitionTab from './competition/CompetitionTab';
 
 export default function DashboardGuru() {
   const { user: authUser, userData: authUserData } = useAuth();
@@ -895,6 +896,7 @@ export default function DashboardGuru() {
   const navMenuItems = [
     { id: 'overview', label: 'Beranda Guru', icon: BarChartIcon },
     { id: 'students', label: 'Daftar Siswa', icon: Users },
+    { id: 'competitions', label: 'Hasil Lomba & Event', icon: Award },
     { id: 'slip-gaji', label: 'Slip Gaji Saya', icon: Wallet },
     { id: 'penilaian-kelas', label: 'Penilaian Kelas', icon: Edit },
     { id: 'progress', label: 'Rapot Belajar', icon: GraduationCap },
@@ -1468,6 +1470,17 @@ export default function DashboardGuru() {
               userData={userData}
               user={user}
               settings={settings}
+            />
+          )}
+
+          {activeTab === 'competitions' && (
+            <CompetitionTab
+              currentUserRole="guru"
+              currentUserId={user?.uid}
+              currentUserName={userData?.name}
+              currentUserClass={userData?.kelas}
+              allUsers={allStudents}
+              schoolSettings={settings}
             />
           )}
         </div>

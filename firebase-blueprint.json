@@ -189,6 +189,54 @@
         "updatedAt": { "type": "object" }
       },
       "required": ["depositNumber", "date", "amount", "depositType", "status", "treasurerName", "receiverName"]
+    },
+    "CompetitionEvent": {
+      "title": "CompetitionEvent",
+      "description": "School competitions and events (e.g. Fashion Show, Mewarnai, etc.)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "academicYear": { "type": "string" },
+        "description": { "type": "string" },
+        "theme": { "type": "string" },
+        "status": { "type": "string", "enum": ["Aktif", "Selesai", "Arsip"] },
+        "headmasterName": { "type": "string" },
+        "headmasterNip": { "type": "string" },
+        "juryName": { "type": "string" },
+        "juryTitle": { "type": "string" },
+        "certificatePrefix": { "type": "string" },
+        "juriesCount": { "type": "number" },
+        "createdAt": { "type": "object" },
+        "updatedAt": { "type": "object" }
+      },
+      "required": ["title", "category", "date", "academicYear", "status"]
+    },
+    "CompetitionParticipant": {
+      "title": "CompetitionParticipant",
+      "description": "Participant score results and certificate details for competitions",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string" },
+        "eventTitle": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "nis": { "type": "string" },
+        "kelas": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Putra", "Putri"] },
+        "noUrut": { "type": "string" },
+        "groupCategory": { "type": "string" },
+        "scores": { "type": "object" },
+        "averageScore": { "type": "number" },
+        "rank": { "type": "number" },
+        "award": { "type": "string" },
+        "certificateNumber": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "object" },
+        "updatedAt": { "type": "object" }
+      },
+      "required": ["eventId", "studentName", "kelas", "averageScore"]
     }
   },
   "firestore": {
@@ -202,6 +250,8 @@
     "/hafalan_progress/{progressId}": { "description": "Student memorization progress" },
     "/finance_transactions/{transactionId}": { "schema": "FinanceTransaction", "description": "Cash flow records" },
     "/salary_slips/{slipId}": { "schema": "SalarySlip", "description": "Teacher salary slips" },
-    "/cash_deposits/{depositId}": { "schema": "CashDeposit", "description": "Treasurer cash deposits to principal and foundation" }
+    "/cash_deposits/{depositId}": { "schema": "CashDeposit", "description": "Treasurer cash deposits to principal and foundation" },
+    "/competition_events/{eventId}": { "schema": "CompetitionEvent", "description": "School competition events" },
+    "/competition_participants/{participantId}": { "schema": "CompetitionParticipant", "description": "Scores and awards for competition participants" }
   }
 }
