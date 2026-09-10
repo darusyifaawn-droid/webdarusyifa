@@ -124,6 +124,8 @@ export default function DashboardGuru() {
   const [pkStudentData, setPkStudentData] = useState<Record<string, any>>({});
   const [pkIsSaving, setPkIsSaving] = useState(false);
   const [schoolClasses, setSchoolClasses] = useState<any[]>([]);
+  const [filterExamClassGuru, setFilterExamClassGuru] = useState<string>('Semua');
+  const [searchExamGuru, setSearchExamGuru] = useState<string>('');
 
   const navigate = useNavigate();
 
@@ -1339,33 +1341,191 @@ export default function DashboardGuru() {
 
           {activeTab === 'exams' && (
             <div className="space-y-6 animate-in fade-in duration-300 pb-20">
-              <div className="flex items-center justify-between">
+              {/* Header & Filter Card */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-display font-black text-slate-900 tracking-tight">Jadwal Ujian & Evaluasi</h2>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium">Jadwal resmi PTS dan PAS untuk kelas yang diatur Admin.</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-                {exams.map((exam) => (
-                  <div key={exam.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-black uppercase">{exam.type}</span>
-                        <span className="text-sm font-bold text-slate-700">{exam.academicYear}</span>
-                      </div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2.5 bg-rose-100 text-rose-600 rounded-2xl">
+                      <FileCheck size={24} />
                     </div>
-                    <div className="space-y-2">
-                      {(exam.schedules || []).map((s: any) => (
-                        <div key={s.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">{s.subject} ({s.kelas || 'Semua Kelas'})</p>
-                            <p className="text-[11px] text-slate-500">{s.date} • {s.time}</p>
-                          </div>
-                        </div>
-                      ))}
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl font-display font-black text-slate-900 tracking-tight">Jadwal Ujian & Evaluasi</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">Jadwal resmi PTS dan PAS untuk kelas yang diatur Admin.</p>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Filter Controls */}
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  {/* Search Subject */}
+                  <div className="relative flex-1 sm:flex-initial">
+                    <Search className="absolute left-3.5 top-3 text-slate-400" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Cari mata pelajaran..." 
+                      value={searchExamGuru}
+                      onChange={(e) => setSearchExamGuru(e.target.value)}
+                      className="w-full sm:w-52 pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all text-slate-800"
+                    />
+                    {searchExamGuru && (
+                      <button onClick={() => setSearchExamGuru('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Class */}
+                  <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                    <Filter size={15} className="text-rose-500 shrink-0" />
+                    <select 
+                      value={filterExamClassGuru}
+                      onChange={(e) => setFilterExamClassGuru(e.target.value)}
+                      className="w-full sm:w-44 p-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500 text-slate-700 cursor-pointer"
+                    >
+                      <option value="Semua">Semua Kelas</option>
+                      <option value="Semua Kelas">Jadwal Umum</option>
+                      {schoolClasses.map(c => (
+                        <option key={c.id} value={c.name}>Kelas {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick Filter Teacher Class */}
+                  {userData?.kelas && filterExamClassGuru !== userData.kelas && (
+                    <button
+                      onClick={() => setFilterExamClassGuru(userData.kelas)}
+                      className="px-3.5 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all border border-emerald-200 shrink-0"
+                      title="Tampilkan hanya jadwal kelas saya"
+                    >
+                      Kelas Saya ({userData.kelas})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Exam Cards */}
+              <div className="grid grid-cols-1 gap-6">
+                {exams.map((exam) => {
+                  const rawSchedules = exam.schedules || [];
+                  const filteredSchedules = rawSchedules.filter((s: any) => {
+                    const matchClass = 
+                      filterExamClassGuru === 'Semua'
+                        ? true
+                        : filterExamClassGuru === 'Semua Kelas'
+                          ? (!s.kelas || s.kelas.toLowerCase() === 'semua kelas')
+                          : (s.kelas?.toLowerCase() === filterExamClassGuru.toLowerCase() || !s.kelas || s.kelas.toLowerCase() === 'semua kelas');
+                    const matchSearch = !searchExamGuru || (s.subject && s.subject.toLowerCase().includes(searchExamGuru.toLowerCase()));
+                    return matchClass && matchSearch;
+                  }).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                  const formatScheduleDate = (dateStr: string) => {
+                    if (!dateStr) return '-';
+                    try {
+                      const d = new Date(dateStr);
+                      if (isNaN(d.getTime())) return dateStr;
+                      return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+                    } catch {
+                      return dateStr;
+                    }
+                  };
+
+                  return (
+                    <div key={exam.id} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-6">
+                      {/* Card Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="px-3 py-1 rounded-xl bg-rose-50 text-rose-700 text-xs font-black uppercase tracking-wider border border-rose-100">
+                            {exam.type}
+                          </span>
+                          <span className="text-base font-bold text-slate-800">
+                            Tahun Ajaran {exam.academicYear}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
+                            {filteredSchedules.length} dari {rawSchedules.length} Jadwal
+                          </span>
+                          {filterExamClassGuru !== 'Semua' && (
+                            <button
+                              onClick={() => setFilterExamClassGuru('Semua')}
+                              className="text-xs font-bold text-rose-600 hover:underline"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Schedules Grid / List */}
+                      {filteredSchedules.length === 0 ? (
+                        <div className="py-10 text-center bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                          <BookOpen size={28} className="mx-auto text-slate-300 mb-2" />
+                          <p className="text-xs sm:text-sm font-bold text-slate-600">
+                            {rawSchedules.length === 0 
+                              ? 'Belum ada mata pelajaran ujian yang dijadwalkan.' 
+                              : `Tidak ada mata pelajaran untuk filter "${filterExamClassGuru}".`}
+                          </p>
+                          {rawSchedules.length > 0 && filterExamClassGuru !== 'Semua' && (
+                            <button 
+                              onClick={() => setFilterExamClassGuru('Semua')}
+                              className="mt-2 text-xs font-bold text-rose-600 hover:underline"
+                            >
+                              Lihat Semua Kelas
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          {filteredSchedules.map((s: any) => (
+                            <div 
+                              key={s.id} 
+                              className="group relative bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-rose-200 hover:shadow-md transition-all flex flex-col justify-between gap-3 pl-5 overflow-hidden"
+                            >
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <BookOpen size={14} className="text-rose-500 shrink-0" />
+                                    <p className="text-sm font-black text-slate-900 leading-snug">{s.subject}</p>
+                                  </div>
+                                </div>
+                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-xl shrink-0 ${
+                                  s.kelas && s.kelas !== 'Semua Kelas' 
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }`}>
+                                  {s.kelas || 'Semua Kelas'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap pt-1 border-t border-slate-200/50">
+                                <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                                  <Calendar size={13} className="text-rose-500" />
+                                  {formatScheduleDate(s.date)}
+                                </span>
+                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                                  <Clock size={13} />
+                                  {s.time} WIB
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {exams.length === 0 && (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 border-dashed">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400">
+                      <FileCheck size={28} />
+                    </div>
+                    <h4 className="text-slate-700 font-bold mb-1">Belum Ada Jadwal Ujian</h4>
+                    <p className="text-slate-400 text-xs sm:text-sm">Jadwal resmi ujian PTS atau PAS akan ditampilkan di sini setelah diatur oleh Admin.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

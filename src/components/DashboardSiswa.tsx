@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, MapPin, Search, Filter, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy, ChevronRight, ChevronDown, Award, Coins, FileCheck, Sparkles, Wallet, Grid as GridIcon, ArrowRight } from 'lucide-react';
+import { Camera, MapPin, Search, Filter, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy, ChevronRight, ChevronDown, Award, Coins, FileCheck, Sparkles, Wallet, Grid as GridIcon, ArrowRight, Lock, MessageCircle, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import DriveJuknisModal from './DriveJuknisModal';
 import KaldikIframe from './KaldikIframe';
@@ -413,6 +413,10 @@ export default function DashboardSiswa() {
 
  const handleExecutePrintExamCard = (exam: any) => {
  if (!userData) return;
+ if ((userData.arrears || 0) > 0) {
+ alert('Mohon maaf, pencetakan kartu ujian hanya dapat dilakukan jika administrasi/iuran sekolah telah lunas. Silakan hubungi bagian tata usaha.');
+ return;
+ }
  
  // Sort and filter schedules to student's specific class only
  const filteredSchedules = (exam.schedules || []).filter((s: any) => 
@@ -2683,183 +2687,257 @@ export default function DashboardSiswa() {
         )}
 
  {activeTab === 'exams' && (
- <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
- <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
- <div>
- <div className="flex items-center gap-3 mb-2">
- <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
- <Edit size={24} />
- </div>
- <h3 className="text-2xl font-black text-gray-800 tracking-tight">Jadwal Ujian</h3>
- </div>
- <p className="text-gray-400 text-sm font-medium">Lihat jadwal evaluasi PTS dan PAS. Cetak kartu ujian jika administrasi sudah lunas.</p>
- </div>
- </div>
+  <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="card-3d p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+            <Edit size={24} />
+          </div>
+          <h3 className="text-2xl font-black text-gray-800 tracking-tight">Jadwal & Kartu Ujian</h3>
+        </div>
+        <p className="text-gray-400 text-sm font-medium">
+          Lihat jadwal resmi evaluasi PTS dan PAS serta cetak kartu ujian Ananda.
+        </p>
+      </div>
+    </div>
 
- <div className="grid grid-cols-1 gap-6">
- {exams.filter(exam => {
- const studentSchedules = (exam.schedules || []).filter((s: any) => 
- !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
- (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
- );
- return studentSchedules.length > 0;
- }).map(exam => {
- const canPrint = !userData?.arrears || userData.arrears === 0;
+    {(() => {
+      const isLunas = !userData?.arrears || userData.arrears === 0;
 
- return (
- <div key={exam.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
- <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] z-0 opacity-50 group-hover:bg-rose-100 transition-colors"></div>
- <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
- <div>
- <div className="flex items-center gap-3 mb-2">
- <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{exam.academicYear}</span>
- <h4 className="text-xl font-bold text-gray-800 ">{exam.type}</h4>
- </div>
- <p className="text-gray-500 text-sm font-medium mb-4 flex items-center gap-2">
- <Calendar size={14} /> {(exam.schedules || []).length} Jadwal Mata Pelajaran
- </p>
- 
- <div className="mt-4">
- {canPrint ? (
- <button 
- onClick={() => handleExecutePrintExamCard(exam)}
- className="bg-rose-600 text-white px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
- >
- <Printer size={16} /> Cetak Kartu Ujian
- </button>
- ) : (
- <div className="bg-amber-50 border border-amber-100 text-amber-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
- <AlertCircle size={16} /> Harap lunasi administrasi untuk mencetak kartu ujian
- </div>
- )}
- </div>
- </div>
- 
- <div className="bg-gray-50/50 rounded-3xl p-6 flex-1 border border-gray-100">
- <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">
- Mata Pelajaran Ujian {userData?.name || 'Ananda'}
- </h5>
- {(() => {
- const studentSchedules = (exam.schedules || []).filter((s: any) => 
- !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
- (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
- );
+      // KONDISI BELUM LUNAS: Kunci semua jadwal & kartu ujian, tampilkan pesan administrasi yang santun
+      if (!isLunas) {
+        return (
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-amber-200/80 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-50 rounded-bl-[160px] z-0 opacity-70"></div>
+            
+            <div className="relative z-10 space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 shadow-inner">
+                  <Lock size={32} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="px-3 py-1 rounded-xl bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+                      Status Administrasi: Belum Lunas
+                    </span>
+                    <span className="text-xs font-bold text-amber-700">
+                      Total Tagihan: Rp {(userData?.arrears || 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <h4 className="text-2xl font-black text-gray-800 tracking-tight">
+                    Pemberitahuan Administrasi Ujian
+                  </h4>
+                </div>
+              </div>
 
- if (studentSchedules.length === 0) {
- return <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal ujian untuk kelas {userData?.kelas || 'Ananda'}.</p>;
- }
+              <div className="bg-amber-50/70 border border-amber-200/70 rounded-3xl p-6 md:p-7 text-gray-700 space-y-3.5">
+                <p className="text-sm sm:text-base font-medium leading-relaxed text-gray-800">
+                  Mohon maaf Bapak/Ibu Wali Murid dan Ananda <span className="font-black text-amber-900">{userData?.name || 'Siswa'}</span>, daftar jadwal mata pelajaran ujian dan fitur pencetakan Kartu Ujian belum dapat ditampilkan saat ini.
+                </p>
+                <div className="p-4 rounded-2xl bg-white/80 border border-amber-200/60 text-amber-950 text-xs sm:text-sm font-semibold leading-relaxed flex items-start gap-3">
+                  <ShieldAlert size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    Untuk dapat melihat jadwal mata pelajaran serta mencetak Kartu Ujian, mohon berkenan menyelesaikan administrasi/iuran sekolah terlebih dahulu melalui Bendahara atau bagian Tata Usaha RA Darusyifa.
+                  </span>
+                </div>
+                {userData?.arrears_details && userData.arrears_details.length > 0 && (
+                  <div className="pt-2 border-t border-amber-200/60">
+                    <p className="text-xs font-bold text-amber-950 mb-1.5">Rincian Tanggungan yang Perlu Diselesaikan:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-amber-900 font-medium">
+                      {userData.arrears_details.map((item: any, idx: number) => (
+                        <li key={idx}>
+                          {item.title || item.name || 'Iuran SPP / Administrasi'} 
+                          {item.amount ? ` - Rp ${Number(item.amount).toLocaleString('id-ID')}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 italic pt-1">
+                  Jazakumullahu khairan katsiran atas perhatian, pengertian, dan kerjasamanya.
+                </p>
+              </div>
 
- const getIndonesianDay = (dateStr: string) => {
- try {
- const d = new Date(dateStr);
- if (isNaN(d.getTime())) return 'Senin';
- const rawDay = d.toLocaleDateString('id-ID', { weekday: 'long' });
- return rawDay.charAt(0).toUpperCase() + rawDay.slice(1);
- } catch (e) {
- return 'Senin';
- }
- };
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  onClick={() => setActiveTab('administration')}
+                  className="px-6 py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-200 flex items-center gap-2 cursor-pointer"
+                >
+                  <CreditCard size={16} /> Lihat Rincian Tagihan & SPP
+                </button>
+                <a
+                  href={`https://wa.me/628993358221?text=${encodeURIComponent(`Halo Tata Usaha RA Darusyifa, saya wali dari ${userData?.name || 'siswa'} (Kelas ${userData?.kelas || '-'}) ingin konfirmasi penyelesaian administrasi ujian.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all border border-emerald-200 flex items-center gap-2 cursor-pointer"
+                >
+                  <MessageCircle size={16} /> Konfirmasi ke Tata Usaha via WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
- const sortedSchedules = [...studentSchedules].sort((a: any, b: any) => {
- const dateA = new Date(a.date).getTime();
- const dateB = new Date(b.date).getTime();
- return dateA - dateB;
- });
+      // KONDISI SUDAH LUNAS: Tampilkan jadwal dan tombol cetak seperti sebelumnya
+      const studentExams = exams.filter(exam => {
+        const studentSchedules = (exam.schedules || []).filter((s: any) => 
+          !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
+          (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+        );
+        return studentSchedules.length > 0;
+      });
 
- const uniqueDays: string[] = [];
- const seenDays = new Set<string>();
- sortedSchedules.forEach((s: any) => {
- const dayName = getIndonesianDay(s.date);
- if (!seenDays.has(dayName)) {
- seenDays.add(dayName);
- uniqueDays.push(dayName);
- }
- });
+      if (studentExams.length === 0) {
+        return (
+          <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
+            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
+              <Edit size={24} />
+            </div>
+            <h4 className="text-gray-600 font-bold mb-2">Belum ada Jadwal Ujian</h4>
+            <p className="text-gray-400 text-sm">Harap cek secara berkala.</p>
+          </div>
+        );
+      }
 
- const activeDay = selectedExamDays[exam.id] || uniqueDays[0];
- const activeSchedules = sortedSchedules.filter((s: any) => getIndonesianDay(s.date) === activeDay);
+      return (
+        <div className="grid grid-cols-1 gap-6">
+          {studentExams.map(exam => (
+            <div key={exam.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] z-0 opacity-50 group-hover:bg-rose-100 transition-colors"></div>
+              <div className="relative z-10 flex flex-col md:flex-row justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{exam.academicYear}</span>
+                    <h4 className="text-xl font-bold text-gray-800 ">{exam.type}</h4>
+                  </div>
+                  <p className="text-gray-500 text-sm font-medium mb-4 flex items-center gap-2">
+                    <Calendar size={14} /> {(exam.schedules || []).length} Jadwal Mata Pelajaran
+                  </p>
+                  
+                  <div className="mt-4">
+                    <button 
+                      onClick={() => handleExecutePrintExamCard(exam)}
+                      className="bg-rose-600 text-white px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Printer size={16} /> Cetak Kartu Ujian
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50/50 rounded-3xl p-6 flex-1 border border-gray-100">
+                  <h5 className="font-black text-gray-700 text-xs uppercase tracking-wider mb-4">
+                    Mata Pelajaran Ujian {userData?.name || 'Ananda'}
+                  </h5>
+                  {(() => {
+                    const studentSchedules = (exam.schedules || []).filter((s: any) => 
+                      !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
+                      (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
+                    );
 
- return (
- <div className="space-y-4">
- {/* Day Tabs */}
- <div className="flex flex-wrap gap-2">
- {uniqueDays.map((dayName) => {
- const isActive = activeDay === dayName;
- return (
- <button
- key={dayName}
- onClick={() => setSelectedExamDays(prev => ({ ...prev, [exam.id]: dayName }))}
- className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all duration-200 ${
- isActive 
- ? 'bg-rose-600 text-white shadow-md shadow-rose-200 scale-105' 
- : 'bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-100/50 border border-gray-100 shadow-sm'
- }`}
- >
- Hari {dayName}
- </button>
- );
- })}
- </div>
+                    if (studentSchedules.length === 0) {
+                      return <p className="text-xs text-gray-400 italic font-medium py-4">Belum ada jadwal ujian untuk kelas {userData?.kelas || 'Ananda'}.</p>;
+                    }
 
- {/* Active Day list */}
- <div className="space-y-3 mt-2">
- {activeSchedules.map((s: any) => (
- <div key={s.id} className="group relative bg-white p-5 rounded-[2rem] border border-gray-100 hover:border-rose-100 hover:shadow-lg hover:shadow-rose-50/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 pl-6 overflow-hidden animate-in fade-in duration-300">
- <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-rose-500 to-rose-600 rounded-l-[2rem]"></div>
- <div className="flex-1 min-w-0">
- <div className="flex items-center gap-2.5 mb-2 flex-wrap">
- <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
- <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
- {s.kelas}
- </span>
- </div>
- <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
- <span className="flex items-center gap-1.5 font-bold text-gray-600">
- <Calendar size={13} className="text-rose-500" />
- {new Date(s.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
- </span>
- <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
- <span className="flex items-center gap-1.5 font-bold text-rose-600">
- <Clock size={13} />
- {s.time} WIB
- </span>
- </div>
- </div>
- </div>
- ))}
- {activeSchedules.length === 0 && (
- <p className="text-xs text-gray-450 italic font-bold py-4 text-center bg-white rounded-2xl border border-gray-100">
- Tidak ada ujian untuk hari {activeDay}.
- </p>
- )}
- </div>
- </div>
- );
- })()}
- </div>
- </div>
- </div>
- )})}
- {exams.filter(exam => {
- const studentSchedules = (exam.schedules || []).filter((s: any) => 
- !s.kelas || s.kelas.toLowerCase() === "semua kelas" || 
- (userData?.kelas && s.kelas?.toLowerCase() === userData.kelas?.toLowerCase())
- );
- return studentSchedules.length > 0;
- }).length === 0 && (
- <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 border-dashed">
- <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-gray-400">
- <Edit size={24} />
- </div>
- <h4 className="text-gray-600 font-bold mb-2">Belum ada Jadwal Ujian</h4>
- <p className="text-gray-400 text-sm">Harap cek secara berkala.</p>
- </div>
- )}
- </div>
- </div>
- )}
+                    const getIndonesianDay = (dateStr: string) => {
+                      try {
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return 'Senin';
+                        const rawDay = d.toLocaleDateString('id-ID', { weekday: 'long' });
+                        return rawDay.charAt(0).toUpperCase() + rawDay.slice(1);
+                      } catch (e) {
+                        return 'Senin';
+                      }
+                    };
 
- {activeTab === 'attendance' && (
+                    const sortedSchedules = [...studentSchedules].sort((a: any, b: any) => {
+                      const dateA = new Date(a.date).getTime();
+                      const dateB = new Date(b.date).getTime();
+                      return dateA - dateB;
+                    });
+
+                    const uniqueDays: string[] = [];
+                    const seenDays = new Set<string>();
+                    sortedSchedules.forEach((s: any) => {
+                      const dayName = getIndonesianDay(s.date);
+                      if (!seenDays.has(dayName)) {
+                        seenDays.add(dayName);
+                        uniqueDays.push(dayName);
+                      }
+                    });
+
+                    const activeDay = selectedExamDays[exam.id] || uniqueDays[0];
+                    const activeSchedules = sortedSchedules.filter((s: any) => getIndonesianDay(s.date) === activeDay);
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Day Tabs */}
+                        <div className="flex flex-wrap gap-2">
+                          {uniqueDays.map((dayName) => {
+                            const isActive = activeDay === dayName;
+                            return (
+                              <button
+                                key={dayName}
+                                onClick={() => setSelectedExamDays(prev => ({ ...prev, [exam.id]: dayName }))}
+                                className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all duration-200 cursor-pointer ${
+                                  isActive 
+                                    ? 'bg-rose-600 text-white shadow-md shadow-rose-200 scale-105' 
+                                    : 'bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-100/50 border border-gray-100 shadow-sm'
+                                }`}
+                              >
+                                Hari {dayName}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Active Day list */}
+                        <div className="space-y-3 mt-2">
+                          {activeSchedules.map((s: any) => (
+                            <div key={s.id} className="group relative bg-white p-5 rounded-[2rem] border border-gray-100 hover:border-rose-100 hover:shadow-lg hover:shadow-rose-50/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 pl-6 overflow-hidden animate-in fade-in duration-300">
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-rose-500 to-rose-600 rounded-l-[2rem]"></div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+                                  <p className="text-sm font-black text-gray-800 truncate">{s.subject}</p>
+                                  <span className="bg-rose-50 text-rose-700 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg">
+                                    {s.kelas}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                  <span className="flex items-center gap-1.5 font-bold text-gray-600">
+                                    <Calendar size={13} className="text-rose-500" />
+                                    {new Date(s.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                  </span>
+                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                  <span className="flex items-center gap-1.5 font-bold text-rose-600">
+                                    <Clock size={13} />
+                                    {s.time} WIB
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {activeSchedules.length === 0 && (
+                            <p className="text-xs text-gray-450 italic font-bold py-4 text-center bg-white rounded-2xl border border-gray-100">
+                              Tidak ada ujian untuk hari {activeDay}.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    })()}
+  </div>
+)}
+
+{activeTab === 'attendance' && (
  <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
  {/* Quick Action: Absen Sekarang */}
  <div className="card-3d p-8 bg-blue-600 bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative overflow-hidden">
