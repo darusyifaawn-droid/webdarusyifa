@@ -132,38 +132,10 @@ export default function DashboardGuru() {
     if (authUser) setUser(authUser);
     if (authUserData) {
       setUserData(authUserData);
-      setEditName(authUserData.name || '');
-      setEditPhoto(authUserData.photoURL || '');
+      setEditName(prev => prev || authUserData.name || '');
+      setEditPhoto(prev => prev || authUserData.photoURL || '');
     }
   }, [authUser, authUserData]);
-
-  // Auth verify listener
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      if (currentUser) {
-        try {
-          let userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          let data = userDoc.data();
-          if (!data && currentUser.email) {
-            const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-              data = snap.docs[0].data();
-            }
-          }
-          if (data && data.role === 'guru') {
-            setUser(currentUser);
-            setUserData(data);
-            setEditName(data.name || '');
-            setEditPhoto(data.photoURL || '');
-          }
-        } catch (error) {
-          console.error('Error verifying guru role:', error);
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
 
   // Firestore Realtime Data Listeners
   useEffect(() => {

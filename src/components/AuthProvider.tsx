@@ -8,16 +8,46 @@ interface AuthContextType {
   user: User | null;
   userData: UserData | null;
   loading: boolean;
+  logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, userData: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, 
+  userData: null, 
+  loading: true,
+  logout: async () => {}
+});
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [cachedUser] = useState<UserData | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('darusyifa_auth_cache');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [userData, setUserData] = useState<UserData | null>(cachedUser);
+  const [loading, setLoading] = useState<boolean>(() => !cachedUser && !auth.currentUser);
+
+  const logout = async () => {
+    try {
+      if (auth.currentUser) {
+        updatePresence(auth.currentUser.uid, userData?.id, false);
+      }
+      localStorage.removeItem('darusyifa_auth_cache');
+      setUserData(null);
+      setUser(null);
+      await auth.signOut();
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
   // Update presence heartbeat in Firestore
   const updatePresence = async (uid: string, targetDocId?: string, isOnline: boolean = true) => {
@@ -35,17 +65,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deviceType: isMobile ? 'mobile' : 'desktop'
       };
 
-      // 1. Update primary doc by uid
+      // 1. Update primary doc by uid non-blocking
       const primaryRef = doc(db, 'users', uid);
-      await updateDoc(primaryRef, presencePayload).catch(async () => {
-        // If doc doesn't exist yet, merge
-        await setDoc(primaryRef, presencePayload, { merge: true }).catch(() => {});
+      updateDoc(primaryRef, presencePayload).catch(() => {
+        setDoc(primaryRef, presencePayload, { merge: true }).catch(() => {});
       });
 
       // 2. If targetDocId is different, update it too
       if (targetDocId && targetDocId !== uid) {
         const secondaryRef = doc(db, 'users', targetDocId);
-        await updateDoc(secondaryRef, presencePayload).catch(() => {});
+        updateDoc(secondaryRef, presencePayload).catch(() => {});
       }
     } catch (err) {
       // Ignore error silently
@@ -64,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let heartbeatInterval: any = null;
-    let currentResolvedDocId: string | undefined;
+    let currentResolvedDocId: string | undefined = userData?.id;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       try {
@@ -89,8 +118,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (userDocSnap.exists()) {
             currentResolvedDocId = docId;
-            const uData = userDocSnap.data();
-            setUserData({ id: docId, ...uData } as UserData);
+            const uData = { id: docId, ...userDocSnap.data() } as UserData;
+            setUserData(uData);
+            try {
+              localStorage.setItem('darusyifa_auth_cache', JSON.stringify(uData));
+            } catch {}
             
             // Sync to users/{uid} if docId was a custom/different ID so Firestore rules succeed
             if (docId !== currentUser.uid) {
@@ -107,15 +139,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }, 25000);
           } else {
             setUserData(null);
+            localStorage.removeItem('darusyifa_auth_cache');
           }
         } else {
           setUserData(null);
+          localStorage.removeItem('darusyifa_auth_cache');
           currentResolvedDocId = undefined;
           if (heartbeatInterval) clearInterval(heartbeatInterval);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
         setUserData(null);
+        localStorage.removeItem('darusyifa_auth_cache');
       } finally {
         setLoading(false);
       }
@@ -163,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading }}>
+    <AuthContext.Provider value={{ user, userData, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

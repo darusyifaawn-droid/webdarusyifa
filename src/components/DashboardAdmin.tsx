@@ -13,6 +13,7 @@ import {
   Sparkles, Layers, Coins, Banknote, Award
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthProvider';
 import ReactMarkdown from 'react-markdown';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -45,8 +46,9 @@ import Papa from 'papaparse';
 import {  ResponsiveContainer, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell , LineChart, Line, AreaChart, Area } from 'recharts';
 
 export default function DashboardAdmin() {
- const [user, setUser] = useState<any>(null);
- const [userData, setUserData] = useState<any>(null);
+  const { user: authUser, userData: authUserData } = useAuth();
+  const [user, setUser] = useState<any>(authUser);
+  const [userData, setUserData] = useState<any>(authUserData);
  const [allUsers, setAllUsers] = useState<any[]>([]);
  const [attendance, setAttendance] = useState<any[]>([]);
  const [payments, setPayments] = useState<any[]>([]);
@@ -644,30 +646,14 @@ export default function DashboardAdmin() {
  }
  };
 
- useEffect(() => {
- const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
- if (currentUser) {
- try {
- const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
- if (!userDoc.exists() || userDoc.data().role !== 'admin') {
- navigate('/login');
- return;
- }
- 
- setUser(currentUser);
- setUserData(userDoc.data());
- setEditName(userDoc.data().name || '');
- setEditPhoto(userDoc.data().photoURL || '');
- } catch (error) {
- console.error('Error verifying admin role:', error);
- navigate('/login');
- }
- } else {
- navigate('/login');
- }
- });
- return () => unsubscribe();
- }, [navigate]);
+  useEffect(() => {
+    if (authUser) setUser(authUser);
+    if (authUserData) {
+      setUserData(authUserData);
+      setEditName(prev => prev || authUserData.name || "");
+      setEditPhoto(prev => prev || authUserData.photoURL || "");
+    }
+  }, [authUser, authUserData]);
 
  useEffect(() => {
  if (!user) return;

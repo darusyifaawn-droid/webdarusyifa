@@ -1,16 +1,22 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface UserData {
- id: string;
- name: string;
- email: string;
- role: 'admin' | 'guru' | 'siswa' | 'parent';
- photoURL?: string;
- kelas?: string;
- whatsapp?: string;
- savings?: number;
- arrears?: number;
- createdAt?: any;
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'guru' | 'siswa' | 'parent';
+  photoURL?: string;
+  kelas?: string;
+  whatsapp?: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
+  savings?: number;
+  arrears?: number;
+  isOnline?: boolean;
+  lastActiveAt?: string;
+  lastActiveTimestamp?: number;
+  deviceType?: string;
+  createdAt?: any;
 }
 
 export interface FinancialTransaction {

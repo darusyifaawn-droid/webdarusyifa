@@ -85,21 +85,24 @@ export default function LoginPage() {
       
       // Auto-create or update super admin
       if (email === 'darusyifa.awn@gmail.com') {
+        const adminData = { 
+          id: uid,
+          role: 'admin',
+          email: email,
+          name: 'Super Admin',
+          isOnline: true,
+          lastActiveAt: new Date().toISOString(),
+          lastActiveTimestamp: Date.now(),
+          deviceType: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'
+        };
+        try {
+          localStorage.setItem('darusyifa_auth_cache', JSON.stringify(adminData));
+        } catch {}
         if (!userDoc.exists() || userDoc.data().role !== 'admin') {
           console.log("Creating/updating super admin doc...");
-          await setDoc(doc(db, 'users', uid), { 
-            role: 'admin',
-            email: email,
-            name: 'Super Admin',
-            createdAt: new Date(),
-            isOnline: true,
-            lastActiveAt: new Date().toISOString(),
-            lastActiveTimestamp: Date.now(),
-            deviceType: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'
-          }, { merge: true });
-          console.log("Super admin doc created/updated.");
+          setDoc(doc(db, 'users', uid), { ...adminData, createdAt: new Date() }, { merge: true }).catch(() => {});
         }
-        navigate('/admin-dashboard');
+        navigate('/admin-dashboard', { replace: true });
         return;
       }
 
@@ -109,8 +112,8 @@ export default function LoginPage() {
           /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         );
 
-        // Immediate online status update
-        await updateDoc(doc(db, 'users', docId), {
+        // Immediate online status update non-blocking (do NOT wait)
+        updateDoc(doc(db, 'users', docId), {
           isOnline: true,
           lastActiveAt: new Date().toISOString(),
           lastActiveTimestamp: Date.now(),
@@ -118,11 +121,17 @@ export default function LoginPage() {
           deviceType: isMobile ? 'mobile' : 'desktop'
         }).catch(() => {});
 
+        const uData = { id: docId, ...userDoc.data() };
+        try {
+          localStorage.setItem('darusyifa_auth_cache', JSON.stringify(uData));
+        } catch {}
+
         const role = userDoc.data().role;
         const targetPath = role === 'parent' ? '/parent-dashboard' : `/${role}-dashboard`;
-        navigate(targetPath);
+        navigate(targetPath, { replace: true });
       } else {
         await auth.signOut();
+        localStorage.removeItem('darusyifa_auth_cache');
         setError('Akun Anda belum didaftarkan oleh Admin. Silakan hubungi admin sekolah.');
       }
     } catch (err: any) {

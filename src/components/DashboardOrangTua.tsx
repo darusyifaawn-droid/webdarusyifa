@@ -5,49 +5,31 @@ import { updatePassword } from 'firebase/auth';
 import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthProvider';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
 
 export default function DashboardOrangTua() {
- const [user, setUser] = useState<any>(null);
- const [userData, setUserData] = useState<any>(null);
- const [attendance, setAttendance] = useState<any[]>([]);
- const [announcements, setAnnouncements] = useState<any[]>([]);
- const [payments, setPayments] = useState<any[]>([]);
- const [settings, setSettings] = useState<any>(null);
- const [loading, setLoading] = useState(true);
- const [isSidebarOpen, setIsSidebarOpen] = useState(false);
- const [activeTab, setActiveTab] = useState('overview');
- const navigate = useNavigate();
+  const { user: authUser, userData: authUserData } = useAuth();
+  const [user, setUser] = useState<any>(authUser);
+  const [userData, setUserData] = useState<any>(authUserData);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(!authUserData);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const navigate = useNavigate();
 
- useEffect(() => {
- const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
- if (currentUser) {
- try {
- const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
- if (!userDoc.exists() || userDoc.data().role !== 'parent') {
- // Check if user is actually a student but trying to access parent dashboard
- if (userDoc.exists() && userDoc.data().role === 'siswa') {
- navigate('/siswa-dashboard');
- return;
- }
- navigate('/login');
- return;
- }
- 
- setUser(currentUser);
- setUserData(userDoc.data());
- } catch (error) {
- console.error('Error verifying parent role:', error);
- navigate('/login');
- }
- } else {
- navigate('/login');
- }
- });
- return () => unsubscribe();
- }, [navigate]);
+  useEffect(() => {
+    if (authUser) setUser(authUser);
+    if (authUserData) {
+      setUserData(authUserData);
+      setLoading(false);
+    }
+  }, [authUser, authUserData]);
 
  useEffect(() => {
  if (!user) return;
@@ -112,7 +94,7 @@ export default function DashboardOrangTua() {
  </nav>
  );
 
- if (loading) return <div className="min-h-screen flex items-center justify-center bg-emerald-50 text-slate-700 ">Memuat data portal wali...</div>;
+ if (loading && !userData) return <div className="min-h-screen flex items-center justify-center bg-emerald-50 text-slate-700 ">Memuat data portal wali...</div>;
 
  return (
  <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 font-sans text-slate-900 relative transition-colors duration-300">

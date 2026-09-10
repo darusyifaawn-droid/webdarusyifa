@@ -8,6 +8,7 @@ import DriveJuknisModal from './DriveJuknisModal';
 import KaldikIframe from './KaldikIframe';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, DEFAULT_HAFALAN_CATEGORIES } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthProvider';
 import ReactMarkdown from 'react-markdown';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import KaldikCalendar from './KaldikCalendar';
@@ -19,30 +20,31 @@ import { CompetitionParticipant, CompetitionEvent } from '../types/competition';
 import { DEFAULT_FASHION_SHOW_PARTICIPANTS, DEFAULT_FASHION_SHOW_EVENT } from '../data/competitionData';
 
 const MOTIVATIONAL_QUOTES = [
- "Anak yang rajin adalah kebanggaan orang tua dan guru.",
- "Setiap langkah kecilmu hari ini adalah kunci sukses di masa depan.",
- "Teruslah belajar dan berbuat baik, hasil tidak akan mengkhianati usaha.",
- "Kedisiplinan adalah jembatan antara cita-cita dan pencapaian.",
- "Pintar itu bagus, tapi rajin dan jujur jauh lebih utama.",
- "Semangat ya belajarnya! Masa depan cerah menantimu."
+  "Anak yang rajin adalah kebanggaan orang tua dan guru.",
+  "Setiap langkah kecilmu hari ini adalah kunci sukses di masa depan.",
+  "Teruslah belajar dan berbuat baik, hasil tidak akan mengkhianati usaha.",
+  "Kedisiplinan adalah jembatan antara cita-cita dan pencapaian.",
+  "Pintar itu bagus, tapi rajin dan jujur jauh lebih utama.",
+  "Semangat ya belajarnya! Masa depan cerah menantimu."
 ];
 
 export default function DashboardSiswa() {
- const [user, setUser] = useState<any>(null);
- const [userData, setUserData] = useState<any>(null);
- const [attendance, setAttendance] = useState<any[]>([]);
- const [announcements, setAnnouncements] = useState<any[]>([]);
- const [exams, setExams] = useState<any[]>([]);
- const [progress, setProgress] = useState<any[]>([]);
- const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
- const [payments, setPayments] = useState<any[]>([]);
- const [settings, setSettings] = useState<any>(null);
- const [hafalanMaterials, setHafalanMaterials] = useState<any[]>(initialHafalanMaterials);
- const [materialsData, setMaterialsData] = useState<any[]>([]);
- const [kaldikData, setKaldikData] = useState<any[]>([]);
- const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
- const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
- const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua');
+  const { user: authUser, userData: authUserData } = useAuth();
+  const [user, setUser] = useState<any>(authUser);
+  const [userData, setUserData] = useState<any>(authUserData);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>([]);
+  const [progress, setProgress] = useState<any[]>([]);
+  const [hafalanProgress, setHafalanProgress] = useState<StudentHafalanProgress[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+  const [hafalanMaterials, setHafalanMaterials] = useState<any[]>(initialHafalanMaterials);
+  const [materialsData, setMaterialsData] = useState<any[]>([]);
+  const [kaldikData, setKaldikData] = useState<any[]>([]);
+  const [filterHafalanStatusSiswa, setFilterHafalanStatusSiswa] = useState('Semua'); // 'Semua', 'Sudah Setor', 'Belum Setor'
+  const [filterHafalanCategorySiswa, setFilterHafalanCategorySiswa] = useState('Semua Kategori'); // 'Semua Kategori', 'Surat Pendek', 'Hadist', 'Doa Sehari-hari', 'Bacaan Sholat'
+  const [filterHafalanKelasSiswa, setFilterHafalanKelasSiswa] = useState('Semua');
   const [searchHafalan, setSearchHafalan] = useState('');
 
   const studentHafalanCategories = React.useMemo(() => {
@@ -51,7 +53,7 @@ export default function DashboardSiswa() {
     return Array.from(new Set(combined));
   }, [hafalanMaterials]);
   const [filterProgressPeriod, setFilterProgressPeriod] = useState('Semua'); // 'Semua', 'Utsman', 'Umar Bin Khattab'
- const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!authUserData);
  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
  const [selectedPiagamParticipant, setSelectedPiagamParticipant] = useState<CompetitionParticipant | null>(null);
  const [allCompetitionParticipants, setAllCompetitionParticipants] = useState<CompetitionParticipant[]>([]);
@@ -789,57 +791,18 @@ export default function DashboardSiswa() {
  const videoRef = useRef<HTMLVideoElement>(null);
  const canvasRef = useRef<HTMLCanvasElement>(null);
 
- useEffect(() => {
- const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
- if (currentUser) {
- try {
- let userDoc = await getDoc(doc(db, 'users', currentUser.uid));
- let docId = currentUser.uid;
-
- if (!userDoc.exists() && currentUser.email) {
- const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
- const snap = await getDocs(q);
- if (!snap.empty) {
- userDoc = snap.docs[0];
- docId = userDoc.id;
- }
- }
-
- if (!userDoc.exists() || userDoc.data().role !== 'siswa') {
- navigate('/login');
- return;
- }
- 
- setUser(currentUser);
- const data = userDoc.data();
- setUserData({ id: docId, ...data });
- setEditName(data.name);
- setEditWhatsapp(data.whatsapp || '');
- setEditPhoto(data.photoURL || '');
- setEditTempatLahir(data.tempatLahir || '');
- setEditTanggalLahir(data.tanggalLahir || '');
-
- const isMobile = typeof window !== 'undefined' && (
- window.innerWidth < 768 || 
- /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
- );
- await updateDoc(doc(db, 'users', docId), {
- isOnline: true,
- lastActiveAt: new Date().toISOString(),
- lastActiveTimestamp: Date.now(),
- lastActiveDevice: isMobile ? 'Mobile' : 'Desktop',
- deviceType: isMobile ? 'mobile' : 'desktop'
- }).catch(() => {});
- } catch (error) {
- console.error('Error verifying siswa role:', error);
- navigate('/login');
- }
- } else {
- navigate('/login');
- }
- });
- return () => unsubscribe();
- }, [navigate]);
+  useEffect(() => {
+    if (authUser) setUser(authUser);
+    if (authUserData) {
+      setUserData(authUserData);
+      setEditName(prev => prev || authUserData.name || "");
+      setEditWhatsapp(prev => prev || authUserData.whatsapp || "");
+      setEditPhoto(prev => prev || authUserData.photoURL || "");
+      setEditTempatLahir(prev => prev || authUserData.tempatLahir || "");
+      setEditTanggalLahir(prev => prev || authUserData.tanggalLahir || "");
+      setLoading(false);
+    }
+  }, [authUser, authUserData]);
 
  useEffect(() => {
  if (!user) return;
@@ -1165,7 +1128,7 @@ export default function DashboardSiswa() {
  }
  };
 
- if (loading) return <div className="min-h-screen flex items-center justify-center bg-green-50">Memuat data...</div>;
+  if (loading && !userData) return <div className="min-h-screen flex items-center justify-center bg-green-50">Memuat data...</div>;
 
  const handleLogout = async () => {
  try {
