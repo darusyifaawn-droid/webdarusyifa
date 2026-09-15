@@ -33,6 +33,8 @@ import GuruAttendanceTab from './guru/GuruAttendanceTab';
 import GuruProfileTab from './guru/GuruProfileTab';
 import GuruSlipGajiTab from './guru/GuruSlipGajiTab';
 import CompetitionTab from './competition/CompetitionTab';
+import WaliKelasAspectModal from './guru/WaliKelasAspectModal';
+import ClassAspectsContent from './guru/ClassAspectsContent';
 
 export default function DashboardGuru() {
   const { user: authUser, userData: authUserData } = useAuth();
@@ -56,10 +58,17 @@ export default function DashboardGuru() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Class Aspects (Wali Kelas) States
+  const [classAspects, setClassAspects] = useState<any[]>([]);
+  const [showClassAspectModal, setShowClassAspectModal] = useState(false);
+  const [aspectClassFilter, setAspectClassFilter] = useState('');
+
   // Form States for Progress
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [editingProgress, setEditingProgress] = useState<any>(null);
   const [selectedStudent, setSelectedStudent] = useState('');
+  const [progressModalClass, setProgressModalClass] = useState<string>('Semua');
+  const [progressModalStudentSearch, setProgressModalStudentSearch] = useState<string>('');
   const [progressTitle, setProgressTitle] = useState('');
   const [progressCategory, setProgressCategory] = useState('');
   const [progressEvaluationPeriod, setProgressEvaluationPeriod] = useState('Harian');
@@ -73,6 +82,7 @@ export default function DashboardGuru() {
   // Subjects Management State
   const [newSubjectName, setNewSubjectName] = useState('');
   const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [subjectModalActiveTab, setSubjectModalActiveTab] = useState<'mapel' | 'aspek'>('mapel');
   const [editingSubject, setEditingSubject] = useState<any>(null);
 
   // Hafalan Evaluation Modal States
@@ -248,6 +258,10 @@ export default function DashboardGuru() {
       setSalarySlips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, () => {});
 
+    const unsubClassAspects = onSnapshot(query(collection(db, 'class_aspects'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setClassAspects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'class_aspects'));
+
     return () => {
       unsubStudents();
       unsubProgress();
@@ -263,6 +277,7 @@ export default function DashboardGuru() {
       unsubMaterials();
       unsubHafalanMaterials();
       unsubSalarySlips();
+      unsubClassAspects();
     };
   }, [user, userData?.assignedClass, userData?.kelas]);
 
@@ -419,11 +434,88 @@ export default function DashboardGuru() {
     return { grade: 'D', text: 'Kurang', color: 'text-red-600' };
   };
 
+  const getExamSubjectsForPeriodAndClass = (periodFilter?: string, classFilter?: string): string[] => {
+    if (!periodFilter || periodFilter === 'Harian' || periodFilter === 'Semua') return [];
+    const normalizedPeriod = periodFilter.toLowerCase().trim();
+    
+    // Match exams by period type
+    const matchedExams = exams.filter(ex => {
+      const exType = (ex.type || '').toLowerCase().trim();
+      if (!exType) return false;
+      if (exType === normalizedPeriod) return true;
+      const hasPts = normalizedPeriod.includes('pts') && exType.includes('pts');
+      const hasPas = normalizedPeriod.includes('pas') && exType.includes('pas');
+      const hasGanjil = (normalizedPeriod.includes('ganjil') || normalizedPeriod.includes('1')) && 
+                        (exType.includes('ganjil') || exType.includes('1') || exType.includes('semester 1') || exType.includes('sem 1'));
+      const hasGenap = (normalizedPeriod.includes('genap') || normalizedPeriod.includes('2')) && 
+                       (exType.includes('genap') || exType.includes('2') || exType.includes('semester 2') || exType.includes('sem 2'));
+      if (hasPts && (hasGanjil || hasGenap || (!normalizedPeriod.includes('ganjil') && !normalizedPeriod.includes('genap')))) return true;
+      if (hasPas && (hasGanjil || hasGenap || (!normalizedPeriod.includes('ganjil') && !normalizedPeriod.includes('genap')))) return true;
+      return false;
+    });
+
+    const subjectsFound = new Set<string>();
+    matchedExams.forEach(ex => {
+      const schedules = Array.isArray(ex.schedules) ? ex.schedules : [];
+      schedules.forEach((sch: any) => {
+        const subj = (sch.subject || '').trim();
+        if (!subj) return;
+        const schClass = (sch.kelas || '').toLowerCase().trim();
+        if (classFilter && classFilter !== 'Semua' && schClass && schClass !== 'semua kelas' && schClass !== 'semua') {
+          const normTarget = classFilter.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normSch = schClass.replace(/[^a-z0-9]/g, '');
+          if (normTarget === normSch || schClass === classFilter.toLowerCase() || 
+              normTarget.includes(normSch) || normSch.includes(normTarget)) {
+            subjectsFound.add(subj);
+          }
+        } else {
+          subjectsFound.add(subj);
+        }
+      });
+    });
+
+    return Array.from(subjectsFound);
+  };
+
+  const getWaliKelasAspectsForClassAndPeriod = (classFilter?: string, periodFilter?: string): string[] => {
+    return classAspects.filter(asp => {
+      if (classFilter && classFilter !== 'Semua') {
+        const aspClass = (asp.className || '').toLowerCase().trim();
+        if (aspClass && aspClass !== 'semua') {
+          const normTarget = classFilter.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normAsp = aspClass.replace(/[^a-z0-9]/g, '');
+          const classMatch = aspClass === classFilter.toLowerCase() || normTarget === normAsp ||
+                             normTarget.includes(normAsp) || normAsp.includes(normTarget);
+          if (!classMatch) return false;
+        }
+      }
+      if (periodFilter && periodFilter !== 'Semua') {
+        const aspPeriod = (asp.period || 'Semua').toLowerCase().trim();
+        if (aspPeriod && aspPeriod !== 'semua' && aspPeriod !== 'semua periode') {
+          if (aspPeriod !== periodFilter.toLowerCase().trim()) return false;
+        }
+      }
+      return true;
+    }).map(asp => (asp.name || '').trim()).filter(Boolean);
+  };
+
   const getAvailableSubjects = (periodFilter?: string, classFilter?: string) => {
     const subjectSet = new Set<string>();
+    
+    // 1. Exam subjects for this period and class (Automatically populated!)
+    const examSubs = getExamSubjectsForPeriodAndClass(periodFilter, classFilter);
+    examSubs.forEach(s => subjectSet.add(s));
+
+    // 2. Aspects / subjects created by Wali Kelas
+    const waliAspects = getWaliKelasAspectsForClassAndPeriod(classFilter, periodFilter);
+    waliAspects.forEach(s => subjectSet.add(s));
+
+    // 3. Custom subjects from database
     subjects.forEach(s => {
       if (s.name && typeof s.name === 'string') subjectSet.add(s.name.trim());
     });
+
+    // 4. Standard curriculum subjects
     const defaultSubjects = [
       "Nilai Agama & Moral", "Fisik Motorik", "Kognitif & Sains",
       "Bahasa & Literasi", "Seni & Kreativitas", "Sosial Emosional",
@@ -431,7 +523,58 @@ export default function DashboardGuru() {
       "Akidah Akhlak", "Pancasila / Kewarganegaraan"
     ];
     defaultSubjects.forEach(s => subjectSet.add(s));
+
     return Array.from(subjectSet).filter(Boolean).filter(sub => !hiddenSubjects.includes(sub));
+  };
+
+  const getCategorizedSubjects = (periodFilter?: string, classFilter?: string) => {
+    const examSubs = getExamSubjectsForPeriodAndClass(periodFilter, classFilter);
+    const waliAspects = getWaliKelasAspectsForClassAndPeriod(classFilter, periodFilter);
+    const standardSubs = getAvailableSubjects(periodFilter, classFilter)
+      .filter(s => !examSubs.includes(s) && !waliAspects.includes(s));
+
+    return {
+      examSubjects: examSubs,
+      waliAspects: waliAspects,
+      standardSubjects: standardSubs,
+      all: Array.from(new Set([...examSubs, ...waliAspects, ...standardSubs]))
+    };
+  };
+
+  const handleSaveClassAspect = async (aspectData: { id?: string; name: string; category: string; className: string; period: string }) => {
+    try {
+      const dataToSave = {
+        name: aspectData.name.trim(),
+        category: aspectData.category,
+        className: aspectData.className,
+        period: aspectData.period,
+        teacherId: user?.uid || 'guru',
+        teacherName: editName || userData?.name || 'Wali Kelas',
+        updatedAt: serverTimestamp()
+      };
+
+      if (aspectData.id) {
+        await updateDoc(doc(db, 'class_aspects', aspectData.id), dataToSave);
+        alert('Aspek perkembangan berhasil diperbarui!');
+      } else {
+        await addDoc(collection(db, 'class_aspects'), {
+          ...dataToSave,
+          createdAt: serverTimestamp()
+        });
+        alert(`Aspek perkembangan untuk kelas ${aspectData.className} berhasil ditambahkan! Semua guru dapat memilihnya saat penilaian.`);
+      }
+    } catch (error) {
+      handleFirestoreError(error, aspectData.id ? OperationType.UPDATE : OperationType.CREATE, 'class_aspects');
+    }
+  };
+
+  const handleDeleteClassAspect = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'class_aspects', id));
+      alert('Aspek perkembangan berhasil dihapus.');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `class_aspects/${id}`);
+    }
   };
 
   const handleSaveSubject = async (e: React.FormEvent) => {
@@ -1265,6 +1408,7 @@ export default function DashboardGuru() {
               pkIsSaving={pkIsSaving}
               onSavePk={handleSavePk}
               getAvailableSubjects={getAvailableSubjects}
+              getCategorizedSubjects={getCategorizedSubjects}
               schoolClasses={schoolClasses}
             />
           )}
@@ -1274,10 +1418,19 @@ export default function DashboardGuru() {
               progress={progress}
               students={students}
               allStudents={allStudents}
+              schoolClasses={schoolClasses}
               userData={userData}
-              onOpenNewProgress={() => {
+              onOpenNewProgress={(preselectedStudentId?: string) => {
                 setEditingProgress(null);
-                setSelectedStudent('');
+                setSelectedStudent(preselectedStudentId || '');
+                if (preselectedStudentId) {
+                  const st = allStudents.find(s => s.id === preselectedStudentId);
+                  if (st?.kelas) setProgressModalClass(st.kelas);
+                } else {
+                  const teacherCls = (userData?.assignedClass || userData?.kelas || '').trim();
+                  setProgressModalClass(teacherCls && teacherCls !== 'Semua' ? teacherCls : 'Semua');
+                }
+                setProgressModalStudentSearch('');
                 setProgressCategory('');
                 setProgressDesc('');
                 setProgressScore(90);
@@ -1286,6 +1439,8 @@ export default function DashboardGuru() {
               onEditProgress={(p) => {
                 setEditingProgress(p);
                 setSelectedStudent(p.studentId);
+                const st = allStudents.find(s => s.id === p.studentId);
+                if (st?.kelas) setProgressModalClass(st.kelas);
                 setProgressCategory(p.category || p.title);
                 setProgressEvaluationPeriod(p.evaluationPeriod || 'Harian');
                 setProgressDesc(p.description || '');
@@ -1294,7 +1449,10 @@ export default function DashboardGuru() {
                 setShowProgressModal(true);
               }}
               onDeleteProgress={handleDeleteProgress}
-              onOpenSubjectModal={() => setShowSubjectModal(true)}
+              onOpenSubjectModal={() => {
+                setSubjectModalActiveTab('mapel');
+                setShowSubjectModal(true);
+              }}
               onPromptPrintRapot={(student) => {
                 setSelectedStudentForRapot(student);
                 setPrintRapotPeriod('PTS Ganjil');
@@ -1626,51 +1784,173 @@ export default function DashboardGuru() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-bold text-slate-900 mb-5">{editingProgress ? 'Edit Nilai Belajar' : 'Input Nilai Belajar Santri'}</h3>
-            <form onSubmit={handleSaveProgress} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pilih Santri</label>
-                <select
-                  value={selectedStudent}
-                  onChange={(e) => setSelectedStudent(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                >
-                  <option value="">-- Pilih Santri --</option>
-                  {allStudents.filter(s => (s.status || 'Aktif') === 'Aktif').map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.kelas || '-'})</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Periode</label>
-                  <select
-                    value={progressEvaluationPeriod}
-                    onChange={(e) => setProgressEvaluationPeriod(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="PTS Ganjil">PTS Ganjil</option>
-                    <option value="PAS Ganjil">PAS Ganjil</option>
-                    <option value="PTS Genap">PTS Genap</option>
-                    <option value="PAS Genap">PAS Genap</option>
-                    <option value="Harian">Harian</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mata Pelajaran</label>
-                  <select
-                    value={progressCategory}
-                    onChange={(e) => setProgressCategory(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
-                  >
-                    <option value="">-- Pilih Mapel --</option>
-                    {getAvailableSubjects().map((sub, idx) => (
-                      <option key={idx} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            {(() => {
+              const activeStudentsList = allStudents.filter(s => (s.status || 'Aktif') === 'Aktif');
+              
+              // Filter students in modal by class and search
+              const modalStudents = activeStudentsList.filter(s => {
+                const matchClass = progressModalClass === 'Semua' || 
+                  (s.kelas || '').toLowerCase().trim() === progressModalClass.toLowerCase().trim();
+                const matchSearch = !progressModalStudentSearch.trim() || 
+                  (s.name || '').toLowerCase().includes(progressModalStudentSearch.toLowerCase().trim()) ||
+                  (s.nisn || '').toLowerCase().includes(progressModalStudentSearch.toLowerCase().trim());
+                return matchClass && matchSearch;
+              });
+
+              const selectedStudentData = allStudents.find(s => s.id === selectedStudent);
+              const studentClass = selectedStudentData?.kelas || '';
+              const categorized = getCategorizedSubjects(progressEvaluationPeriod, studentClass);
+
+              // Distinct classes for modal dropdown
+              const modalClassesSet = new Set<string>();
+              schoolClasses.forEach(c => { if (c.name) modalClassesSet.add(c.name.trim()); });
+              activeStudentsList.forEach(s => { if (s.kelas) modalClassesSet.add(s.kelas.trim()); });
+              const modalDistinctClasses = Array.from(modalClassesSet).sort();
+
+              return (
+                <form onSubmit={handleSaveProgress} className="space-y-4">
+                  {/* Filter Kelas & Cari Nama Siswa */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                          Filter Kelas Santri
+                        </label>
+                        <select
+                          value={progressModalClass}
+                          onChange={(e) => {
+                            setProgressModalClass(e.target.value);
+                            if (e.target.value !== 'Semua') {
+                              if (selectedStudentData && (selectedStudentData.kelas || '').toLowerCase().trim() !== e.target.value.toLowerCase().trim()) {
+                                setSelectedStudent('');
+                              }
+                            }
+                          }}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                        >
+                          <option value="Semua">Semua Kelas ({activeStudentsList.length})</option>
+                          {modalDistinctClasses.map(c => (
+                            <option key={c} value={c}>Kelas {c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                          Cari Nama Santri
+                        </label>
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={progressModalStudentSearch}
+                            onChange={(e) => setProgressModalStudentSearch(e.target.value)}
+                            placeholder="Ketik nama santri..."
+                            className="w-full pl-7 pr-6 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          {progressModalStudentSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setProgressModalStudentSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                        Pilih Santri Sasaran ({modalStudents.length} santri)
+                      </label>
+                      <select
+                        value={selectedStudent}
+                        onChange={(e) => setSelectedStudent(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                        required
+                      >
+                        <option value="">-- Pilih Santri --</option>
+                        {modalStudents.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.kelas || 'Tanpa Kelas'}) - NISN: {s.nisn || '-'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedStudentData && (
+                      <div className="px-3 py-1.5 bg-emerald-100/80 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-center justify-between">
+                        <span className="font-bold truncate">Santri: {selectedStudentData.name}</span>
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900 text-[10px] font-black shrink-0">
+                          Kelas {selectedStudentData.kelas || '-'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Periode</label>
+                      <select
+                        value={progressEvaluationPeriod}
+                        onChange={(e) => setProgressEvaluationPeriod(e.target.value)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="PTS Ganjil">PTS Ganjil</option>
+                        <option value="PAS Ganjil">PAS Ganjil</option>
+                        <option value="PTS Genap">PTS Genap</option>
+                        <option value="PAS Genap">PAS Genap</option>
+                        <option value="Harian">Harian</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mata Pelajaran / Aspek</label>
+                      <select
+                        value={progressCategory}
+                        onChange={(e) => setProgressCategory(e.target.value)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                        required
+                      >
+                        <option value="">-- Pilih Mapel / Aspek --</option>
+                        {categorized.examSubjects.length > 0 && (
+                          <optgroup label={`📋 Jadwal Ujian ${progressEvaluationPeriod} (Otomatis)`}>
+                            {categorized.examSubjects.map((sub, idx) => (
+                              <option key={`exam-${idx}`} value={sub}>{sub}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {categorized.waliAspects.length > 0 && (
+                          <optgroup label={`⭐ Aspek Kelas ${studentClass ? `(${studentClass})` : ''} - Wali Kelas`}>
+                            {categorized.waliAspects.map((sub, idx) => (
+                              <option key={`wali-${idx}`} value={sub}>{sub}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {categorized.standardSubjects.length > 0 && (
+                          <optgroup label="📚 Mata Pelajaran Standar RA">
+                            {categorized.standardSubjects.map((sub, idx) => (
+                              <option key={`std-${idx}`} value={sub}>{sub}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {progressCategory && !categorized.all.includes(progressCategory) && (
+                          <option value={progressCategory}>{progressCategory} (Kustom)</option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {categorized.examSubjects.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center gap-2 text-[11px] text-emerald-800 font-semibold">
+                      <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                      <span>
+                        <strong>{categorized.examSubjects.length} Mata Pelajaran</strong> otomatis sinkron dari Jadwal Ujian periode <strong>{progressEvaluationPeriod}</strong>
+                        {studentClass ? ` untuk kelas ${studentClass}` : ''}.
+                      </span>
+                    </div>
+                  )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nilai (1-100)</label>
@@ -1715,6 +1995,8 @@ export default function DashboardGuru() {
                 <span>Simpan Penilaian</span>
               </button>
             </form>
+          );
+        })()}
           </div>
         </div>
       )}
@@ -1950,18 +2232,18 @@ export default function DashboardGuru() {
         </div>
       )}
 
-      {/* Subject Management Modal */}
+      {/* Subject & Class Aspects Management Modal */}
       {showSubjectModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[250] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-6">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
                   <BookOpen size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-slate-900 leading-tight">Kelola Mata Pelajaran</h3>
-                  <p className="text-xs text-slate-500">Tambah, edit nama, hapus atau atur visibilitas mapel</p>
+                  <h3 className="font-bold text-lg text-slate-900 leading-tight">Kelola Mapel & Perkembangan Siswa</h3>
+                  <p className="text-xs text-slate-500">Mata pelajaran kurikulum dan aspek perkembangan siswa per kelas</p>
                 </div>
               </div>
               <button 
@@ -1970,158 +2252,202 @@ export default function DashboardGuru() {
                   setEditingSubject(null);
                   setNewSubjectName('');
                 }} 
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Form Input Tambah / Edit */}
-            <form onSubmit={handleSaveSubject} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-              <label className="block text-xs font-bold text-slate-700 uppercase">
-                {editingSubject ? `Edit Nama Mapel: ${editingSubject.name}` : 'Tambah Mata Pelajaran Baru'}
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  placeholder="Contoh: Seni Rupa & Mewarnai"
-                  className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <Save size={15} />
-                    <span>{editingSubject ? 'Simpan' : 'Tambah'}</span>
-                  </button>
-                  {editingSubject && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingSubject(null);
-                        setNewSubjectName('');
-                      }}
-                      className="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shrink-0 cursor-pointer"
-                    >
-                      Batal
-                    </button>
+            {/* Tab Selector */}
+            <div className="flex border-b border-slate-200 gap-3 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setSubjectModalActiveTab('mapel')}
+                className={`pb-2.5 flex items-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
+                  subjectModalActiveTab === 'mapel'
+                    ? 'border-indigo-600 text-indigo-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <BookOpen size={15} />
+                <span>Mata Pelajaran (Umum & Standar RA)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSubjectModalActiveTab('aspek')}
+                className={`pb-2.5 flex items-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
+                  subjectModalActiveTab === 'aspek'
+                    ? 'border-amber-600 text-amber-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Sparkles size={15} className="text-amber-500" />
+                <span>Aspek Perkembangan Siswa ({classAspects.length})</span>
+              </button>
+            </div>
+
+            {subjectModalActiveTab === 'mapel' ? (
+              <div className="space-y-6">
+                {/* Form Input Tambah / Edit */}
+                <form onSubmit={handleSaveSubject} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    {editingSubject ? `Edit Nama Mapel: ${editingSubject.name}` : 'Tambah Mata Pelajaran Baru'}
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={newSubjectName}
+                      onChange={(e) => setNewSubjectName(e.target.value)}
+                      placeholder="Contoh: Seni Rupa & Mewarnai"
+                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="submit"
+                        className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                      >
+                        <Save size={15} />
+                        <span>{editingSubject ? 'Simpan' : 'Tambah'}</span>
+                      </button>
+                      {editingSubject && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSubject(null);
+                            setNewSubjectName('');
+                          }}
+                          className="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shrink-0 cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </form>
+
+                {/* List Mapel Tambahan / Kustom */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Mata Pelajaran Tambahan ({subjects.length})
+                    </h4>
+                    <span className="text-[11px] text-slate-400">Tersimpan di Database</span>
+                  </div>
+                  {subjects.length === 0 ? (
+                    <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-400 font-medium">
+                      Belum ada mapel kustom. Tambahkan melalui form di atas.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {subjects.map((sub: any) => (
+                        <div key={sub.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-xs hover:border-emerald-200 transition-all">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-800">{sub.name}</span>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-bold">Kustom</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSubject(sub);
+                                setNewSubjectName(sub.name);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Nama Mapel"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubject(sub)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Mapel"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
-            </form>
 
-            {/* List Mapel Tambahan / Kustom */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Mata Pelajaran Tambahan ({subjects.length})
-                </h4>
-                <span className="text-[11px] text-slate-400">Tersimpan di Database</span>
-              </div>
-              {subjects.length === 0 ? (
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-400 font-medium">
-                  Belum ada mapel kustom. Tambahkan melalui form di atas.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {subjects.map((sub: any) => (
-                    <div key={sub.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-xs hover:border-emerald-200 transition-all">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span className="text-xs sm:text-sm font-bold text-slate-800">{sub.name}</span>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-bold">Kustom</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingSubject(sub);
-                            setNewSubjectName(sub.name);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Nama Mapel"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSubject(sub)}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Hapus Mapel"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* List Mapel Standar / Bawaan Kurikulum */}
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Mata Pelajaran Standar Kurikulum RA
-                </h4>
-                <span className="text-[11px] text-slate-400">Bisa disembunyikan / diedit</span>
-              </div>
-              <div className="space-y-2">
-                {[
-                  "Nilai Agama & Moral", "Fisik Motorik", "Kognitif & Sains",
-                  "Bahasa & Literasi", "Seni & Kreativitas", "Sosial Emosional",
-                  "Al-Qur'an & Hafalan", "Fiqih & Ibadah", "Bahasa Arab",
-                  "Akidah Akhlak", "Pancasila / Kewarganegaraan"
-                ].map((defSub, idx) => {
-                  const isHidden = hiddenSubjects.includes(defSub);
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
-                        isHidden ? 'bg-slate-50/70 border-slate-200/60 opacity-60' : 'bg-white border-slate-200 shadow-xs'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-2 h-2 rounded-full ${isHidden ? 'bg-slate-300' : 'bg-blue-500'}`}></span>
-                        <span className={`text-xs sm:text-sm font-semibold ${isHidden ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                          {defSub}
-                        </span>
-                        {isHidden && (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px] font-bold">Tersembunyi</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingSubject({ name: defSub });
-                            setNewSubjectName(defSub);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="Ubah nama mapel ini"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleHideSubject(defSub)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            isHidden ? 'text-slate-500 hover:bg-slate-200' : 'text-amber-600 hover:bg-amber-50'
+                {/* List Mapel Standar / Bawaan Kurikulum */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Mata Pelajaran Standar Kurikulum RA
+                    </h4>
+                    <span className="text-[11px] text-slate-400">Bisa disembunyikan / diedit</span>
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      "Nilai Agama & Moral", "Fisik Motorik", "Kognitif & Sains",
+                      "Bahasa & Literasi", "Seni & Kreativitas", "Sosial Emosional",
+                      "Al-Qur'an & Hafalan", "Fiqih & Ibadah", "Bahasa Arab",
+                      "Akidah Akhlak", "Pancasila / Kewarganegaraan"
+                    ].map((defSub, idx) => {
+                      const isHidden = hiddenSubjects.includes(defSub);
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                            isHidden ? 'bg-slate-50/70 border-slate-200/60 opacity-60' : 'bg-white border-slate-200 shadow-xs'
                           }`}
-                          title={isHidden ? 'Tampilkan Mapel' : 'Sembunyikan Mapel'}
                         >
-                          {isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                          <div className="flex items-center gap-2.5">
+                            <span className={`w-2 h-2 rounded-full ${isHidden ? 'bg-slate-300' : 'bg-blue-500'}`}></span>
+                            <span className={`text-xs sm:text-sm font-semibold ${isHidden ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                              {defSub}
+                            </span>
+                            {isHidden && (
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px] font-bold">Tersembunyi</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSubject({ name: defSub });
+                                setNewSubjectName(defSub);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Ubah nama mapel ini"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHideSubject(defSub)}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isHidden ? 'text-slate-500 hover:bg-slate-200' : 'text-amber-600 hover:bg-amber-50'
+                              }`}
+                              title={isHidden ? 'Tampilkan Mapel' : 'Sembunyikan Mapel'}
+                            >
+                              {isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <ClassAspectsContent
+                classAspects={classAspects}
+                schoolClasses={schoolClasses}
+                userData={userData}
+                user={user}
+                exams={exams}
+                onSaveAspect={handleSaveClassAspect}
+                onDeleteAspect={handleDeleteClassAspect}
+                initialClass={aspectClassFilter || userData?.assignedClass || userData?.kelas}
+              />
+            )}
           </div>
         </div>
       )}

@@ -30,6 +30,13 @@ interface GuruPenilaianKelasTabProps {
   pkIsSaving: boolean;
   onSavePk: () => void;
   getAvailableSubjects: (period?: string, classFilter?: string) => string[];
+  getCategorizedSubjects?: (period?: string, classFilter?: string) => {
+    examSubjects: string[];
+    waliAspects: string[];
+    standardSubjects: string[];
+    all: string[];
+  };
+  onOpenClassAspectModal?: () => void;
   schoolClasses: any[];
 }
 
@@ -58,6 +65,8 @@ export default function GuruPenilaianKelasTab({
   pkIsSaving,
   onSavePk,
   getAvailableSubjects,
+  getCategorizedSubjects,
+  onOpenClassAspectModal,
   schoolClasses
 }: GuruPenilaianKelasTabProps) {
   const [search, setSearch] = useState('');
@@ -205,7 +214,7 @@ export default function GuruPenilaianKelasTab({
           {/* Materi Hafalan OR Mapel Selector */}
           <div className="lg:col-span-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              {pkType === 'Hafalan' ? 'Pilih Materi Hafalan' : 'Pilih Mata Pelajaran'}
+              {pkType === 'Hafalan' ? 'Pilih Materi Hafalan' : 'Pilih Mata Pelajaran / Aspek'}
             </label>
             {pkType === 'Hafalan' ? (
               <select
@@ -221,16 +230,58 @@ export default function GuruPenilaianKelasTab({
                 ))}
               </select>
             ) : (
-              <select
-                value={pkCategory}
-                onChange={(e) => setPkCategory(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">-- Pilih Mata Pelajaran --</option>
-                {availableSubjects.map((sub, idx) => (
-                  <option key={idx} value={sub}>{sub}</option>
-                ))}
-              </select>
+              (() => {
+                const categorized = getCategorizedSubjects ? getCategorizedSubjects(pkRapotPeriod, effectiveClass) : null;
+                return (
+                  <div className="space-y-1">
+                    <select
+                      value={pkCategory}
+                      onChange={(e) => setPkCategory(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Pilih Mata Pelajaran / Aspek --</option>
+                      {categorized ? (
+                        <>
+                          {categorized.examSubjects.length > 0 && (
+                            <optgroup label={`📋 Jadwal Ujian ${pkRapotPeriod} (Otomatis)`}>
+                              {categorized.examSubjects.map((sub, idx) => (
+                                <option key={`exam-${idx}`} value={sub}>{sub}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {categorized.waliAspects.length > 0 && (
+                            <optgroup label={`⭐ Aspek Perkembangan Kelas (${effectiveClass}) - Wali Kelas`}>
+                              {categorized.waliAspects.map((sub, idx) => (
+                                <option key={`wali-${idx}`} value={sub}>{sub}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {categorized.standardSubjects.length > 0 && (
+                            <optgroup label="📚 Mata Pelajaran Standar RA">
+                              {categorized.standardSubjects.map((sub, idx) => (
+                                <option key={`std-${idx}`} value={sub}>{sub}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {pkCategory && !categorized.all.includes(pkCategory) && (
+                            <option value={pkCategory}>{pkCategory} (Kustom)</option>
+                          )}
+                        </>
+                      ) : (
+                        availableSubjects.map((sub, idx) => (
+                          <option key={idx} value={sub}>{sub}</option>
+                        ))
+                      )}
+                    </select>
+                    {categorized && categorized.examSubjects.length > 0 && (
+                      <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                        <Sparkles size={11} />
+                        <span>{categorized.examSubjects.length} mapel ujian {pkRapotPeriod} dimuat otomatis</span>
+                      </p>
+                    )}
+                  </div>
+                );
+              })()
             )}
           </div>
         </div>

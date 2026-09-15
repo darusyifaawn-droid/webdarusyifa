@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home } from 'lucide-react';
+import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -288,7 +288,19 @@ export default function DashboardOrangTua() {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
  <div className="bg-rose-50 border border-rose-100 p-8 rounded-[2rem]">
- <h4 className="text-rose-900 font-black uppercase tracking-widest text-xs mb-4">Daftar Tunggakan</h4>
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+   <h4 className="text-rose-900 font-black uppercase tracking-widest text-xs">Daftar Tunggakan</h4>
+   {userData?.arrears_details && userData.arrears_details.length > 0 && (
+     <a
+       href={`https://wa.me/628993358221?text=${encodeURIComponent(`Halo Tata Usaha RA Darusyifa, saya orang tua dari ${userData?.name || 'siswa'} (Kelas ${userData?.kelas || '-'}) ingin konfirmasi rincian tagihan & iuran SPP.`)}`}
+       target="_blank"
+       rel="noopener noreferrer"
+       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs transition-colors w-fit"
+     >
+       <MessageCircle size={13} /> Konfirmasi via WhatsApp
+     </a>
+   )}
+ </div>
  {userData?.arrears_details && userData.arrears_details.length > 0 ? (
  <div className="space-y-4">
  {userData.arrears_details.map((item: any, idx: number) => (

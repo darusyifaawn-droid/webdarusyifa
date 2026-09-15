@@ -27,6 +27,21 @@
       },
       "required": ["name"]
     },
+    "ClassAspect": {
+      "title": "ClassAspect",
+      "description": "Rincian aspek perkembangan siswa per kelas yang diinput oleh wali kelas",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "className": { "type": "string" },
+        "period": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "createdAt": { "type": "object" }
+      },
+      "required": ["name", "className"]
+    },
     "StudentProgress": {
       "title": "StudentProgress",
       "description": "Daily student progress",

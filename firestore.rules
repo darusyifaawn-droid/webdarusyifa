@@ -85,6 +85,12 @@ service cloud.firestore {
       allow write: if isAdmin() || isGuru();
     }
 
+    // Rules for Class Aspects (Rincian aspek perkembangan siswa per kelas oleh wali kelas)
+    match /class_aspects/{aspectId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isGuru();
+    }
+
     // Rules for Hafalan Materials
     match /hafalan_materials/{materialId} {
       allow read: if isSignedIn();

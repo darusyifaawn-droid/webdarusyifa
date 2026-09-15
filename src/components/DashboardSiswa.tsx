@@ -2367,6 +2367,31 @@ export default function DashboardSiswa() {
                     .filter(p => filterProgressPeriod === 'Semua' || p.evaluationPeriod === filterProgressPeriod)
                     .map((item, idx) => {
                       const scoreInfo = getScoreGradeInfo(Number(item.score) || 85);
+
+                      // Check if any specific aspects were actually evaluated by teacher
+                      const evaluatedAspects: { label: string; value: string }[] = [];
+                      if (Array.isArray(item.aspects) && item.aspects.length > 0) {
+                        item.aspects.forEach((a: any) => {
+                          if (a && (a.name || a.label)) {
+                            evaluatedAspects.push({
+                              label: a.label || a.name || a.title,
+                              value: a.value || a.rating || a.status || (a.score ? `${a.score}` : '')
+                            });
+                          }
+                        });
+                      } else if (typeof item.aspects === 'object' && item.aspects !== null) {
+                        Object.entries(item.aspects).forEach(([k, v]) => {
+                          if (v) evaluatedAspects.push({ label: k, value: String(v) });
+                        });
+                      } else {
+                        if (item.nam) evaluatedAspects.push({ label: 'Nilai Agama & Moral', value: item.nam });
+                        if (item.motorik) evaluatedAspects.push({ label: 'Fisik & Motorik', value: item.motorik });
+                        if (item.kognitif) evaluatedAspects.push({ label: 'Kognitif', value: item.kognitif });
+                        if (item.bahasa) evaluatedAspects.push({ label: 'Bahasa & Komunikasi', value: item.bahasa });
+                        if (item.sosem) evaluatedAspects.push({ label: 'Sosial & Emosional', value: item.sosem });
+                        if (item.seni) evaluatedAspects.push({ label: 'Seni & Kreativitas', value: item.seni });
+                      }
+
                       return (
                         <div 
                           key={item.id || idx}
@@ -2375,10 +2400,15 @@ export default function DashboardSiswa() {
                           {/* Header item */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                             <div>
-                              <div className="flex items-center gap-2 mb-1.5">
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
                                   {item.evaluationPeriod || 'Evaluasi Semester'}
                                 </span>
+                                {item.status && (
+                                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                    {item.status}
+                                  </span>
+                                )}
                                 {item.date && (
                                   <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
                                     <Calendar size={12} /> {item.date}
@@ -2386,8 +2416,13 @@ export default function DashboardSiswa() {
                                 )}
                               </div>
                               <h4 className="text-lg sm:text-xl font-black text-slate-900">
-                                {item.title || `Laporan Capaian Belajar - ${item.evaluationPeriod || 'Semester Ganjil'}`}
+                                {item.category || item.title || `Laporan Capaian Belajar - ${item.evaluationPeriod || 'Semester Ganjil'}`}
                               </h4>
+                              {item.teacherName && (
+                                <p className="text-[11px] font-medium text-slate-400 mt-1">
+                                  Dinilai oleh: <span className="font-semibold text-slate-600">{item.teacherName}</span>
+                                </p>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -2401,40 +2436,35 @@ export default function DashboardSiswa() {
                             </div>
                           </div>
 
-                          {/* 6 Aspek Perkembangan PAUD / RA */}
-                          <div className="space-y-3">
-                            <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">
-                              Rincian Aspek Perkembangan Siswa:
-                            </h5>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {[
-                                { key: 'nam', label: '1. Nilai Agama & Moral', value: item.nam || 'Berkembang Sangat Baik (BSB)' },
-                                { key: 'motorik', label: '2. Fisik & Motorik', value: item.motorik || 'Berkembang Sesuai Harapan (BSH)' },
-                                { key: 'kognitif', label: '3. Kognitif', value: item.kognitif || 'Berkembang Sangat Baik (BSB)' },
-                                { key: 'bahasa', label: '4. Bahasa & Komunikasi', value: item.bahasa || 'Berkembang Sesuai Harapan (BSH)' },
-                                { key: 'sosem', label: '5. Sosial & Emosional', value: item.sosem || 'Berkembang Sangat Baik (BSB)' },
-                                { key: 'seni', label: '6. Seni & Kreativitas', value: item.seni || 'Berkembang Sangat Baik (BSB)' }
-                              ].map(aspect => (
-                                <div key={aspect.key} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                                    {aspect.label}
-                                  </span>
-                                  <p className="text-xs font-bold text-slate-800">
-                                    {aspect.value}
-                                  </p>
-                                </div>
-                              ))}
+                          {/* Rincian Aspek Perkembangan Siswa (Hanya tampil jika guru melakukan penilaian aspek tersebut) */}
+                          {evaluatedAspects.length > 0 && (
+                            <div className="space-y-3">
+                              <h5 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                                Rincian Aspek Perkembangan Siswa:
+                              </h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {evaluatedAspects.map((aspect, aIdx) => (
+                                  <div key={aIdx} className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
+                                      {aspect.label}
+                                    </span>
+                                    <p className="text-xs font-bold text-slate-800">
+                                      {aspect.value}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
 
-                          {/* Catatan Guru */}
-                          {item.notes && (
+                          {/* Catatan / Evaluasi Guru */}
+                          {(item.description || item.notes) && (
                             <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 sm:p-5">
                               <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block mb-1.5">
-                                Catatan &amp; Motivasi Guru:
+                                Catatan &amp; Evaluasi Guru:
                               </span>
                               <p className="text-xs sm:text-sm font-medium text-amber-950 leading-relaxed italic">
-                                "{item.notes}"
+                                "{item.description || item.notes}"
                               </p>
                             </div>
                           )}
@@ -3067,7 +3097,19 @@ export default function DashboardSiswa() {
 
  {userData?.arrears_details && userData.arrears_details.length > 0 && (
  <div className="card-3d p-6 md:p-8 mt-6">
- <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-6 md:mb-8 flex items-center gap-2"><CreditCard size={20} className="text-red-500" /> Rincian Tagihan Belum Lunas</h3>
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+   <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+     <CreditCard size={20} className="text-red-500" /> Rincian Tagihan Belum Lunas
+   </h3>
+   <a
+     href={`https://wa.me/628993358221?text=${encodeURIComponent(`Halo Tata Usaha RA Darusyifa, saya wali dari ${userData?.name || 'siswa'} (Kelas ${userData?.kelas || '-'}) ingin konfirmasi rincian tagihan & iuran SPP.`)}`}
+     target="_blank"
+     rel="noopener noreferrer"
+     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 transition-colors w-fit"
+   >
+     <MessageCircle size={15} /> Konfirmasi ke Tata Usaha via WhatsApp
+   </a>
+ </div>
  <div className="space-y-4">
  {userData.arrears_details.map((detail: any) => (
  <div key={detail.id} className="bg-red-50/50 p-4 md:p-6 rounded-2xl border border-red-100 flex flex-col md:flex-row justify-between md:items-center gap-4 group hover:bg-red-50 transition-colors">
