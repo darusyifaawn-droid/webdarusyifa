@@ -384,7 +384,15 @@ export default function UserTab({
               ) : (
                 paginatedUsers.map((u) => {
                   const isPasswordVisible = showPasswordMap[u.id];
-                  const plainPass = u.plainPassword || 'DARUSYIFA123';
+                  const plainPass = u.plainPassword || u.password || '123456';
+                  const isPasswordChanged = !!u.passwordChangedAt || !!u.passwordResetByAdmin || (u.plainPassword && u.plainPassword !== '123456');
+                  const changeSourceLabel = u.lastPasswordUpdateSource === 'guru' 
+                    ? 'Diubah Guru' 
+                    : u.lastPasswordUpdateSource === 'siswa' 
+                      ? 'Diubah Siswa' 
+                      : u.passwordResetByAdmin 
+                        ? 'Direset Admin' 
+                        : (u.role === 'guru' ? 'Diubah Guru' : 'Diubah Siswa');
 
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/60 transition-colors group">
@@ -436,24 +444,37 @@ export default function UserTab({
                           <p className="text-xs font-bold text-slate-700 font-sans truncate max-w-[220px]">
                             {u.email}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/70">
-                              PWD: {isPasswordVisible ? plainPass : '••••••••'}
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/70 inline-flex items-center gap-1">
+                              <span className="text-slate-400">PWD:</span>
+                              <span className={isPasswordVisible ? 'text-emerald-700 font-black' : 'text-slate-400 font-normal tracking-wider'}>
+                                {isPasswordVisible ? plainPass : '••••••••'}
+                              </span>
                             </span>
                             <button 
+                              type="button"
                               onClick={(e) => togglePasswordVisibility(u.id, e)}
-                              className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                              title={isPasswordVisible ? 'Sembunyikan' : 'Lihat'}
+                              className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                              title={isPasswordVisible ? 'Sembunyikan Kata Sandi' : 'Lihat Kata Sandi'}
                             >
                               {isPasswordVisible ? <EyeOff size={13} /> : <Eye size={13} />}
                             </button>
                             <button 
+                              type="button"
                               onClick={(e) => handleCopyPassword(plainPass, u.id, e)}
-                              className="text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
-                              title="Salin Password"
+                              className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                              title="Salin Kata Sandi"
                             >
                               {copiedId === u.id ? <Check size={13} className="text-emerald-600" /> : <Key size={13} />}
                             </button>
+                            {isPasswordChanged && (
+                              <span 
+                                className="text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200/80 px-1.5 py-0.5 rounded"
+                                title={u.passwordChangedAt ? `Password telah diperbarui pada ${new Date(u.passwordChangedAt).toLocaleString('id-ID')}` : 'Password telah diperbarui'}
+                              >
+                                {changeSourceLabel}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -484,6 +505,16 @@ export default function UserTab({
                       {/* AKSI */}
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Quick Reset Password Button */}
+                          <button 
+                            type="button"
+                            onClick={() => { setUserToReset(u); setShowResetPassword(true); }}
+                            className="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 hover:text-amber-700 border border-amber-200/80 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+                            title="Reset Password Siswa"
+                          >
+                            <Key size={14} />
+                          </button>
+
                           {/* Edit Pencil Button */}
                           <button 
                             onClick={() => { setEditingUser(u); setShowEditUser(true); }}
@@ -728,18 +759,42 @@ export default function UserTab({
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
                 <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Password Akun</span>
-                  <p className="text-xs font-mono font-bold text-slate-800">
-                    {selectedMobileUser.plainPassword || 'DARUSYIFA123'}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Password Akun</span>
+                    {(selectedMobileUser.passwordChangedAt || selectedMobileUser.passwordResetByAdmin || (selectedMobileUser.plainPassword && selectedMobileUser.plainPassword !== '123456')) && (
+                      <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200">
+                        {selectedMobileUser.lastPasswordUpdateSource === 'guru' 
+                          ? 'Diubah Guru' 
+                          : selectedMobileUser.lastPasswordUpdateSource === 'siswa' 
+                            ? 'Diubah Siswa' 
+                            : selectedMobileUser.passwordResetByAdmin 
+                              ? 'Direset Admin' 
+                              : (selectedMobileUser.role === 'guru' ? 'Diubah Guru' : 'Diubah Siswa')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-mono font-bold text-slate-800 mt-1">
+                    {showPasswordMap[selectedMobileUser.id] ? (selectedMobileUser.plainPassword || selectedMobileUser.password || '123456') : '••••••••'}
                   </p>
                 </div>
-                <button 
-                  onClick={(e) => handleCopyPassword(selectedMobileUser.plainPassword || 'DARUSYIFA123', selectedMobileUser.id, e)}
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 flex items-center gap-1 shadow-2xs"
-                >
-                  {copiedId === selectedMobileUser.id ? <Check size={12} className="text-emerald-600" /> : <Key size={12} />}
-                  <span>{copiedId === selectedMobileUser.id ? 'Tersalin' : 'Salin'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button 
+                    type="button"
+                    onClick={(e) => togglePasswordVisibility(selectedMobileUser.id, e)}
+                    className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-slate-800 transition-colors shadow-2xs"
+                    title={showPasswordMap[selectedMobileUser.id] ? "Sembunyikan Kata Sandi" : "Lihat Kata Sandi"}
+                  >
+                    {showPasswordMap[selectedMobileUser.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={(e) => handleCopyPassword(selectedMobileUser.plainPassword || selectedMobileUser.password || '123456', selectedMobileUser.id, e)}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 flex items-center gap-1 shadow-2xs"
+                  >
+                    {copiedId === selectedMobileUser.id ? <Check size={12} className="text-emerald-600" /> : <Key size={12} />}
+                    <span>{copiedId === selectedMobileUser.id ? 'Tersalin' : 'Salin'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">

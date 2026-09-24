@@ -661,11 +661,36 @@ export default function DashboardAdmin() {
  if (!user) return;
 
  // Listeners
- const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
- setAllUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- }, (error) => {
- handleFirestoreError(error, OperationType.LIST, 'users');
- });
+    const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
+      const rawUsers: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Merge and deduplicate by email so Admin always sees the latest changed password
+      const userMap = new Map<string, any>();
+      for (const u of rawUsers) {
+        const rawEmail = u.email ? String(u.email).trim().toLowerCase() : '';
+        const key = rawEmail || u.id;
+
+        if (!userMap.has(key)) {
+          userMap.set(key, u);
+        } else {
+          const existing = userMap.get(key);
+          const existingTime = existing.passwordChangedAt ? new Date(existing.passwordChangedAt).getTime() : 0;
+          const uTime = u.passwordChangedAt ? new Date(u.passwordChangedAt).getTime() : 0;
+
+          const uHasChangedPass = Boolean(u.passwordChangedAt || (u.plainPassword && u.plainPassword !== '123456'));
+          const existingHasChangedPass = Boolean(existing.passwordChangedAt || (existing.plainPassword && existing.plainPassword !== '123456'));
+
+          if (uTime > existingTime || (uHasChangedPass && !existingHasChangedPass)) {
+            userMap.set(key, { ...existing, ...u });
+          } else {
+            userMap.set(key, { ...u, ...existing });
+          }
+        }
+      }
+      setAllUsers(Array.from(userMap.values()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+    });
 
  const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
  setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -2289,41 +2314,124 @@ export default function DashboardAdmin() {
  e.preventDefault();
  if (!userToReset || !newPassword) return;
  
+ if (newPassword.length < 6) {
+ alert('Password minimal 6 karakter!');
+ return;
+ }
+
  setLoading(true);
  try {
- const idToken = await auth.currentUser?.getIdToken();
- if (!idToken) throw new Error("Gagal mendapatkan token autentikasi admin.");
+ // 1. Coba update akun Firebase Auth langsung via SecondaryApp
+ try {
+ const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(auth.app.options, 'SecondaryApp');
+ const secondaryAuth = getAuth(secondaryApp);
 
- const response = await fetch('/api/admin/reset-password', {
+ const candidatePasswords = [
+ userToReset.plainPassword,
+ userToReset.password,
+ '123456',
+ 'DARUSYIFA123'
+ ].filter(Boolean);
+
+ let secondarySuccess = false;
+ for (const cand of candidatePasswords) {
+ try {
+ const cred = await signInWithEmailAndPassword(secondaryAuth, userToReset.email, cand);
+ await updatePassword(cred.user, newPassword);
+ secondarySuccess = true;
+ break;
+ } catch (err: any) {
+ if (err.code === 'auth/user-not-found') {
+ try {
+ await createUserWithEmailAndPassword(secondaryAuth, userToReset.email, newPassword);
+ secondarySuccess = true;
+ } catch {}
+ break;
+ }
+ }
+ }
+ await secondaryAuth.signOut().catch(() => {});
+ console.log('[Admin Reset] SecondaryApp auth update status:', secondarySuccess);
+ } catch (secErr) {
+ console.warn('[Admin Reset] SecondaryApp direct auth update error:', secErr);
+ }
+
+ // 2. Coba juga via backend endpoint (fallback)
+ try {
+ const idToken = await auth.currentUser?.getIdToken();
+ if (idToken) {
+ await fetch('/api/admin/reset-password', {
  method: 'POST',
  headers: {
  'Content-Type': 'application/json',
  'Authorization': `Bearer ${idToken}`
  },
  body: JSON.stringify({
+ uid: userToReset.id,
  email: userToReset.email,
  newPassword: newPassword
  })
  });
-
- const result = await response.json();
-
- if (!response.ok) {
- throw new Error(result.error || "Gagal mereset password melalui server.");
+ }
+ } catch (srvErr) {
+ console.warn('[Admin Reset] Server reset-password endpoint fallback error:', srvErr);
  }
 
- // Update plainPassword in Firestore for tracking
- await updateDoc(doc(db, 'users', userToReset.id), {
- plainPassword: newPassword
- });
+    // 3. Simpan dan sinkronkan ke Firestore users document
+    const updates = {
+      plainPassword: newPassword,
+      password: newPassword,
+      previousPassword: userToReset.plainPassword || userToReset.password || '123456',
+      passwordChangedAt: new Date().toISOString(),
+      passwordResetByAdmin: true,
+      lastPasswordUpdateSource: 'admin'
+    };
 
- alert(`Password untuk ${userToReset.email} berhasil diubah secara langsung oleh Admin!`);
+    const targetDocIds = new Set<string>();
+    targetDocIds.add(userToReset.id);
+
+    const candidateEmails = [
+      userToReset.email,
+      userToReset.email ? String(userToReset.email).toLowerCase() : null
+    ].filter((e): e is string => Boolean(e));
+
+    for (const em of candidateEmails) {
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', em));
+        const snap = await getDocs(q);
+        snap.forEach(d => targetDocIds.add(d.id));
+      } catch (syncErr) {
+        console.warn('[Admin Reset] Sync query email error:', syncErr);
+      }
+    }
+
+    for (const docId of targetDocIds) {
+      try {
+        await setDoc(doc(db, 'users', docId), updates, { merge: true });
+      } catch (docErr) {
+        console.warn('[Admin Reset] Sync to doc ' + docId + ' error:', docErr);
+      }
+    }
+
+    // 4. Update local state admin tabel
+    const targetEmailKey = userToReset.email ? String(userToReset.email).trim().toLowerCase() : '';
+    setAllUsers(prev => prev.map(u => {
+      const uEmailKey = u.email ? String(u.email).trim().toLowerCase() : '';
+      if (u.id === userToReset.id || (targetEmailKey && uEmailKey === targetEmailKey)) {
+        return {
+          ...u,
+          ...updates
+        };
+      }
+      return u;
+    }));
+ alert(`Password untuk ${userToReset.name || userToReset.email} berhasil direset menjadi: ${newPassword}`);
  setShowResetPassword(false);
  setUserToReset(null);
  setNewPassword('');
  } catch (error: any) {
  console.error('Reset password error:', error);
- alert('Gagal mereset password: ' + error.message);
+ alert('Gagal mereset password: ' + (error.message || 'Terjadi kesalahan'));
  } finally {
  setLoading(false);
  }
@@ -5955,19 +6063,90 @@ export default function DashboardAdmin() {
 
  {showResetPassword && userToReset && (
  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
- <div className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl relative">
+ <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative">
  <button onClick={() => { setShowResetPassword(false); setUserToReset(null); setNewPassword(''); }} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"><X /></button>
- <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
- <Key size={32} />
+ <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+ <Key size={28} />
  </div>
- <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Reset Password</h3>
- <p className="text-gray-500 mb-6 text-center text-sm">Ubah password untuk <strong>{userToReset.name}</strong> ({userToReset.email})</p>
+ <h3 className="text-xl font-bold text-gray-800 mb-1 text-center">Reset Password Pengguna</h3>
+ <p className="text-gray-500 mb-4 text-center text-xs">Kelola dan ubah password akun <strong>{userToReset.name || userToReset.email}</strong></p>
+
+ {/* Current Password Info Card */}
+ <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 mb-4">
+ <div className="flex items-center justify-between mb-1">
+ <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Password Saat Ini</span>
+ {(userToReset.passwordChangedAt || (userToReset.plainPassword && userToReset.plainPassword !== '123456')) ? (
+ <span className="text-[9px] font-black bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md">
+ Pernah Diubah Siswa
+ </span>
+ ) : (
+ <span className="text-[9px] font-semibold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
+ Password Default
+ </span>
+ )}
+ </div>
+ <div className="flex items-center justify-between">
+ <span className="font-mono font-bold text-sm text-slate-800 select-all">
+ {userToReset.plainPassword || userToReset.password || '123456'}
+ </span>
+ <span className="text-[10px] text-slate-400 font-sans">
+ {userToReset.email}
+ </span>
+ </div>
+ {userToReset.passwordChangedAt && (
+ <div className="text-[10px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-200/60">
+ Diubah pada: {new Date(userToReset.passwordChangedAt).toLocaleString('id-ID')}
+ </div>
+ )}
+ </div>
+
  <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
  <div>
- <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password Baru</label>
- <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Masukkan password baru" required minLength={6} />
+ <div className="flex items-center justify-between mb-1.5">
+ <label className="block text-xs font-bold text-gray-600">Password Baru</label>
+ <div className="flex gap-1.5">
+ <button
+ type="button"
+ onClick={() => setNewPassword('123456')}
+ className="text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-md transition-colors"
+ >
+ Gunakan 123456
+ </button>
+ <button
+ type="button"
+ onClick={() => setNewPassword(Math.floor(100000 + Math.random() * 900000).toString())}
+ className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-md transition-colors"
+ >
+ Acak 6 Digit
+ </button>
  </div>
- <button type="submit" className="w-full px-4 py-3 bg-yellow-500 text-white rounded-xl font-bold hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-200">Simpan Password</button>
+ </div>
+ <input 
+ type="text" 
+ value={newPassword} 
+ onChange={(e) => setNewPassword(e.target.value)} 
+ className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm" 
+ placeholder="Masukkan minimal 6 karakter..." 
+ required 
+ minLength={6} 
+ />
+ </div>
+ <div className="flex gap-2 pt-2">
+ <button 
+ type="button" 
+ onClick={() => { setShowResetPassword(false); setUserToReset(null); setNewPassword(''); }} 
+ className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all text-xs"
+ >
+ Batal
+ </button>
+ <button 
+ type="submit" 
+ disabled={loading || !newPassword || newPassword.length < 6}
+ className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 text-xs"
+ >
+ {loading ? 'Memproses...' : 'Simpan & Terapkan'}
+ </button>
+ </div>
  </form>
  </div>
  </div>

@@ -1092,7 +1092,77 @@ export default function DashboardSiswa() {
  
  try {
  if (auth.currentUser) {
+ // Update Firebase Auth password with auto-reauth fallback
+ try {
  await updatePassword(auth.currentUser, newPassword);
+ } catch (authErr: any) {
+ if (authErr.code === 'auth/requires-recent-login') {
+ const knownOldPassword = userData?.plainPassword || userData?.password || '123456';
+ if (auth.currentUser.email && knownOldPassword) {
+ const { EmailAuthProvider, reauthenticateWithCredential } = await import('firebase/auth');
+ const credential = EmailAuthProvider.credential(auth.currentUser.email, knownOldPassword);
+ await reauthenticateWithCredential(auth.currentUser, credential);
+ await updatePassword(auth.currentUser, newPassword);
+ } else {
+ throw authErr;
+ }
+ } else {
+ throw authErr;
+ }
+ }
+
+ const updates = {
+ plainPassword: newPassword,
+ password: newPassword,
+ previousPassword: userData?.plainPassword || userData?.password || '123456',
+ passwordChangedAt: new Date().toISOString(),
+ lastPasswordUpdateSource: 'siswa'
+ };
+
+ const currentUid = auth.currentUser.uid;
+ const candidateEmails = [
+ auth.currentUser.email,
+ auth.currentUser.email?.toLowerCase(),
+ userData?.email,
+ userData?.email?.toLowerCase()
+ ].filter((e): e is string => Boolean(e));
+
+ const targetDocIds = new Set<string>();
+ targetDocIds.add(currentUid);
+ if (userData?.id) {
+ targetDocIds.add(userData.id);
+ }
+
+ for (const em of candidateEmails) {
+ try {
+ const q = query(collection(db, 'users'), where('email', '==', em));
+ const snap = await getDocs(q);
+ snap.forEach(d => targetDocIds.add(d.id));
+ } catch (qErr) {
+ console.warn("Query user email error:", qErr);
+ }
+ }
+
+ for (const docId of targetDocIds) {
+ try {
+ await setDoc(doc(db, 'users', docId), updates, { merge: true });
+ } catch (docErr) {
+ console.warn("Sync password to doc " + docId + " error:", docErr);
+ }
+ }
+ setUserData((prev: any) => ({
+ ...prev,
+ ...updates
+ }));
+
+ try {
+ const cached = localStorage.getItem('darusyifa_auth_cache');
+ if (cached) {
+ const parsed = JSON.parse(cached);
+ localStorage.setItem('darusyifa_auth_cache', JSON.stringify({ ...parsed, ...updates }));
+ }
+ } catch {}
+
  alert("Password berhasil diubah!");
  setNewPasswordProfile("");
  setConfirmPasswordProfile("");
@@ -1102,7 +1172,7 @@ export default function DashboardSiswa() {
  if (error.code === 'auth/requires-recent-login') {
  alert("Untuk alasan keamanan, Anda harus login ulang sebelum mengubah password.");
  } else {
- alert("Gagal mengubah password: " + error.message);
+ alert("Gagal mengubah password: " + (error.message || 'Terjadi kesalahan'));
  }
  }
  };

@@ -46,7 +46,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn(); // Allow self-creation or admin creation
-      allow update: if isSignedIn() && (isOwner(userId) || isAdmin() || isGuru());
+      allow update: if isSignedIn() && (
+        isOwner(userId) || 
+        isAdmin() || 
+        isGuru() ||
+        (resource.data.email != null && request.auth.token.email != null && resource.data.email == request.auth.token.email) ||
+        (request.resource.data.email != null && request.auth.token.email != null && request.resource.data.email == request.auth.token.email)
+      );
       allow delete: if isAdmin();
     }
 

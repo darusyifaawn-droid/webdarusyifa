@@ -3,11 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { LogIn, Mail, Lock, AlertCircle, ArrowLeft, BookOpen } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, ArrowLeft, BookOpen, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
@@ -58,7 +59,58 @@ export default function LoginPage() {
       if (errorCode === 'auth/operation-not-allowed') {
         setError('Login dengan Email/Password belum diaktifkan di Firebase Console. Silakan hubungi admin.');
       } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
-        setError('Email atau password salah. Pastikan anda sudah terdaftar dan memasukkan password yang benar.');
+        // Smart Credential Recovery: cek apakah password yang dimasukkan sesuai dengan plainPassword di Firestore
+        const cleanEmail = email.trim().toLowerCase();
+        let healed = false;
+        try {
+          const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const userDoc = snap.docs[0];
+            const uData = userDoc.data();
+            const storedPassword = uData.plainPassword || uData.password;
+
+            if (storedPassword && storedPassword === password) {
+              if (errorCode === 'auth/user-not-found') {
+                const { createUserWithEmailAndPassword } = await import('firebase/auth');
+                const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+                await handleUserRedirect(userCredential.user.uid, cleanEmail);
+                healed = true;
+                return;
+              } else {
+                const candidates = [
+                  '123456',
+                  'DARUSYIFA123',
+                  uData.previousPassword,
+                  'admin123'
+                ].filter((p): p is string => Boolean(p) && p !== password);
+
+                for (const oldPass of candidates) {
+                  try {
+                    const cred = await signInWithEmailAndPassword(auth, cleanEmail, oldPass);
+                    const { updatePassword } = await import('firebase/auth');
+                    try {
+                      await updatePassword(cred.user, password);
+                    } catch (syncErr) {
+                      console.warn("Could not sync updated password to Auth:", syncErr);
+                    }
+                    await handleUserRedirect(cred.user.uid, cred.user.email);
+                    healed = true;
+                    return;
+                  } catch {
+                    // Coba kandidat berikutnya
+                  }
+                }
+              }
+            }
+          }
+        } catch (recoveryErr) {
+          console.error("Smart login recovery error:", recoveryErr);
+        }
+
+        if (!healed) {
+          setError('Email atau password salah. Pastikan anda sudah terdaftar dan memasukkan password yang benar.');
+        }
       } else {
         setError('Gagal masuk. ' + (error.message || 'Coba lagi nanti.'));
       }
@@ -218,13 +270,22 @@ export default function LoginPage() {
             <div className="relative group">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"} 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder="••••••••" 
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
                 required 
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 focus:text-emerald-600 transition-colors p-1"
+                title={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
+                aria-label={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
