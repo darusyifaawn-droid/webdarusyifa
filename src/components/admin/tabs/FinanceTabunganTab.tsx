@@ -88,8 +88,8 @@ export default function FinanceTabunganTab({
   // All savings transactions (inflow & outflow)
   const allSavingsPayments = useMemo(() => {
     return payments.filter(p => {
-      const isSavingTx = p.type === 'tabungan' || p.type === 'tabungan_keluar' || (p.type && p.type.includes('tabungan'));
-      const isNotRejected = p.status !== 'rejected';
+      const isSavingTx = p.type === 'tabungan' || p.type === 'tabungan_keluar' || (p.type && p.type.includes('tabungan')) || p.method === 'Tabungan';
+      const isNotRejected = p.status !== 'rejected' && p.status !== 'ditolak';
       return isSavingTx && isNotRejected;
     }).map(p => {
       const student = studentMap.get(p.studentId);
@@ -107,7 +107,7 @@ export default function FinanceTabunganTab({
         }
       }
 
-      const isOutflow = p.type === 'tabungan_keluar' || p.isExpense;
+      const isOutflow = p.type === 'tabungan_keluar' || p.method === 'Tabungan' || p.isExpense;
       const nominal = Number(p.amount) || 0;
 
       return {
@@ -268,7 +268,7 @@ export default function FinanceTabunganTab({
       'ID Transaksi': tx.id || '-',
       'Nama Siswa': tx.studentName,
       'Kelas': tx.studentClass,
-      'Jenis Mutasi': tx.isOutflow ? 'TARIK TABUNGAN' : 'SETOR TABUNGAN',
+      'Jenis Mutasi': tx.isOutflow ? (tx.method === 'Tabungan' ? 'BAYAR VIA TABUNGAN' : 'TARIK TABUNGAN') : 'SETOR TABUNGAN',
       'Setoran Masuk (Rp)': tx.isOutflow ? 0 : tx.nominal,
       'Penarikan Keluar (Rp)': tx.isOutflow ? tx.nominal : 0,
       'Saldo Akhir Siswa (Rp)': tx.currentSaving,

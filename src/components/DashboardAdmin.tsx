@@ -2118,111 +2118,114 @@ export default function DashboardAdmin() {
  }
  };
 
- const handleOneClickPaymentFromTabungan = async (student: any, detail: any) => {
- const inputAmount = window.prompt(`Masukkan jumlah pembayaran untuk ${detail.name} (Saldo: Rp ${Number(student.savings || 0).toLocaleString('id-ID')}):`, detail.amount.toString());
- if (inputAmount === null) return;
- 
- const amount = Number(inputAmount);
- if (isNaN(amount) || amount <= 0) {
- alert('Jumlah tidak valid!');
- return;
- }
+ const handleOneClickPayment = async (student: any, detail: any, method: 'Tunai' | 'Transfer' | 'Tabungan' = 'Tunai') => {
+    if (!student || !detail) return;
+    const currentSavings = Number(student.savings || 0);
 
- if ((student.savings || 0) < amount) {
- alert('Saldo Tabungan Tidak Mencukupi!');
- return;
- }
- 
- if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} menggunakan Saldo Tabungan?`)) return;
- 
- try {
- const isLunas = amount >= detail.amount;
- const newArrears = Math.max(0, (student.arrears || 0) - amount);
- const newSavings = (student.savings || 0) - amount;
- 
- let newDetails = [...(student.arrears_details || [])];
- if (isLunas) {
- newDetails = newDetails.filter((d: any) => d.id !== detail.id);
- } else {
- newDetails = newDetails.map((d: any) => d.id === detail.id ? { ...d, amount: d.amount - amount } : d);
- }
+    if (method === 'Tabungan') {
+      if (currentSavings <= 0) {
+        alert(`Siswa ${student.name} tidak memiliki saldo tabungan (Saldo: Rp 0).\nSilakan lakukan setoran tabungan terlebih dahulu atau gunakan metode Tunai / Transfer.`);
+        return;
+      }
+    }
 
- await updateDoc(doc(db, 'users', student.id), {
- savings: newSavings,
- arrears: newArrears,
- arrears_details: newDetails
- });
- 
- await addDoc(collection(db, 'payments'), {
- studentId: student.id,
- amount: amount,
- description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - Saldo Tabungan`,
- method: 'Tabungan',
- status: isLunas ? 'lunas' : 'cicilan',
- type: 'pembayaran',
- createdAt: serverTimestamp(),
- date: new Date().toISOString().split('T')[0]
- });
- 
- setSelectedStudentForFinance((prev: any) => ({
- ...prev,
- savings: newSavings,
- arrears: newArrears,
- arrears_details: newDetails
- }));
- alert(isLunas ? 'Pembayaran Lunas Berhasil!' : 'Pembayaran Cicilan Berhasil!');
- } catch (e) { console.error(e); }
- };
+    const defaultAmount = method === 'Tabungan'
+      ? Math.min(currentSavings, Number(detail.amount || 0)).toString()
+      : Number(detail.amount || 0).toString();
 
- const handleOneClickPayment = async (student: any, detail: any, method: 'Tunai' | 'Transfer' = 'Tunai') => {
- const inputAmount = window.prompt(`Masukkan jumlah pembayaran ${method.toLowerCase()} untuk ${detail.name}:`, detail.amount.toString());
- if (inputAmount === null) return;
+    const promptMessage = method === 'Tabungan'
+      ? `PEMBAYARAN VIA TABUNGAN SISWA\n` +
+        `• Siswa: ${student.name}\n` +
+        `• Tagihan: ${detail.name}\n` +
+        `• Total Tagihan: Rp ${Number(detail.amount || 0).toLocaleString('id-ID')}\n` +
+        `• Saldo Tabungan Siswa: Rp ${currentSavings.toLocaleString('id-ID')}\n\n` +
+        `Masukkan jumlah nominal yang ingin dibayarkan dari saldo tabungan:`
+      : `Masukkan jumlah pembayaran ${method.toLowerCase()} untuk ${detail.name}:`;
 
- const amount = Number(inputAmount);
- if (isNaN(amount) || amount <= 0) {
- alert('Jumlah tidak valid!');
- return;
- }
+    const inputAmount = window.prompt(promptMessage, defaultAmount);
+    if (inputAmount === null) return;
 
- if (!window.confirm(`Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} secara ${method}?`)) return;
- 
- try {
- const isLunas = amount >= detail.amount;
- const newArrears = Math.max(0, (student.arrears || 0) - amount);
- 
- let newDetails = [...(student.arrears_details || [])];
- if (isLunas) {
- newDetails = newDetails.filter((d: any) => d.id !== detail.id);
- } else {
- newDetails = newDetails.map((d: any) => d.id === detail.id ? { ...d, amount: d.amount - amount } : d);
- }
+    const amount = Number(inputAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Jumlah pembayaran tidak valid!');
+      return;
+    }
 
- await updateDoc(doc(db, 'users', student.id), {
- arrears: newArrears,
- arrears_details: newDetails
- });
- 
- await addDoc(collection(db, 'payments'), {
- studentId: student.id,
- amount: amount,
- description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - ${method} Admin`,
- method: method,
- status: isLunas ? 'lunas' : 'cicilan',
- type: 'pembayaran',
- createdAt: serverTimestamp(),
- date: new Date().toISOString().split('T')[0]
- });
- 
- setSelectedStudentForFinance((prev: any) => ({
- ...prev,
- arrears: newArrears,
- arrears_details: newDetails
- }));
- alert(isLunas ? `Pembayaran ${method} Lunas Berhasil!` : `Pembayaran Cicilan ${method} Berhasil!`);
- } catch (e) { console.error(e); }
- };
+    if (method === 'Tabungan' && amount > currentSavings) {
+      alert(`Saldo tabungan siswa tidak mencukupi!\nSaldo Tabungan Siswa: Rp ${currentSavings.toLocaleString('id-ID')}\nNominal yang ingin dibayar: Rp ${amount.toLocaleString('id-ID')}`);
+      return;
+    }
 
- const handleDeleteArrear = async (studentId: string, arrearId: string) => {
+    const confirmMessage = method === 'Tabungan'
+      ? `Konfirmasi Eksekusi Pembayaran via TABUNGAN:\n\n` +
+        `• Siswa: ${student.name}\n` +
+        `• Tagihan: ${detail.name}\n` +
+        `• Nominal Potong Tabungan: Rp ${amount.toLocaleString('id-ID')}\n` +
+        `• Saldo Tabungan Awal: Rp ${currentSavings.toLocaleString('id-ID')}\n` +
+        `• Sisa Saldo Tabungan: Rp ${(currentSavings - amount).toLocaleString('id-ID')}\n\n` +
+        `Apakah Anda yakin ingin memotong saldo tabungan siswa untuk pembayaran ini?`
+      : `Bayar ${detail.name} sebesar Rp ${amount.toLocaleString('id-ID')} secara ${method}?`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      const isLunas = amount >= Number(detail.amount || 0);
+      const newArrears = Math.max(0, (student.arrears || 0) - amount);
+      const newSavings = method === 'Tabungan' ? Math.max(0, currentSavings - amount) : currentSavings;
+
+      let newDetails = [...(student.arrears_details || [])];
+      if (detail.id !== 'general') {
+        if (isLunas) {
+          newDetails = newDetails.filter((d: any) => d.id !== detail.id);
+        } else {
+          newDetails = newDetails.map((d: any) => d.id === detail.id ? { ...d, amount: Math.max(0, Number(d.amount || 0) - amount) } : d);
+        }
+      }
+
+      const updates: any = {
+        arrears: newArrears,
+        arrears_details: newDetails
+      };
+      if (method === 'Tabungan') {
+        updates.savings = newSavings;
+      }
+
+      await updateDoc(doc(db, 'users', student.id), updates);
+
+      await addDoc(collection(db, 'payments'), {
+        studentId: student.id,
+        amount: amount,
+        description: `Bayar ${detail.name} (${isLunas ? 'Lunas' : 'Cicilan'}) - ${method === 'Tabungan' ? 'Potong Saldo Tabungan' : `${method} Admin`}`,
+        method: method,
+        status: isLunas ? 'lunas' : 'cicilan',
+        type: 'pembayaran',
+        createdAt: serverTimestamp(),
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      const updatedStudent = {
+        ...student,
+        ...updates
+      };
+
+      setSelectedStudentForFinance((prev: any) => ({
+        ...prev,
+        ...updates
+      }));
+      setAllUsers((prev: any[]) => prev.map(u => u.id === student.id ? { ...u, ...updates } : u));
+
+      alert(isLunas ? `Pembayaran ${method} Lunas Berhasil!` : `Pembayaran Cicilan ${method} Berhasil!`);
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal memproses pembayaran: ' + (e?.message || 'Terjadi kesalahan'));
+    }
+  };
+
+  const handleOneClickPaymentFromTabungan = async (student: any, detail: any) => {
+    return handleOneClickPayment(student, detail, 'Tabungan');
+  };
+
+  const handleDeleteArrear = async (studentId: string, arrearId: string) => {
  if (!window.confirm('Hapus rincian tunggakan ini? Tindakan ini akan mengurangi total tunggakan siswa secara otomatis.')) return;
  try {
  const student = allUsers.find(u => u.id === studentId);
@@ -6771,7 +6774,7 @@ export default function DashboardAdmin() {
  
  {/* Content */}
  <div className="flex-1 overflow-y-auto p-5 md:p-10 space-y-8 md:space-y-10 custom-scrollbar">
- {financeModalMode === 'bayar' ? (
+ {financeModalMode === 'bayar' && (
  /* Stats Grid (Bayar Mode) */
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
  {/* Tabungan Panel */}
@@ -6874,101 +6877,166 @@ export default function DashboardAdmin() {
  </div>
  </div>
  </div>
- ) : (
- /* Detail Mode */
- <div className="space-y-8 md:space-y-10">
- {/* Arrears Details & Payments */}
- <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
- <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
- <FileText size={16} />
- </div>
- <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Rincian Komponen Tagihan</h4>
- </div>
- <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
- {selectedStudentForFinance.arrears_details?.length || 0} ITEM
- </span>
- </div>
- <div className="divide-y divide-gray-50 max-h-[300px] overflow-y-auto custom-scrollbar">
- {(selectedStudentForFinance.arrears_details || []).length === 0 ? (
- <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
- Tidak ada tagihan aktif
- </div>
- ) : (
- selectedStudentForFinance.arrears_details.map((item: any, i: number) => (
- <div key={i} className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
- <div className="flex items-center gap-4">
- <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400">
- {i + 1}
- </div>
- <div className="flex flex-col">
- <span className="font-black text-gray-800 text-xs uppercase tracking-tighter">{item.name}</span>
- <span className="text-[9px] font-bold text-gray-400 mt-0.5 tracking-widest">{item.date || 'Tagihan Aktif'}</span>
- </div>
- </div>
- <div className="flex items-center gap-8 text-right">
- <div>
- <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
- <p className="font-black text-red-500 text-xs uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
- </div>
- <div className="flex gap-2">
- <button 
- onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Tunai')}
- className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shrink-0"
- >
- Bayar Tunai
- </button>
- <button 
- onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Transfer')}
- className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-100 shrink-0"
- >
- Bayar Transfer
- </button>
- </div>
- </div>
- </div>
- ))
  )}
- </div>
- </div>
 
- {/* History Section */}
- <div className="bg-slate-50 border border-gray-100 rounded-[2.5rem] p-8 space-y-6">
- <div className="flex items-center justify-between">
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 bg-white text-slate-400 rounded-lg flex items-center justify-center border border-slate-100">
- <HistoryIcon size={16} />
- </div>
- <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Terakhir</h4>
- </div>
- </div>
- <div className="space-y-3">
- {payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).length === 0 ? (
- <div className="p-8 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
- Belum ada riwayat transaksi
- </div>
- ) : (
- payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).map(p => (
- <div key={p.id} className="bg-white p-4 rounded-2xl border border-white flex items-center justify-between shadow-sm">
- <div className="flex items-center gap-4">
- <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
- <div className="flex flex-col">
- <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
- <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{formatDateForUI(p.createdAt || p.timestamp || p.date)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
- </div>
- </div>
- <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
- </div>
- ))
- )}
- </div>
- </div>
- </div>
- )}
- </div>
- 
- {/* Footer Actions */}
+
+ {/* Arrears Details & Payments */}
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
+                  <div className="px-6 sm:px-8 py-5 sm:py-6 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Rincian Tagihan Siswa</h4>
+                        <p className="text-[10px] text-gray-400 font-bold mt-0.5">Pilih metode: Tunai, Transfer, atau Tabungan</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                      <span className="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                        <Wallet size={12} className="text-amber-600" />
+                        Saldo Tabungan: Rp {Number(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')}
+                      </span>
+                      <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                        {selectedStudentForFinance.arrears_details?.length || 0} ITEM
+                      </span>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-50 max-h-[350px] overflow-y-auto custom-scrollbar">
+                    {(selectedStudentForFinance.arrears_details || []).length === 0 ? (
+                      selectedStudentForFinance.arrears > 0 ? (
+                        <div className="p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-50/40 border border-amber-100 rounded-2xl m-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
+                              !
+                            </div>
+                            <div>
+                              <p className="font-black text-gray-800 text-xs sm:text-sm uppercase tracking-tight">Tunggakan Umum Siswa</p>
+                              <p className="text-[10px] text-amber-700 font-bold mt-0.5">Total tunggakan aktif yang belum dirinci per pos</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-center">
+                            <div className="text-right">
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Total Tagihan</p>
+                              <p className="font-black text-red-500 text-sm sm:text-base">Rp {Number(selectedStudentForFinance.arrears).toLocaleString('id-ID')}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Tunai')}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-emerald-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                                title="Bayar secara Tunai"
+                              >
+                                <Banknote size={12} />
+                                Bayar Tunai
+                              </button>
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Transfer')}
+                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                                title="Bayar secara Transfer Bank"
+                              >
+                                <ArrowRight size={12} />
+                                Bayar Transfer
+                              </button>
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Tabungan')}
+                                className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-amber-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
+                                title={`Bayar menggunakan Saldo Tabungan (Saldo: Rp ${Number(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')})`}
+                              >
+                                <Wallet size={12} className="text-amber-600" />
+                                Bayar Tabungan
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
+                          Tidak ada tagihan aktif
+                        </div>
+                      )
+                    ) : (
+                      selectedStudentForFinance.arrears_details.map((item: any, i: number) => (
+                        <div key={i} className="px-6 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400 shrink-0">
+                              {i + 1}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-black text-gray-800 text-xs uppercase tracking-tight truncate">{item.name}</span>
+                              <span className="text-[9px] font-bold text-gray-400 mt-0.5 tracking-widest">{item.date || 'Tagihan Aktif'}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-center shrink-0">
+                            <div className="text-right">
+                              <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
+                              <p className="font-black text-red-500 text-xs sm:text-sm uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Tunai')}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-emerald-200 shrink-0 flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                                title="Bayar secara Tunai"
+                              >
+                                <Banknote size={12} />
+                                Bayar Tunai
+                              </button>
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Transfer')}
+                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 shrink-0 flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                                title="Bayar secara Transfer Bank"
+                              >
+                                <ArrowRight size={12} />
+                                Bayar Transfer
+                              </button>
+                              <button 
+                                onClick={() => handleOneClickPayment(selectedStudentForFinance, item, 'Tabungan')}
+                                className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-amber-200 shrink-0 flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                                title={`Bayar menggunakan Saldo Tabungan (Saldo: Rp ${Number(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')})`}
+                              >
+                                <Wallet size={12} className="text-amber-600" />
+                                Bayar Tabungan
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                
+                {/* History Section */}
+                <div className="bg-slate-50 border border-gray-100 rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white text-slate-400 rounded-lg flex items-center justify-center border border-slate-100">
+                        <HistoryIcon size={16} />
+                      </div>
+                      <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Terakhir</h4>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).length === 0 ? (
+                      <div className="p-8 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
+                        Belum ada riwayat transaksi
+                      </div>
+                    ) : (
+                      payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).map(p => (
+                        <div key={p.id} className="bg-white p-4 rounded-2xl border border-white flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-4">
+                            <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
+                            <div className="flex flex-col">
+                              <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
+                              <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{formatDateForUI(p.createdAt || p.timestamp || p.date)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
+                            </div>
+                          </div>
+                          <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
  <div className="bg-white px-10 py-8 border-t border-gray-100 flex items-center justify-between shrink-0">
  <button 
  onClick={() => handleWhatsAppFollowUp(selectedStudentForFinance, selectedStudentForFinance.arrears_details?.[0])}
