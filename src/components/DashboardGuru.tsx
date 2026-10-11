@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { 
   collection, query, onSnapshot, addDoc, serverTimestamp, 
-  getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc 
+  getDoc, doc, updateDoc, deleteDoc, orderBy, where, getDocs, setDoc, limit 
 } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { 
@@ -210,15 +210,15 @@ export default function DashboardGuru() {
       setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'announcements'));
 
-    const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc'), limit(50)), (snapshot) => {
       setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'exams'));
 
-    const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
+    const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc'), limit(150)), (snapshot) => {
       setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'attendance'));
 
-    const unsubSubjects = onSnapshot(query(collection(db, 'subjects'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsubSubjects = onSnapshot(query(collection(db, 'subjects'), orderBy('createdAt', 'desc'), limit(50)), (snapshot) => {
       setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'subjects'));
 
@@ -399,15 +399,15 @@ export default function DashboardGuru() {
           await setDoc(docRef, { ...payload, createdAt: serverTimestamp() }, { merge: true });
           savedCount++;
         } else if (pkType === 'Rapot') {
-          if (data.score !== '' || data.notes) {
+          if (data.score !== '' && data.score !== undefined && data.score !== null) {
             await addDoc(collection(db, 'progress'), {
               studentId: s.id,
-              title: '',
-              category: pkCategory,
+              title: pkCategory || '',
+              category: pkCategory || '',
               evaluationPeriod: pkRapotPeriod,
-              description: data.notes,
+              description: data.notes || '',
               target: '',
-              status: data.status,
+              status: data.status || 'Lulus',
               score: Number(data.score) || 0,
               date: pkDate,
               teacherId: user.uid,
@@ -1331,6 +1331,16 @@ export default function DashboardGuru() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Virtual Office 3D Shortcut */}
+            <button
+              onClick={() => navigate('/virtual-office')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all border border-emerald-200/80 cursor-pointer shadow-2xs active:scale-95"
+              title="Buka Pusat Kendali Virtual Office 3D RA Darusyifa"
+            >
+              <Sparkles size={14} className="text-emerald-600" />
+              <span>Virtual Office 3D</span>
+            </button>
+
             {/* Notification Bell */}
             <button
               onClick={() => setActiveTab('announcements')}
@@ -2053,13 +2063,14 @@ export default function DashboardGuru() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Catatan Hasil Belajar</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  Catatan Hasil Belajar <span className="text-slate-400 font-normal lowercase">(opsional)</span>
+                </label>
                 <textarea
                   value={progressDesc}
                   onChange={(e) => setProgressDesc(e.target.value)}
-                  placeholder="Tuliskan catatan evaluasi perkembangan..."
+                  placeholder="Tuliskan catatan evaluasi perkembangan (opsional, tidak wajib)..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 h-24 resize-none"
-                  required
                 />
               </div>
               <button
@@ -2128,11 +2139,13 @@ export default function DashboardGuru() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Catatan Ustadz/Ustadzah</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                      Catatan Ustadz/Ustadzah <span className="text-slate-400 font-normal lowercase">(opsional)</span>
+                    </label>
                     <textarea
                       value={hafalanEvalNotes}
                       onChange={(e) => setHafalanEvalNotes(e.target.value)}
-                      placeholder="Contoh: Tajwid sangat bagus, makhraj fasih..."
+                      placeholder="Contoh: Tajwid sangat bagus, makhraj fasih (opsional)..."
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 h-24 resize-none"
                     />
                   </div>

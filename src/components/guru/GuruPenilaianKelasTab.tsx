@@ -336,7 +336,7 @@ export default function GuruPenilaianKelasTab({
                 ) : (
                   <th className="py-3.5 px-4 w-28 text-center">Nilai (1-100)</th>
                 )}
-                <th className="py-3.5 px-4">Catatan Ustadz/Ustadzah</th>
+                <th className="py-3.5 px-4">Catatan Perkembangan (Opsional)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -432,7 +432,7 @@ export default function GuruPenilaianKelasTab({
                         type="text"
                         value={sData.notes || ''}
                         onChange={(e) => handleStudentFieldChange(student.id, 'notes', e.target.value)}
-                        placeholder="Contoh: Makhraj huruf bagus, tingkatkan kelancaran..."
+                        placeholder="Catatan perkembangan santri (opsional)..."
                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </td>

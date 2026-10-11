@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../../lib/firebase';
 import { collection, query, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { Trash2, Edit, User, BookOpen, Search, Filter, Calendar, Star, CheckCircle, X, Save } from 'lucide-react';
+import { Trash2, Edit, User, BookOpen, Search, Filter, Calendar, Star, CheckCircle, X, Save, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
 import { StudentHafalanProgress, HafalanStatus } from '../../../data/hafalanData';
 
@@ -19,6 +19,8 @@ export default function HafalanProgressTab({ userClass }: HafalanProgressTabProp
  const [filterKelas, setFilterKelas] = useState(userClass || 'Semua');
  const [filterStatus, setFilterStatus] = useState('Semua');
  const [filterSemester, setFilterSemester] = useState('Semua');
+ const [viewMode, setViewMode] = useState<'per-siswa' | 'semua-setoran'>('per-siswa');
+ const [expandedStudentIds, setExpandedStudentIds] = useState<Record<string, boolean>>({});
 
  useEffect(() => {
  if (userClass) {
@@ -113,6 +115,31 @@ export default function HafalanProgressTab({ userClass }: HafalanProgressTabProp
  return matchSearch && matchKelas && matchStatus && matchSemester;
  });
 
+ const groupedStudentProgress = useMemo(() => {
+   const map = new Map<string, { student: any; items: StudentHafalanProgress[]; avgStars: number; totalPassed: number }>();
+   filteredProgress.forEach(p => {
+     const sId = p.studentId;
+     const st = students.find(s => s.id === sId) || { id: sId, name: 'Siswa' };
+     if (!map.has(sId)) {
+       map.set(sId, { student: st, items: [], avgStars: 0, totalPassed: 0 });
+     }
+     map.get(sId)!.items.push(p);
+   });
+
+   const list = Array.from(map.values()).map(g => {
+     const passed = g.items.filter(i => (i.stars && i.stars > 0) || i.status === 'Mumtaz (Lulus)' || i.status === 'Lancar');
+     const totalStars = passed.reduce((sum, i) => sum + (Number(i.stars) || 0), 0);
+     const avgStars = passed.length > 0 ? Math.round((totalStars / passed.length) * 10) / 10 : 0;
+     return {
+       ...g,
+       totalPassed: passed.length,
+       avgStars
+     };
+   });
+
+   return list.sort((a, b) => (a.student.name || '').localeCompare(b.student.name || ''));
+ }, [filteredProgress, students]);
+
  return (
  <div className="space-y-6">
  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -168,6 +195,216 @@ export default function HafalanProgressTab({ userClass }: HafalanProgressTabProp
  </select>
  </div>
 
+ {/* Mode Tampilan Toggle */}
+ <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+   <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+     <button
+       type="button"
+       onClick={() => setViewMode('per-siswa')}
+       className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+         viewMode === 'per-siswa' ? 'bg-white text-emerald-800 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+       }`}
+     >
+       Tampilan Per Siswa ({groupedStudentProgress.length})
+     </button>
+     <button
+       type="button"
+       onClick={() => setViewMode('semua-setoran')}
+       className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+         viewMode === 'semua-setoran' ? 'bg-white text-emerald-800 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+       }`}
+     >
+       Semua Riwayat Setoran ({filteredProgress.length})
+     </button>
+   </div>
+
+   {viewMode === 'per-siswa' && groupedStudentProgress.length > 0 && (
+     <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+       <button
+         type="button"
+         onClick={() => {
+           const all: Record<string, boolean> = {};
+           groupedStudentProgress.forEach(g => { all[g.student.id] = true; });
+           setExpandedStudentIds(all);
+         }}
+         className="hover:text-emerald-800 underline cursor-pointer"
+       >
+         Buka Semua Rincian
+       </button>
+       <span>•</span>
+       <button
+         type="button"
+         onClick={() => setExpandedStudentIds({})}
+         className="hover:text-slate-800 underline cursor-pointer"
+       >
+         Tutup Rincian
+       </button>
+     </div>
+   )}
+ </div>
+
+ {viewMode === 'per-siswa' ? (
+   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+     {groupedStudentProgress.map((group) => {
+       const student = group.student;
+       const isExpanded = !!expandedStudentIds[student.id];
+       return (
+         <div key={student.id} className={`bg-white rounded-2xl border transition-all shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden ${
+           isExpanded ? 'border-emerald-300 ring-2 ring-emerald-500/10' : 'border-slate-200/80 hover:border-emerald-200'
+         }`}>
+           <div className="p-5 space-y-4">
+             <div className="flex items-start justify-between gap-3">
+               <div className="flex items-start gap-3 min-w-0">
+                 <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0 uppercase shadow-2xs">
+                   {(student.name || 'S').substring(0, 2)}
+                 </div>
+                 <div className="min-w-0">
+                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                     <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-black uppercase">
+                       Kelas {student.kelas || '-'}
+                     </span>
+                     <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">
+                       {student.nisn ? `NISN: ${student.nisn}` : 'RA Darusyifa'}
+                     </span>
+                   </div>
+                   <h4 className="text-base font-black text-slate-900 truncate leading-snug">
+                     {student.name}
+                   </h4>
+                 </div>
+               </div>
+
+               <div className="shrink-0 text-right">
+                 <div className="inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
+                   <div className="flex items-center gap-0.5 text-amber-500">
+                     <span className="text-base font-black leading-none">{group.avgStars}</span>
+                     <Star size={14} fill="currentColor" />
+                   </div>
+                   <span className="text-[9px] font-bold text-amber-800 mt-0.5">
+                     {group.totalPassed} Surah Lulus
+                   </span>
+                 </div>
+               </div>
+             </div>
+
+             <div className="space-y-2">
+               <div className="flex items-center justify-between text-[11px]">
+                 <span className="font-bold text-slate-600 flex items-center gap-1.5">
+                   <BookOpen size={13} className="text-emerald-600" />
+                   <span>{group.items.length} Materi Hafalan Terdaftar</span>
+                 </span>
+                 <span className="text-slate-400 font-medium">
+                   Skala 1 - 5 Bintang
+                 </span>
+               </div>
+
+               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
+                 {group.items.map(item => {
+                   const mat = materials.find(m => m.id === item.materialId);
+                   return (
+                     <div key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/60 hover:bg-amber-100/70 border border-amber-200/70 text-[11px] font-semibold text-amber-900 transition-colors">
+                       <span className="truncate max-w-[120px]">{mat?.judul || mat?.title || 'Surah'}</span>
+                       <span className="font-black px-1.5 py-0.2 rounded bg-white border border-amber-200 text-amber-700 text-[10.5px]">
+                         {item.stars || 0}★
+                       </span>
+                     </div>
+                   );
+                 })}
+               </div>
+             </div>
+
+             {isExpanded && (
+               <div className="pt-3 border-t border-slate-100 space-y-2.5 animate-in fade-in duration-200">
+                 <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 block">
+                   Rincian Setoran Surah & Nilai:
+                 </span>
+                 <div className="space-y-2 divide-y divide-slate-100 max-h-64 overflow-y-auto custom-scrollbar">
+                   {group.items.map((item, idx) => {
+                     const mat = materials.find(m => m.id === item.materialId);
+                     return (
+                       <div key={item.id} className="pt-2 first:pt-0 flex items-start justify-between gap-3">
+                         <div className="space-y-0.5 min-w-0">
+                           <div className="flex items-center gap-1.5 flex-wrap">
+                             <span className="text-xs font-bold text-slate-800">
+                               {idx + 1}. {mat?.judul || mat?.title || 'Surah'}
+                             </span>
+                             <span className="text-[10px] font-black text-amber-600 inline-flex items-center gap-0.5">
+                               {item.stars || 0} Bintang
+                             </span>
+                             <span className="text-[9.5px] text-slate-400 font-medium">
+                               • {item.evaluationSemester || 'Semester'}
+                             </span>
+                           </div>
+                           {item.catatanGuru ? (
+                             <p className="text-[11px] text-slate-600 leading-relaxed bg-amber-50/50 p-2 rounded-lg border border-amber-100 italic">
+                               "{item.catatanGuru}"
+                             </p>
+                           ) : (
+                             <p className="text-[10px] text-slate-400 italic">
+                               (Tidak ada catatan tambahan)
+                             </p>
+                           )}
+                         </div>
+                         <div className="flex items-center gap-1 shrink-0">
+                           <button
+                             onClick={() => {
+                               setEditingRecord(item);
+                               setEditFormData({
+                                 status: item.status,
+                                 stars: item.stars,
+                                 catatanGuru: item.catatanGuru || '',
+                                 evaluationSemester: item.evaluationSemester || 'PTS Ganjil'
+                               });
+                               setShowEditModal(true);
+                             }}
+                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+                             title="Edit Setoran"
+                           >
+                             <Edit size={14} />
+                           </button>
+                           <button
+                             onClick={() => handleDelete(item.id)}
+                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                             title="Hapus"
+                           >
+                             <Trash2 size={14} />
+                           </button>
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </div>
+             )}
+           </div>
+
+           <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+             <button
+               type="button"
+               onClick={() => {
+                 setExpandedStudentIds(prev => ({
+                   ...prev,
+                   [student.id]: !prev[student.id]
+                 }));
+               }}
+               className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+             >
+               <span>{isExpanded ? 'Tutup Rincian' : `Rincian (${group.items.length})`}</span>
+               {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+             </button>
+           </div>
+         </div>
+       );
+     })}
+
+     {groupedStudentProgress.length === 0 && (
+       <div className="col-span-full bg-white p-12 rounded-3xl border border-dashed border-gray-200 text-center space-y-3">
+         <BookOpen size={40} className="mx-auto text-gray-300" />
+         <h3 className="text-sm font-bold text-gray-700">Tidak ada data hafalan siswa</h3>
+         <p className="text-xs text-gray-400">Tidak ada riwayat setoran yang cocok dengan filter ini.</p>
+       </div>
+     )}
+   </div>
+ ) : (
  <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
  <div className="overflow-x-auto">
  <table className="w-full text-left">
@@ -265,6 +502,7 @@ export default function HafalanProgressTab({ userClass }: HafalanProgressTabProp
  )}
  </div>
  </div>
+ )}
 
  {/* Edit Modal */}
  {showEditModal && (
@@ -314,12 +552,12 @@ export default function HafalanProgressTab({ userClass }: HafalanProgressTabProp
  </div>
 
  <div>
- <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Catatan Guru</label>
+ <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Catatan Guru (opsional)</label>
  <textarea 
  value={editFormData.catatanGuru}
  onChange={(e) => setEditFormData({...editFormData, catatanGuru: e.target.value})}
  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm min-h-[100px]"
- placeholder="Masukkan catatan evaluasi..."
+ placeholder="Masukkan catatan evaluasi (opsional)..."
  />
  </div>
 

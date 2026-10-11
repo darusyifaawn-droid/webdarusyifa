@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db } from '../lib/firebase';
 import { getApps, initializeApp } from 'firebase/app';
 import { sendPasswordResetEmail, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc, orderBy, getDocs, where, limit } from 'firebase/firestore';
 import { 
   Users, Shield, Plus, Trash2, Edit, BarChart, Bell, LogOut, User, Download, 
   CreditCard, Megaphone, X, Menu, Settings, Image as ImageIcon, Key, Upload, 
@@ -39,6 +39,7 @@ import FinanceSetoranCashTab from './admin/tabs/FinanceSetoranCashTab';
 import HafalanTab from './admin/tabs/HafalanTab';
 import HafalanProgressTab from './admin/tabs/HafalanProgressTab';
 import AbsensiTab from './admin/tabs/AbsensiTab';
+import AdminAssessmentsTab from './admin/tabs/AdminAssessmentsTab';
 import CompetitionTab from './competition/CompetitionTab';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
@@ -51,6 +52,7 @@ export default function DashboardAdmin() {
   const [userData, setUserData] = useState<any>(authUserData);
  const [allUsers, setAllUsers] = useState<any[]>([]);
  const [attendance, setAttendance] = useState<any[]>([]);
+ const [attendanceLimit, setAttendanceLimit] = useState<number>(150);
  const [payments, setPayments] = useState<any[]>([]);
  const [announcements, setAnnouncements] = useState<any[]>([]);
  const [exams, setExams] = useState<any[]>([]);
@@ -692,29 +694,29 @@ export default function DashboardAdmin() {
       handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
- const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc')), (snapshot) => {
- setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- }, (error) => {
- handleFirestoreError(error, OperationType.LIST, 'attendance');
- });
+  const unsubAttendance = onSnapshot(query(collection(db, 'attendance'), orderBy('timestamp', 'desc'), limit(attendanceLimit)), (snapshot) => {
+    setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'attendance');
+  });
 
- const unsubAnnounce = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc')), (snapshot) => {
- setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- }, (error) => {
- handleFirestoreError(error, OperationType.LIST, 'announcements');
- });
+  const unsubAnnounce = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(50)), (snapshot) => {
+    setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'announcements');
+  });
 
- const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc')), (snapshot) => {
- setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- }, (error) => {
- handleFirestoreError(error, OperationType.LIST, 'exams');
- });
+  const unsubExams = onSnapshot(query(collection(db, 'exams'), orderBy('createdAt', 'desc'), limit(50)), (snapshot) => {
+    setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'exams');
+  });
 
- const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc')), (snapshot) => {
- setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- }, (error) => {
- handleFirestoreError(error, OperationType.LIST, 'payments');
- });
+  const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc'), limit(500)), (snapshot) => {
+    setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, 'payments');
+  });
 
  const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (docSnap) => {
  if (docSnap.exists()) {
@@ -787,10 +789,10 @@ export default function DashboardAdmin() {
  unsubKaldik();
  unsubMaterials();
  unsubHafalan();
- unsubCategories();
- unsubSalarySlips();
- };
- }, [user]);
+  unsubCategories();
+  unsubSalarySlips();
+  };
+  }, [user, attendanceLimit]);
 
  const handleSaveKaldik = async (e: React.FormEvent) => {
  e.preventDefault();
@@ -3436,7 +3438,7 @@ export default function DashboardAdmin() {
     return (
       <nav className="space-y-4 flex-1 text-slate-600">
         {/* Primary Dashboard item */}
-        <div>
+        <div className="space-y-1.5">
           <button
             onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
@@ -3447,6 +3449,19 @@ export default function DashboardAdmin() {
           >
             <Home size={18} className={activeTab === 'overview' ? 'text-white' : 'text-slate-400'} />
             <span className="tracking-tight text-xs">Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => { navigate('/virtual-office'); setIsSidebarOpen(false); }}
+            className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl font-bold text-xs transition-all bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 cursor-pointer shadow-2xs"
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles size={16} className="text-emerald-600" />
+              <span className="tracking-tight text-xs">Virtual Office 3D</span>
+            </div>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-emerald-600 text-white">
+              BARU
+            </span>
           </button>
         </div>
 
@@ -3843,6 +3858,16 @@ export default function DashboardAdmin() {
                 })()}
               </span>
             </div>
+
+            {/* Virtual Office 3D Shortcut */}
+            <button
+              onClick={() => navigate('/virtual-office')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all border border-emerald-200/80 cursor-pointer shadow-2xs active:scale-95"
+              title="Buka Pusat Kendali Virtual Office 3D RA Darusyifa"
+            >
+              <Sparkles size={14} className="text-emerald-600" />
+              <span>Virtual Office 3D</span>
+            </button>
 
             {/* Notification Bell */}
             <button 
@@ -4544,6 +4569,7 @@ export default function DashboardAdmin() {
  <th className="px-6 py-4">Nama Siswa</th>
  <th className="px-6 py-4">Kelas Saat Ini</th>
  <th className="px-6 py-4">Status</th>
+ <th className="px-6 py-4">Rangkuman Nilai Siswa</th>
  <th className="px-6 py-4 text-right">Rapot</th>
  </tr>
  </thead>
@@ -4573,6 +4599,48 @@ export default function DashboardAdmin() {
  {student.status || 'Aktif'}
  </span>
  </td>
+ <td className="px-6 py-4">
+   {(() => {
+     const studentGrades = progressData.filter(p => p.studentId === student.id);
+     const totalScore = studentGrades.reduce((sum, p) => sum + (Number(p.score) || 0), 0);
+     const avgScore = studentGrades.length > 0 ? (totalScore / studentGrades.length).toFixed(1) : null;
+     const gradeInfo = avgScore ? getScoreGradeInfo(Math.round(Number(avgScore))) : null;
+
+     if (studentGrades.length === 0) {
+       return <span className="text-xs text-slate-400 italic">Belum dinilai</span>;
+     }
+
+     return (
+       <div className="flex flex-col gap-1">
+         <div className="flex items-center gap-1.5 flex-wrap">
+           <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black">
+             {studentGrades.length} Mapel Dinilai
+           </span>
+           <span className="text-xs font-black text-slate-800">
+             Rata-rata: {avgScore}
+           </span>
+           {gradeInfo && (
+             <span className={`text-[10px] font-black ${gradeInfo.color}`}>
+               ({gradeInfo.grade})
+             </span>
+           )}
+         </div>
+         <div className="flex flex-wrap gap-1 max-w-xs">
+           {studentGrades.slice(0, 3).map((it: any) => (
+             <span key={it.id} className="text-[9.5px] px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold truncate max-w-[100px]">
+               {it.category || it.title}: <strong>{it.score}</strong>
+             </span>
+           ))}
+           {studentGrades.length > 3 && (
+             <span className="text-[9.5px] text-slate-400 font-bold self-center">
+               +{studentGrades.length - 3} lainnya
+             </span>
+           )}
+         </div>
+       </div>
+     );
+   })()}
+ </td>
  <td className="px-6 py-4 text-right">
  <button 
  onClick={() => {
@@ -4588,7 +4656,7 @@ export default function DashboardAdmin() {
  </tr>
  ))}
  {allUsers.filter(u => u.role === 'siswa' && (u.status || 'Aktif') === filterSiswaStatus && (!filterKelas || (u.kelas || '').toLowerCase() === filterKelas.toLowerCase()) && (!filterName || u.name.toLowerCase().includes(filterName.toLowerCase()))).length === 0 && (
- <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic font-medium">Data siswa dengan status tersebut belum tersedia.</td></tr>
+ <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic font-medium">Data siswa dengan status tersebut belum tersedia.</td></tr>
  )}
  </tbody>
  </table>
@@ -4622,17 +4690,35 @@ export default function DashboardAdmin() {
  {student.status || 'Aktif'}
  </span>
  </div>
- <div className="flex justify-end mt-2">
- <button 
- onClick={() => {
- setSelectedStudentForRapot(student);
- setPrintRapotPeriod('Semua');
- setShowPrintRapotModal(true);
- }}
- className="bg-gray-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-2"
- >
- <Printer size={14} /> Cetak Rapot
- </button>
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-100">
+   <div>
+     {(() => {
+       const studentGrades = progressData.filter(p => p.studentId === student.id);
+       const totalScore = studentGrades.reduce((sum, p) => sum + (Number(p.score) || 0), 0);
+       const avgScore = studentGrades.length > 0 ? (totalScore / studentGrades.length).toFixed(1) : null;
+       return (
+         <span className="text-[11px] font-bold text-gray-600">
+           {studentGrades.length > 0 ? (
+             <span className="text-emerald-700 font-extrabold">{studentGrades.length} Mapel Dinilai (Rata-rata: {avgScore})</span>
+           ) : (
+             <span className="text-gray-400 italic">Belum dinilai</span>
+           )}
+         </span>
+       );
+     })()}
+   </div>
+   <div className="flex justify-end">
+     <button 
+     onClick={() => {
+     setSelectedStudentForRapot(student);
+     setPrintRapotPeriod('Semua');
+     setShowPrintRapotModal(true);
+     }}
+     className="bg-gray-800 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+     >
+     <Printer size={13} /> Cetak Rapot
+     </button>
+   </div>
  </div>
  </div>
  ))}
@@ -5124,6 +5210,8 @@ export default function DashboardAdmin() {
             exportAttendanceToExcel={exportAttendanceToExcel}
             setSelectedPhoto={setSelectedPhoto}
             setSelectedLocation={setSelectedLocation}
+            onLoadMoreAttendance={() => setAttendanceLimit(prev => prev + 150)}
+            attendanceLimit={attendanceLimit}
           />
         )}
 
@@ -5174,272 +5262,22 @@ export default function DashboardAdmin() {
  )}
 
  {activeTab === 'assessments' && (
- <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
- <div className="card-3d p-5 sm:p-8">
- <h3 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Log Penilaian Detail Siswa</h3>
- <p className="text-gray-400 text-[10px] sm:text-sm font-medium mt-1">Laporan harian / progress penilaian yang diberikan oleh guru kepada siswa.</p>
- 
- <div className="mt-6 sm:mt-8 flex flex-col md:flex-row gap-4 mb-4">
- <div className="relative flex-1">
- <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
- <Users size={16} className="text-gray-500" />
- </div>
- <input 
- type="text" 
- placeholder="Cari Nama Siswa / Guru..." 
- value={filterAssessmentName}
- onChange={(e) => setFilterAssessmentName(e.target.value)}
- className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
- />
- </div>
- <div className="w-full md:w-64">
- <select 
- value={filterAssessmentKelas}
- onChange={(e) => setFilterAssessmentKelas(e.target.value)}
- className="w-full p-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
- >
- <option value="">Semua Kelas</option>
- {schoolClasses.map(c => (
- <option key={c.id} value={c.name}>{c.name}</option>
- ))}
- </select>
- </div>
- <div className="w-full md:w-64">
- <select 
- value={filterAssessmentCategory}
- onChange={(e) => setFilterAssessmentCategory(e.target.value)}
- className="w-full p-3 bg-white border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition-all"
- >
- <option value="Semua">Semua Kategori</option>
- <option value="Rapot">Penilaian Rapot</option>
- <option value="Hafalan">Penilaian Hafalan</option>
- </select>
- </div>
- </div>
- </div>
+    <AdminAssessmentsTab
+      allUsers={allUsers}
+      schoolClasses={schoolClasses}
+      progressData={progressData}
+      hafalanData={hafalanData}
+      materialsData={materialsData}
+      onPromptPrintRapot={(student) => {
+        setSelectedStudentForRapot(student);
+        setPrintRapotPeriod('Semua');
+        setShowPrintRapotModal(true);
+      }}
+      getScoreGradeInfo={getScoreGradeInfo}
+      formatDateForUI={formatDateForUI}
+    />
+  )}
 
- <div className="space-y-4">
- {(() => {
- const filteredProgress = (filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Rapot')
- ? progressData.filter(p => {
- const student = allUsers.find(u => u.id === p.studentId);
- if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
- const matchesName = 
- student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase()) || 
- p.teacherName?.toLowerCase().includes(filterAssessmentName.toLowerCase());
- const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
- return matchesName && matchesKelas;
- })
- : [];
-
- const filteredHafalan = (filterAssessmentCategory === 'Semua' || filterAssessmentCategory === 'Hafalan')
- ? hafalanData.filter(h => {
- const student = allUsers.find(u => u.id === h.studentId);
- if (!student || (student.role === 'siswa' && (student.status || 'Aktif') !== 'Aktif')) return false;
- const matchesName = student?.name?.toLowerCase().includes(filterAssessmentName.toLowerCase());
- const matchesKelas = !filterAssessmentKelas || student?.kelas === filterAssessmentKelas;
- return matchesName && matchesKelas;
- })
- : [];
-
- const studentIdsWithRecords = Array.from(new Set([
- ...filteredProgress.map(p => p.studentId),
- ...filteredHafalan.map(h => h.studentId)
- ])).filter(Boolean);
-
- const matchingStudents = allUsers
- .filter(u => u.role === 'siswa' && (u.status || 'Aktif') === 'Aktif' && studentIdsWithRecords.includes(u.id))
- .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
- if (matchingStudents.length === 0) {
- return (
- <div className="p-12 text-center text-gray-400 font-medium italic bg-white rounded-3xl border border-gray-100">
- Tidak ada data penilaian siswa yang cocok dengan filter pencarian.
- </div>
- );
- }
-
- return (
- <div className="space-y-4">
- {matchingStudents.map(student => {
- const studentProgress = filteredProgress.filter(p => p.studentId === student.id);
- const studentHafalan = filteredHafalan.filter(h => h.studentId === student.id);
- const totalAssessments = studentProgress.length + studentHafalan.length;
- const isExpanded = !!expandedStudentIds[student.id];
-
- return (
- <div key={student.id} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden transition-all duration-300">
- {/* Header Accordion */}
- <button
- onClick={() => {
- setExpandedStudentIds(prev => ({
- ...prev,
- [student.id]: !prev[student.id]
- }));
- }}
- className="w-full text-left p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors"
- >
- <div className="flex items-center gap-4">
- <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 font-extrabold text-sm uppercase">
- {(student.name || 'S').substring(0, 2)}
- </div>
- <div>
- <h4 className="text-base font-black text-gray-800 leading-tight">{student.name}</h4>
- <div className="flex flex-wrap items-center gap-2 mt-1.5">
- <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2.5 py-0.5 rounded-full font-black uppercase tracking-tight">
- Kelas: {student.kelas || '-'}
- </span>
- <span className="text-[10px] bg-slate-50 text-slate-500 px-2.5 py-0.5 rounded-full font-bold">
- {student.nisn ? `NISN: ${student.nisn}` : 'No NISN'}
- </span>
- </div>
- </div>
- </div>
-
- <div className="flex items-center gap-3 self-end sm:self-center">
- <div className="flex items-center gap-2">
- {studentProgress.length > 0 && (
- <span className="text-[10px] bg-blue-50 text-blue-600 px-2.5 py-1 rounded-xl font-bold border border-blue-100/50">
- {studentProgress.length} Rapot
- </span>
- )}
- {studentHafalan.length > 0 && (
- <span className="text-[10px] bg-yellow-50 text-yellow-600 px-2.5 py-1 rounded-xl font-bold border border-yellow-100/50">
- {studentHafalan.length} Hafalan
- </span>
- )}
- </div>
- <div className="p-1.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-600">
- {isExpanded ? <ChevronUp size={18} className="text-indigo-600" /> : <ChevronDown size={18} />}
- </div>
- </div>
- </button>
-
- {/* Expanded Content */}
- {isExpanded && (
- <div className="border-t border-gray-100 bg-gray-50/20">
- <div className="overflow-x-auto scrolling-touch custom-scrollbar">
- <table className="w-full text-left table-fixed min-w-[700px] sm:min-w-[800px]">
- <thead className="bg-gray-50 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em] border-b border-gray-100">
- <tr>
- <th className="px-6 py-4 w-1/5">Kategori / Tanggal</th>
- <th className="px-6 py-4 w-1/4 text-indigo-600">Guru/Sistem Penilai</th>
- <th className="px-6 py-4 w-2/5">Detail Penilaian</th>
- <th className="px-6 py-4 w-1/5 text-center">Hasil & Skor</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-gray-100 bg-white">
- {/* Render Rapot Progress first */}
- {studentProgress.map(p => {
- const teacher = allUsers.find(u => u.id === p.teacherId);
- const gradeInfo = getScoreGradeInfo(Number(p.score) || 0);
- return (
- <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
- <td className="px-6 py-4 whitespace-normal">
- <div className="flex flex-col">
- <div className="flex items-center gap-1.5 mb-1"><BookOpen size={11} className="text-blue-500" /><span className="text-[8px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Rapot</span></div>
- <span className="text-xs font-black text-indigo-500">{formatDateForUI(p.createdAt || p.date)}</span>
- <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{p.evaluationPeriod || 'Harian'}</span>
- </div>
- </td>
- <td className="px-6 py-4 whitespace-normal">
- <div className="flex items-center gap-2.5">
- <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100">
- <User size={14} />
- </div>
- <div>
- <p className="text-xs font-black text-gray-800 leading-tight">{p.teacherName || teacher?.name || 'Guru'}</p>
- <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">Penilai Utama</p>
- </div>
- </div>
- </td>
- <td className="px-6 py-4 whitespace-normal">
- <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
- <span className="text-[9px] font-black text-indigo-600 block mb-1 uppercase tracking-widest">{p.category || 'Penilaian Umum'}</span>
- <p className="text-[11px] text-gray-650 leading-relaxed font-semibold italic">"{p.description || 'Guru tidak memberikan catatan detail.'}"</p>
- {p.target && (
- <div className="mt-2 flex items-center gap-1">
- <TrendingUp size={10} className="text-emerald-500" />
- <span className="text-[9px] text-emerald-600 font-black uppercase tracking-tighter">Target: {p.target}</span>
- </div>
- )}
- </div>
- </td>
- <td className="px-6 py-4">
- <div className="flex items-center justify-center gap-3">
- <div className={`px-2 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${p.status === 'Lulus' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
- {p.status || 'Selesai'}
- </div>
- <div className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl font-black ${gradeInfo.color} bg-white shadow-sm border border-gray-100`}>
- <span className="text-xs leading-none">{p.score || 0}</span>
- <span className="text-[8px] font-black opacity-85 mt-0.5">{gradeInfo.grade}</span>
- </div>
- </div>
- </td>
- </tr>
- );
- })}
-
- {/* Render Hafalan second */}
- {studentHafalan.map(h => {
- const mat = materialsData.find(m => m.id === h.materialId);
- return (
- <tr key={h.id} className="hover:bg-gray-50/50 transition-colors group">
- <td className="px-6 py-4 whitespace-normal">
- <div className="flex flex-col">
- <div className="flex items-center gap-1.5 mb-1"><Star size={11} className="text-yellow-500" /><span className="text-[8px] text-yellow-600 font-bold uppercase tracking-widest bg-yellow-50 px-2 py-0.5 rounded-full">Hafalan</span></div>
- <span className="text-xs font-black text-indigo-500">{formatDateForUI(h.createdAt)}</span>
- <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{h.evaluationSemester || 'Semester'}</span>
- </div>
- </td>
- <td className="px-6 py-4 whitespace-normal">
- <div className="flex items-center gap-2.5">
- <div className="w-8 h-8 bg-yellow-50 rounded-xl flex items-center justify-center text-yellow-600 border border-yellow-100">
- <User size={14} />
- </div>
- <div>
- <p className="text-xs font-black text-gray-800 leading-tight">Sistem Hafalan</p>
- <p className="text-[8px] text-yellow-500 font-black uppercase tracking-widest mt-0.5">Catatan Update</p>
- </div>
- </div>
- </td>
- <td className="px-6 py-4 whitespace-normal">
- <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
- <span className="text-[9px] font-black text-yellow-600 block mb-1 uppercase tracking-widest">{mat ? mat.title : 'Tahfidz / Surah'}</span>
- <p className="text-[11px] text-gray-650 leading-relaxed font-semibold italic">"{h.catatanGuru || 'Guru tidak memberikan catatan detail.'}"</p>
- </div>
- </td>
- <td className="px-6 py-4">
- <div className="flex items-center justify-center gap-3">
- <div className={`px-2 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${h.status?.includes('Lulus') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
- {h.status || 'Berjalan'}
- </div>
- <div className="flex flex-col items-center justify-center w-11 h-11 rounded-xl font-black text-yellow-600 bg-white shadow-sm border border-yellow-100">
- <div className="flex items-center gap-0.5">
- <span className="text-xs leading-none">{h.stars || 0}</span>
- <Star size={8} fill="currentColor" />
- </div>
- <span className="text-[6px] font-black opacity-85 uppercase tracking-widest mt-0.5">Bintang</span>
- </div>
- </div>
- </td>
- </tr>
- );
- })}
- </tbody>
- </table>
- </div>
- </div>
- )}
- </div>
- );
- })}
- </div>
- );
- })()}
- </div>
- </div>
- )}
 
  {activeTab === 'hafalan' && (
  <div className="space-y-6">

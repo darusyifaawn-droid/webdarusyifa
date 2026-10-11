@@ -17,6 +17,8 @@ const DashboardAdmin = lazy(() => import('./components/DashboardAdmin'));
 const DashboardOrangTua = lazy(() => import('./components/DashboardOrangTua'));
 const JuknisPresentation = lazy(() => import('./components/JuknisPresentation'));
 const KaldikExternal = lazy(() => import('./components/KaldikExternal'));
+const VirtualSchoolDashboard = lazy(() => import('./components/virtual/VirtualSchoolDashboard'));
+const VirtualOfficeDashboard = lazy(() => import('./components/virtual/VirtualOfficeDashboard'));
 
 function LoadingFallback({ message = 'Memuat modul...' }: { message?: string }) {
   return (
@@ -84,6 +86,9 @@ export default function App() {
               
               <Route path="/juknis" element={<JuknisPresentation />} />
               <Route path="/kaldik" element={<KaldikExternal />} />
+              <Route path="/virtual-office" element={<VirtualOfficeDashboard />} />
+              <Route path="/simulasi" element={<VirtualOfficeDashboard />} />
+              <Route path="/virtual-school" element={<VirtualOfficeDashboard />} />
             </Routes>
           </Suspense>
         </Router>

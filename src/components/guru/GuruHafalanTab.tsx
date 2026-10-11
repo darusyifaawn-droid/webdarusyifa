@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Star, Search, Filter, BookOpen, CheckCircle, Clock, 
-  Printer, Play, Video, Mic, ExternalLink, Sparkles, ChevronRight, 
+  Printer, Play, Video, Mic, ExternalLink, Sparkles, ChevronRight, ChevronDown, ChevronUp,
   Award, Plus, Edit, Trash2, X, Save, AlertCircle, ChevronLeft,
   ChevronsLeft, ChevronsRight, Layers, FileText, CheckCircle2, RotateCcw,
   Tag, FolderPlus, Settings2, Edit3, Check
@@ -46,6 +46,8 @@ export default function GuruHafalanTab({
   const [statusFilter, setStatusFilter] = useState<'Semua' | 'Siap Dinilai' | 'Sudah Dinilai' | 'Belum Dinilai'>('Semua');
   const [evalPage, setEvalPage] = useState(1);
   const [evalPerPage, setEvalPerPage] = useState(9);
+  const [evalViewMode, setEvalViewMode] = useState<'per-santri' | 'per-setoran'>('per-santri');
+  const [expandedStudentHafalanIds, setExpandedStudentHafalanIds] = useState<Record<string, boolean>>({});
 
   // --- Filter states for Katalog Modul ---
   const [modulSearchTerm, setModulSearchTerm] = useState('');
@@ -189,6 +191,32 @@ export default function GuruHafalanTab({
     const start = (currentEvalPage - 1) * evalPerPage;
     return filteredSubmissions.slice(start, start + evalPerPage);
   }, [filteredSubmissions, currentEvalPage, evalPerPage]);
+
+  // Grouped submissions per student for compact & efficient view
+  const groupedStudentSubmissions = useMemo(() => {
+    const map = new Map<string, { student: any; items: StudentHafalanProgress[]; avgStars: number; totalGraded: number }>();
+    filteredSubmissions.forEach(p => {
+      const sId = p.studentId;
+      const st = studentMap.get(sId) || { id: sId, name: (p as any).studentName || 'Santri' };
+      if (!map.has(sId)) {
+        map.set(sId, { student: st, items: [], avgStars: 0, totalGraded: 0 });
+      }
+      map.get(sId)!.items.push(p);
+    });
+
+    const list = Array.from(map.values()).map(g => {
+      const graded = g.items.filter(i => (i.stars && i.stars > 0) || i.status === 'Mumtaz (Lulus)' || i.status === 'Lancar');
+      const totalStars = graded.reduce((sum, i) => sum + (Number(i.stars) || 0), 0);
+      const avgStars = graded.length > 0 ? Math.round((totalStars / graded.length) * 10) / 10 : 0;
+      return {
+        ...g,
+        totalGraded: graded.length,
+        avgStars
+      };
+    });
+
+    return list.sort((a, b) => (a.student.name || '').localeCompare(b.student.name || ''));
+  }, [filteredSubmissions, studentMap]);
 
   // Counts for status badges
   const readyCount = useMemo(() => {
@@ -675,25 +703,254 @@ export default function GuruHafalanTab({
               </select>
 
               {/* Per Page Selector */}
-              <select
-                value={evalPerPage}
-                onChange={(e) => {
-                  setEvalPerPage(Number(e.target.value));
-                  setEvalPage(1);
-                }}
-                className="px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500"
-                title="Jumlah per halaman"
-              >
-                <option value={6}>6 / hal</option>
-                <option value={9}>9 / hal</option>
-                <option value={18}>18 / hal</option>
-                <option value={36}>36 / hal</option>
-              </select>
+              {evalViewMode === 'per-setoran' && (
+                <select
+                  value={evalPerPage}
+                  onChange={(e) => {
+                    setEvalPerPage(Number(e.target.value));
+                    setEvalPage(1);
+                  }}
+                  className="px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500"
+                  title="Jumlah per halaman"
+                >
+                  <option value={6}>6 / hal</option>
+                  <option value={9}>9 / hal</option>
+                  <option value={18}>18 / hal</option>
+                  <option value={36}>36 / hal</option>
+                </select>
+              )}
             </div>
           </div>
 
-          {/* Submissions Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* View Mode Bar: Per Santri vs Per Setoran */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+              <button
+                type="button"
+                onClick={() => setEvalViewMode('per-santri')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  evalViewMode === 'per-santri'
+                    ? 'bg-white text-amber-900 shadow-2xs font-extrabold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Tampilan Per Santri ({groupedStudentSubmissions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setEvalViewMode('per-setoran')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  evalViewMode === 'per-setoran'
+                    ? 'bg-white text-amber-900 shadow-2xs font-extrabold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Semua Setoran ({filteredSubmissions.length})
+              </button>
+            </div>
+
+            {evalViewMode === 'per-santri' && groupedStudentSubmissions.length > 0 && (
+              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const all: Record<string, boolean> = {};
+                    groupedStudentSubmissions.forEach(g => { all[g.student.id] = true; });
+                    setExpandedStudentHafalanIds(all);
+                  }}
+                  className="hover:text-amber-800 underline cursor-pointer"
+                >
+                  Buka Semua Rincian
+                </button>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => setExpandedStudentHafalanIds({})}
+                  className="hover:text-slate-800 underline cursor-pointer"
+                >
+                  Tutup Rincian
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Submissions Cards Render */}
+          {evalViewMode === 'per-santri' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {groupedStudentSubmissions.map((group) => {
+                const student = group.student;
+                const isExpanded = !!expandedStudentHafalanIds[student.id];
+                const studentName = student.name || 'Santri';
+                const studentClass = student.kelas || classFilter || '-';
+
+                return (
+                  <div
+                    key={student.id}
+                    className={`bg-white rounded-2xl border transition-all shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden ${
+                      isExpanded
+                        ? 'border-amber-300 ring-2 ring-amber-500/10'
+                        : 'border-slate-200/80 hover:border-amber-200'
+                    }`}
+                  >
+                    <div className="p-5 space-y-4">
+                      {/* Header Santri */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 font-black text-sm flex items-center justify-center shrink-0 uppercase shadow-2xs">
+                            {studentName.substring(0, 2)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-100 text-[10px] font-black uppercase">
+                                Kelas {studentClass}
+                              </span>
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">
+                                {student.nisn ? `NISN: ${student.nisn}` : 'RA Darusyifa'}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-black text-slate-900 truncate leading-snug">
+                              {studentName}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {/* Stars badge */}
+                        <div className="shrink-0 text-right">
+                          <div className="inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
+                            <div className="flex items-center gap-0.5 text-amber-500">
+                              <span className="text-base font-black leading-none">{group.avgStars}</span>
+                              <Star size={14} fill="currentColor" />
+                            </div>
+                            <span className="text-[9px] font-bold text-amber-800 mt-0.5">
+                              {group.totalGraded} Surah Lulus
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Chips materi hafalan santri ini */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-slate-600 flex items-center gap-1.5">
+                            <BookOpen size={13} className="text-amber-600" />
+                            <span>{group.items.length} Materi Hafalan Terdaftar</span>
+                          </span>
+                          <span className="text-slate-400 font-medium">
+                            Skala 1 - 5 Bintang
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
+                          {group.items.map((item) => {
+                            const mat = materialMap.get(item.materialId);
+                            const surahName = mat?.judul || (mat as any)?.title || 'Surah';
+                            return (
+                              <div
+                                key={item.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/60 hover:bg-amber-100/70 border border-amber-200/70 text-[11px] font-semibold text-amber-900 transition-colors"
+                              >
+                                <span className="truncate max-w-[120px]">{surahName}</span>
+                                <span className="font-black px-1.5 py-0.2 rounded bg-white border border-amber-200 text-amber-700 text-[10.5px]">
+                                  {item.stars || 0}★
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Rincian Accordion Terbuka */}
+                      {isExpanded && (
+                        <div className="pt-3 border-t border-slate-100 space-y-2.5 animate-in fade-in duration-200">
+                          <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 block">
+                            Rincian Setoran Surah & Evaluasi:
+                          </span>
+                          <div className="space-y-2 divide-y divide-slate-100 max-h-64 overflow-y-auto custom-scrollbar">
+                            {group.items.map((item, idx) => {
+                              const mat = materialMap.get(item.materialId);
+                              const surahName = mat?.judul || (mat as any)?.title || 'Materi Hafalan';
+                              const isGraded = (item.stars && item.stars > 0) || item.status === 'Mumtaz (Lulus)' || item.status === 'Lancar';
+                              return (
+                                <div key={item.id} className="pt-2 first:pt-0 flex items-start justify-between gap-3">
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-bold text-slate-800">
+                                        {idx + 1}. {surahName}
+                                      </span>
+                                      <span className="text-[10px] font-black text-amber-600 inline-flex items-center gap-0.5">
+                                        {item.stars || 0} Bintang
+                                      </span>
+                                      <span className="text-[9.5px] text-slate-400 font-medium">
+                                        • {item.evaluationSemester || 'Semester'}
+                                      </span>
+                                    </div>
+                                    {item.catatanGuru ? (
+                                      <p className="text-[11px] text-slate-600 leading-relaxed bg-amber-50/50 p-2 rounded-lg border border-amber-100 italic">
+                                        "{item.catatanGuru}"
+                                      </p>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-400 italic">
+                                        (Catatan guru tidak diberikan)
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => onEvaluateHafalan(item)}
+                                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10.5px] font-bold shrink-0 transition-colors cursor-pointer"
+                                  >
+                                    {isGraded ? 'Ubah Nilai' : 'Beri Nilai'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Card */}
+                    <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpandedStudentHafalanIds(prev => ({
+                            ...prev,
+                            [student.id]: !prev[student.id]
+                          }));
+                        }}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <span>{isExpanded ? 'Tutup Rincian' : `Rincian (${group.items.length})`}</span>
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onPromptPrintRapotHafalan(student)}
+                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="Cetak Buku Rapot Hafalan Santri Ini"
+                      >
+                        <Printer size={13} />
+                        <span>Cetak Rapot Hafalan</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {groupedStudentSubmissions.length === 0 && (
+                <div className="col-span-full bg-white p-12 rounded-3xl border border-dashed border-slate-200 text-center space-y-3">
+                  <Award size={40} className="mx-auto text-slate-300" />
+                  <h3 className="text-sm font-bold text-slate-700">Tidak ada data setoran hafalan</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Tidak ditemukan data setoran santri untuk filter ini.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {paginatedSubmissions.map((p) => {
               const student = studentMap.get(p.studentId);
               const material = materialMap.get(p.materialId);
@@ -826,9 +1083,10 @@ export default function GuruHafalanTab({
               </div>
             )}
           </div>
+          )}
 
           {/* Pagination */}
-          {renderPagination(currentEvalPage, totalEvalPages, setEvalPage, filteredSubmissions.length, evalPerPage)}
+          {evalViewMode === 'per-setoran' && renderPagination(currentEvalPage, totalEvalPages, setEvalPage, filteredSubmissions.length, evalPerPage)}
         </>
       )}
 
@@ -1248,12 +1506,12 @@ export default function GuruHafalanTab({
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                  Catatan Ustadz/Ustadzah
+                  Catatan Ustadz/Ustadzah <span className="text-slate-400 font-normal lowercase">(opsional)</span>
                 </label>
                 <textarea
                   value={directNotes}
                   onChange={(e) => setDirectNotes(e.target.value)}
-                  placeholder="Contoh: Makhraj huruf sangat fasih, hafalan lancar dan tartil..."
+                  placeholder="Contoh: Makhraj huruf sangat fasih, hafalan lancar dan tartil (opsional)..."
                   rows={3}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500"
                 />

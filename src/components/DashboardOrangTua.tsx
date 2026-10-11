@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, setDoc, limit } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,10 +34,11 @@ export default function DashboardOrangTua() {
  useEffect(() => {
  if (!user) return;
 
- const unsubAttendance = onSnapshot(
- query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc')),
- (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
- );
+    const unsubAttendance = onSnapshot(
+      query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc'), limit(100)),
+      (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+      (error) => handleFirestoreError(error, OperationType.LIST, 'attendance')
+    );
 
  const unsubAnnounce = onSnapshot(
  query(collection(db, 'announcements'), orderBy('createdAt', 'desc')),

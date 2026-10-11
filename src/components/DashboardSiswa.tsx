@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, deleteDoc, setDoc, limit } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { Camera, MapPin, Search, Filter, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Edit, Save, X, Menu, Trash2, TrendingUp, BarChart as BarChartIcon, Printer, Star, Megaphone, GraduationCap, AlertCircle, Upload, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, Users, HelpCircle, Info, Share2, Copy, ChevronRight, ChevronDown, Award, Coins, FileCheck, Sparkles, Wallet, Grid as GridIcon, ArrowRight, Lock, MessageCircle, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -811,13 +811,13 @@ export default function DashboardSiswa() {
  useEffect(() => {
  if (!user) return;
 
- const unsubAttendance = onSnapshot(
- query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc')),
- (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
- (error) => {
- handleFirestoreError(error, OperationType.LIST, 'attendance');
- }
- );
+    const unsubAttendance = onSnapshot(
+      query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc'), limit(100)),
+      (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
+      }
+    );
 
  const unsubProgress = onSnapshot(
  query(collection(db, 'progress'), where('studentId', '==', user.uid), orderBy('createdAt', 'desc')),
@@ -935,8 +935,8 @@ export default function DashboardSiswa() {
  const video = videoRef.current;
  const canvas = canvasRef.current;
  
- // Scale down resolution for ultra fast capture & light payload (~40KB)
- const maxDim = 800;
+ // Scale down resolution for ultra fast capture & light payload (~12-15KB)
+ const maxDim = 360;
  let w = video.videoWidth || 640;
  let h = video.videoHeight || 480;
  if (w > h) {
@@ -960,7 +960,7 @@ export default function DashboardSiswa() {
  ctx.translate(w, 0);
  ctx.scale(-1, 1);
  ctx.drawImage(video, 0, 0, w, h);
- const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+ const photoDataUrl = canvas.toDataURL('image/jpeg', 0.5);
 
  // Safely stop stream and clear srcObject before updating state
  if (video.srcObject) {
@@ -1242,8 +1242,15 @@ export default function DashboardSiswa() {
  <span className="text-sm tracking-tight">Kaldik</span>
  </button>
  <button 
+ onClick={() => { navigate('/virtual-office'); setIsSidebarOpen(false); }}
+ className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 mt-4 cursor-pointer active:scale-95 shadow-xs"
+ >
+ <Sparkles size={20} className="text-emerald-600" />
+ <span className="text-sm tracking-tight">Virtual Office 3D</span>
+ </button>
+ <button 
  onClick={() => { navigate('/juknis'); setIsSidebarOpen(false); }}
- className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-4"
+ className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-2"
  >
  <BookOpen size={20} className="text-emerald-600" />
  <span className="text-sm tracking-tight">Juknis Wali Murid</span>
