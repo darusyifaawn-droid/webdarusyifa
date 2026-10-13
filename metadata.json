@@ -1,6 +1,6 @@
 {
-  "name": "RA Darusyifa Arjawinangun Portal",
-  "description": "School Information System and Web Portal for RA Darusyifa Arjawinangun",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "name": "PKG RA - Aplikasi Penilaian Kinerja Guru Raudhatul Athfal",
+  "description": "Aplikasi instrumen Penilaian Kinerja Guru (PKG) Raudhatul Athfal sesuai Kepdirjen Pendis No. 1843 Tahun 2021 dengan perhitungan otomatis dan format siap cetak.",
+  "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

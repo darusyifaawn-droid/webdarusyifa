@@ -1,345 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { LogIn, Mail, Lock, AlertCircle, ArrowLeft, BookOpen, Eye, EyeOff, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { KemenagLogo } from './KemenagLogo';
+import { Lock, User, ShieldCheck, ArrowRight, School, Sparkles } from 'lucide-react';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [logoUrl, setLogoUrl] = useState('');
-  const navigate = useNavigate();
+interface LoginPageProps {
+  onLogin: (user: { name: string; role: string; schoolName: string }) => void;
+  defaultSchoolName?: string;
+  schoolLogoUrl?: string;
+}
 
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
-      if (snap.exists()) {
-        setLogoUrl(snap.data().logoUrl);
-      }
-    }, (error) => {
-      console.error("Error fetching landing page settings:", error);
-    });
-    return () => unsub();
-  }, []);
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onLogin,
+  defaultSchoolName = '',
+  schoolLogoUrl
+}) => {
+  const [username, setUsername] = useState('kepala_ra');
+  const [password, setPassword] = useState('123456');
+  const [role, setRole] = useState<'kepala' | 'pengawas' | 'guru'>('kepala');
+  const [schoolName, setSchoolName] = useState(defaultSchoolName || 'Raudhatul Athfal');
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleUserRedirect(userCredential.user.uid, userCredential.user.email);
-    } catch (error: any) {
-      console.error('Login failed', error);
-      
-      const errorCode = error.code || '';
-      
-      // Auto-create admin account if it doesn't exist
-      if (email === 'darusyifa.awn@gmail.com' && (errorCode === 'auth/invalid-credential' || errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password')) {
-        try {
-          const { createUserWithEmailAndPassword } = await import('firebase/auth');
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          await handleUserRedirect(userCredential.user.uid, userCredential.user.email);
-          return; // Success!
-        } catch (createError: any) {
-          const createErrCode = createError.code || '';
-          if (createErrCode === 'auth/email-already-in-use') {
-            setError('Email sudah terdaftar. Password yang Anda masukkan salah. Gunakan fitur "Lupa Password?" jika perlu.');
-          } else {
-            setError('Masalah kredensial. Periksa kembali email dan password Anda.');
-          }
-          setLoading(false);
-          return;
-        }
-      }
+    const roleLabels = {
+      kepala: 'Kepala Madrasah / RA',
+      pengawas: 'Pengawas / Supervisor',
+      guru: 'Guru Pendidik'
+    };
 
-      if (errorCode === 'auth/operation-not-allowed') {
-        setError('Login dengan Email/Password belum diaktifkan di Firebase Console. Silakan hubungi admin.');
-      } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
-        // Smart Credential Recovery: cek apakah password yang dimasukkan sesuai dengan plainPassword di Firestore
-        const cleanEmail = email.trim().toLowerCase();
-        let healed = false;
-        try {
-          const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            const userDoc = snap.docs[0];
-            const uData = userDoc.data();
-            const storedPassword = uData.plainPassword || uData.password;
-
-            if (storedPassword && storedPassword === password) {
-              if (errorCode === 'auth/user-not-found') {
-                const { createUserWithEmailAndPassword } = await import('firebase/auth');
-                const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-                await handleUserRedirect(userCredential.user.uid, cleanEmail);
-                healed = true;
-                return;
-              } else {
-                const candidates = [
-                  '123456',
-                  'DARUSYIFA123',
-                  uData.previousPassword,
-                  'admin123'
-                ].filter((p): p is string => Boolean(p) && p !== password);
-
-                for (const oldPass of candidates) {
-                  try {
-                    const cred = await signInWithEmailAndPassword(auth, cleanEmail, oldPass);
-                    const { updatePassword } = await import('firebase/auth');
-                    try {
-                      await updatePassword(cred.user, password);
-                    } catch (syncErr) {
-                      console.warn("Could not sync updated password to Auth:", syncErr);
-                    }
-                    await handleUserRedirect(cred.user.uid, cred.user.email);
-                    healed = true;
-                    return;
-                  } catch {
-                    // Coba kandidat berikutnya
-                  }
-                }
-              }
-            }
-          }
-        } catch (recoveryErr) {
-          console.error("Smart login recovery error:", recoveryErr);
-        }
-
-        if (!healed) {
-          setError('Email atau password salah. Pastikan anda sudah terdaftar dan memasukkan password yang benar.');
-        }
-      } else {
-        setError('Gagal masuk. ' + (error.message || 'Coba lagi nanti.'));
-      }
-    } finally {
-      setLoading(false);
-    }
+    onLogin({
+      name: username === 'kepala_ra' ? 'Kepala RA' : username,
+      role: roleLabels[role],
+      schoolName: schoolName || 'Raudhatul Athfal'
+    });
   };
 
-  const handleUserRedirect = async (uid: string, email?: string | null) => {
-    try {
-      console.log("Fetching user doc for uid:", uid);
-      let userDoc = await getDoc(doc(db, 'users', uid));
-      let docId = uid;
+  const handleQuickLogin = (selectedRole: 'kepala' | 'pengawas' | 'guru') => {
+    const roleLabels = {
+      kepala: 'Kepala Madrasah / RA',
+      pengawas: 'Pengawas / Supervisor',
+      guru: 'Guru Pendidik'
+    };
+    const names = {
+      kepala: 'Kepala Madrasah / RA',
+      pengawas: 'Pengawas Pembina',
+      guru: 'Guru RA'
+    };
 
-      // Fallback: If not found by UID, search by email
-      if (!userDoc.exists() && email) {
-        const q = query(collection(db, 'users'), where('email', '==', email));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          userDoc = snap.docs[0];
-          docId = userDoc.id;
-        }
-      }
-      
-      // Auto-create or update super admin
-      if (email === 'darusyifa.awn@gmail.com') {
-        const adminData = { 
-          id: uid,
-          role: 'admin',
-          email: email,
-          name: 'Super Admin',
-          isOnline: true,
-          lastActiveAt: new Date().toISOString(),
-          lastActiveTimestamp: Date.now(),
-          deviceType: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'
-        };
-        try {
-          localStorage.setItem('darusyifa_auth_cache', JSON.stringify(adminData));
-        } catch {}
-        if (!userDoc.exists() || userDoc.data().role !== 'admin') {
-          console.log("Creating/updating super admin doc...");
-          setDoc(doc(db, 'users', uid), { ...adminData, createdAt: new Date() }, { merge: true }).catch(() => {});
-        }
-        navigate('/admin-dashboard', { replace: true });
-        return;
-      }
-
-      if (userDoc.exists()) {
-        const isMobile = typeof window !== 'undefined' && (
-          window.innerWidth < 768 || 
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        );
-
-        // Immediate online status update non-blocking (do NOT wait)
-        updateDoc(doc(db, 'users', docId), {
-          isOnline: true,
-          lastActiveAt: new Date().toISOString(),
-          lastActiveTimestamp: Date.now(),
-          lastActiveDevice: isMobile ? 'Mobile' : 'Desktop',
-          deviceType: isMobile ? 'mobile' : 'desktop'
-        }).catch(() => {});
-
-        const uData = { id: docId, ...userDoc.data() };
-        try {
-          localStorage.setItem('darusyifa_auth_cache', JSON.stringify(uData));
-        } catch {}
-
-        const role = userDoc.data().role;
-        const targetPath = role === 'parent' ? '/parent-dashboard' : `/${role}-dashboard`;
-        navigate(targetPath, { replace: true });
-      } else {
-        await auth.signOut();
-        localStorage.removeItem('darusyifa_auth_cache');
-        setError('Akun Anda belum didaftarkan oleh Admin. Silakan hubungi admin sekolah.');
-      }
-    } catch (err: any) {
-      console.error("Error in handleUserRedirect:", err);
-      throw err;
-    }
+    onLogin({
+      name: names[selectedRole],
+      role: roleLabels[selectedRole],
+      schoolName: schoolName || 'Raudhatul Athfal'
+    });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-100/50 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-50/50 rounded-full blur-3xl" />
-      </div>
-
-      <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] w-full max-w-md border border-slate-100 relative z-10">
-        <div className="text-center mb-10">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-bold text-xs uppercase tracking-widest mb-8 transition-colors group"
-          >
-            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Beranda Utama</span>
-          </Link>
-
-          {logoUrl ? (
-            <div className="w-24 h-24 mx-auto mb-6 overflow-hidden rounded-[2rem] border-4 border-emerald-50 p-2 bg-white shadow-inner">
-              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-slate-900 to-teal-950 flex flex-col justify-center items-center p-4">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-emerald-100 animate-in fade-in zoom-in-95 duration-200">
+        {/* Top Header Card */}
+        <div className="bg-gradient-to-b from-emerald-800 to-emerald-900 p-8 text-center text-white relative">
+          <div className="flex justify-center mb-3">
+            <div className="w-20 h-20 bg-white rounded-2xl p-2 flex items-center justify-center shadow-lg">
+              {schoolLogoUrl && schoolLogoUrl.startsWith('data:image') ? (
+                <img
+                  src={schoolLogoUrl}
+                  alt="Logo Sekolah"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <KemenagLogo size={70} />
+              )}
             </div>
-          ) : (
-            <div className="w-20 h-20 bg-emerald-600 rounded-[2rem] flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-xl shadow-emerald-100">RA</div>
-          )}
-          <h2 className="text-3xl font-display font-extrabold text-slate-800 tracking-tight">Portal Digital</h2>
-          <p className="text-slate-500 text-sm mt-2 font-medium">RA Darusyifa Arjawinangun</p>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">
+            PKG Raudhatul Athfal
+          </h1>
+          <p className="text-xs text-emerald-200 mt-1">
+            Sistem Penilaian Kinerja Guru (Kepdirjen Pendis 1843/2021)
+          </p>
+          <div className="mt-3 inline-block px-3 py-1 bg-emerald-700/60 rounded-full text-[11px] font-semibold text-emerald-100 border border-emerald-600/40">
+            {schoolName}
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm flex gap-3 items-start animate-in fade-in slide-in-from-top-2 duration-300">
-            <AlertCircle className="shrink-0 mt-0.5" size={18} />
-            <span className="font-medium leading-relaxed">{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 ml-4">Alamat Email</label>
-            <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="email@sekolah.com" 
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
-                required 
-              />
+        {/* Login Form Body */}
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Peran Pengguna (Role)
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'kepala', label: 'Kepala RA' },
+                  { id: 'pengawas', label: 'Pengawas' },
+                  { id: 'guru', label: 'Guru' }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setRole(item.id as any)}
+                    className={`py-2 px-2 text-xs font-semibold rounded-xl border transition-all ${
+                      role === item.id
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center ml-4">
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Kata Sandi</label>
-              <button 
-                type="button"
-                onClick={async () => {
-                  if (!email) {
-                    setError('Masukkan email Anda terlebih dahulu untuk mereset password.');
-                    return;
-                  }
-                  try {
-                    const { sendPasswordResetEmail } = await import('firebase/auth');
-                    await sendPasswordResetEmail(auth, email);
-                    setError('Link reset password telah dikirim ke email Anda. Silakan cek inbox/spam.');
-                  } catch (err: any) {
-                    setError('Gagal mengirim link reset password: ' + err.message);
-                  }
-                }}
-                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-tighter"
-              >
-                Lupa Password?
-              </button>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Username / NIP / Email
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none"
+                  placeholder="Masukkan username atau NIP"
+                  required
+                />
+              </div>
             </div>
-            <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
-              <input 
-                type={showPassword ? "text" : "password"} 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="••••••••" 
-                className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
-                required 
-              />
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none"
+                  placeholder="Masukkan password"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 mt-2"
+            >
+              <span>Masuk ke Aplikasi</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+
+          {/* Quick Demo Login */}
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block text-center mb-3">
+              Masuk Cepat 1-Klik (Mode Demo)
+            </span>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 focus:text-emerald-600 transition-colors p-1"
-                title={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
-                aria-label={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
+                onClick={() => handleQuickLogin('kepala')}
+                className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-semibold rounded-lg text-center transition-colors border border-emerald-200"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                Kepala RA
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('pengawas')}
+                className="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-semibold rounded-lg text-center transition-colors border border-blue-200"
+              >
+                Pengawas
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('guru')}
+                className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold rounded-lg text-center transition-colors border border-slate-200"
+              >
+                Guru Kelas
               </button>
             </div>
           </div>
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-emerald-600 text-white py-4 rounded-[1.25rem] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <><LogIn size={20} /> <span className="tracking-tight">Masuk Portal</span></>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-8 border-t border-slate-50 space-y-3">
-          <Link 
-            to="/virtual-office" 
-            className="group flex items-center justify-between p-4 bg-emerald-50/80 hover:bg-emerald-50 rounded-2xl transition-all border border-emerald-200/80 shadow-2xs"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <Sparkles size={20} />
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800/70 leading-none mb-1">Pusat Kendali Operasional</p>
-                <p className="text-xs font-bold text-emerald-900">Virtual Office RA Darusyifa (Hybrid 3D)</p>
-              </div>
-            </div>
-            <ArrowLeft size={16} className="text-emerald-500 rotate-180 group-hover:translate-x-1 transition-transform" />
-          </Link>
-
-          <Link 
-            to="/juknis" 
-            className="group flex items-center justify-between p-4 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl transition-all border border-emerald-100/50"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <BookOpen size={20} />
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800/50 leading-none mb-1">Panduan Pengguna</p>
-                <p className="text-xs font-bold text-emerald-700">Petunjuk Wali Murid</p>
-              </div>
-            </div>
-            <ArrowLeft size={16} className="text-emerald-300 rotate-180 group-hover:translate-x-1 transition-transform" />
-          </Link>
         </div>
 
-        <p className="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          RA Darusyifa Arjawinangun &copy; 2024
-        </p>
+        {/* Footer info */}
+        <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 text-center text-[11px] text-slate-500">
+          Aplikasi Siap Digunakan · Standar Kepdirjen Pendis 1843/2021
+        </div>
       </div>
     </div>
   );
-}
+};
