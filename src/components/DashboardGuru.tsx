@@ -1495,6 +1495,8 @@ export default function DashboardGuru() {
               getAvailableSubjects={getAvailableSubjects}
               getCategorizedSubjects={getCategorizedSubjects}
               schoolClasses={schoolClasses}
+              progress={progress}
+              user={user}
             />
           )}
 
