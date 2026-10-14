@@ -4,11 +4,11 @@ import {
   ArrowDownRight, Wallet, Calendar, Users, RefreshCw, Eye, CheckCircle, 
   FileSpreadsheet, ArrowUpDown, ChevronRight, ChevronLeft, AlertCircle, Sparkles,
   Edit3, Check, X, Send, Upload, Info, TrendingUp, History, CheckCircle2,
-  Trash2, ShieldCheck, Award
+  Trash2, ShieldCheck, Award, FileEdit, Undo2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../../../lib/firebase';
-import { doc, updateDoc, collection, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
 import { formatRupiah } from '../../../lib/salaryUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../../../lib/printUtils';
 
@@ -86,6 +86,27 @@ export default function FinanceTabunganTab({
   const [excelRows, setExcelRows] = useState<ExcelImportRow[]>([]);
   const [excelImporting, setExcelImporting] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ===============================================================
+  // REVISI & KOREKSI STATE
+  // ===============================================================
+  // Modal 1: Revisi Tabungan Siswa (Koreksi Saldo Langsung & Mutasi Siswa)
+  const [showRevisionModal, setShowRevisionModal] = useState<boolean>(false);
+  const [selectedStudentForRevision, setSelectedStudentForRevision] = useState<any>(null);
+  const [revisionSubTab, setRevisionSubTab] = useState<'koreksi' | 'riwayat'>('koreksi');
+  const [newBalanceInput, setNewBalanceInput] = useState<string>('');
+  const [balanceCorrectionNotes, setBalanceCorrectionNotes] = useState<string>('Koreksi salah input tabungan');
+  const [logBalanceAdjustment, setLogBalanceAdjustment] = useState<boolean>(true);
+  const [revisionSaving, setRevisionSaving] = useState<boolean>(false);
+
+  // Modal 2: Edit Transaksi Spesifik
+  const [showEditTxModal, setShowEditTxModal] = useState<boolean>(false);
+  const [editingTx, setEditingTx] = useState<any>(null);
+  const [editTxAmount, setEditTxAmount] = useState<string>('');
+  const [editTxDate, setEditTxDate] = useState<string>(todayStr);
+  const [editTxNotes, setEditTxNotes] = useState<string>('');
+  const [editTxType, setEditTxType] = useState<'tabungan' | 'tabungan_keluar'>('tabungan');
+  const [editTxSaving, setEditTxSaving] = useState<boolean>(false);
 
   // Global saving notification toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -165,7 +186,7 @@ export default function FinanceTabunganTab({
   }, [allSavingsPayments, todayStr]);
 
   // ===============================================================
-  // TOP METRICS CARDS DATA (Matches the 4 Cards in Reference UI)
+  // TOP METRICS CARDS DATA
   // ===============================================================
   // Card 1: Total Saldo Tabungan
   const totalSaldoTabungan = useMemo(() => {
@@ -361,6 +382,168 @@ export default function FinanceTabunganTab({
     }));
   };
 
+  // ===============================================================
+  // REVISI & KOREKSI HANDLERS
+  // ===============================================================
+  
+  // 1. Open Student Revision Modal
+  const handleOpenStudentRevision = (student: any) => {
+    setSelectedStudentForRevision(student);
+    setNewBalanceInput(String(Number(student.savings) || 0));
+    setBalanceCorrectionNotes('Koreksi salah input tabungan');
+    setLogBalanceAdjustment(true);
+    setRevisionSubTab('koreksi');
+    setShowRevisionModal(true);
+  };
+
+  // 2. Save Direct Balance Correction
+  const handleSaveBalanceCorrection = async () => {
+    if (!selectedStudentForRevision) return;
+
+    const newBalance = Number(newBalanceInput);
+    if (isNaN(newBalance) || newBalance < 0) {
+      showToast('Masukkan nominal saldo baru yang valid (minimal Rp 0)!', 'error');
+      return;
+    }
+
+    const currentBalance = Number(selectedStudentForRevision.savings) || 0;
+    const delta = newBalance - currentBalance;
+
+    if (delta === 0) {
+      showToast('Nominal saldo tidak mengalami perubahan.', 'error');
+      return;
+    }
+
+    try {
+      setRevisionSaving(true);
+      const studentRef = doc(db, 'users', selectedStudentForRevision.id);
+      await updateDoc(studentRef, { savings: newBalance });
+
+      // Optionally record adjustment transaction in payments
+      if (logBalanceAdjustment) {
+        await addDoc(collection(db, 'payments'), {
+          studentId: selectedStudentForRevision.id,
+          studentName: selectedStudentForRevision.name,
+          amount: Math.abs(delta),
+          description: `[KOREKSI SALDO] ${balanceCorrectionNotes || 'Penyesuaian saldo tabungan'} (Sebelumnya: ${formatRupiah(currentBalance)})`,
+          type: delta > 0 ? 'tabungan' : 'tabungan_keluar',
+          date: todayStr,
+          adminId: user?.uid || '',
+          adminName: user?.displayName || user?.email || 'Admin Keuangan',
+          method: 'Koreksi',
+          isCorrection: true,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      showToast(`Alhamdulillah! Saldo tabungan ${selectedStudentForRevision.name} berhasil direvisi menjadi ${formatRupiah(newBalance)}.`);
+      setShowRevisionModal(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal merevisi saldo tabungan.', 'error');
+    } finally {
+      setRevisionSaving(false);
+    }
+  };
+
+  // 3. Open Edit Specific Transaction Modal
+  const handleOpenEditTx = (tx: any) => {
+    setEditingTx(tx);
+    setEditTxAmount(String(tx.nominal || tx.amount || 0));
+    setEditTxDate(tx.txDateStr || tx.date || todayStr);
+    setEditTxNotes(tx.description || '');
+    setEditTxType(tx.isOutflow ? 'tabungan_keluar' : 'tabungan');
+    setShowEditTxModal(true);
+  };
+
+  // 4. Save Edit Specific Transaction
+  const handleSaveEditTx = async () => {
+    if (!editingTx) return;
+
+    const newAmountNum = Number(editTxAmount);
+    if (isNaN(newAmountNum) || newAmountNum <= 0) {
+      showToast('Masukkan nominal transaksi yang valid (lebih dari 0)!', 'error');
+      return;
+    }
+
+    const student = studentMap.get(editingTx.studentId);
+    if (!student) {
+      showToast('Data santri tidak ditemukan!', 'error');
+      return;
+    }
+
+    try {
+      setEditTxSaving(true);
+
+      // Calculate the difference impact on student's current savings
+      // Old impact: if was outflow (-oldAmount), if was inflow (+oldAmount)
+      const oldImpact = editingTx.isOutflow ? -editingTx.nominal : editingTx.nominal;
+      // New impact: if now outflow (-newAmount), if now inflow (+newAmount)
+      const newImpact = editTxType === 'tabungan_keluar' ? -newAmountNum : newAmountNum;
+      const delta = newImpact - oldImpact;
+
+      const currentSavings = Number(student.savings) || 0;
+      const updatedSavings = Math.max(0, currentSavings + delta);
+
+      // Update student's savings in users
+      await updateDoc(doc(db, 'users', student.id), { savings: updatedSavings });
+
+      // Update payment doc
+      await updateDoc(doc(db, 'payments', editingTx.id), {
+        amount: newAmountNum,
+        date: editTxDate,
+        description: editTxNotes,
+        type: editTxType,
+        updatedAt: serverTimestamp(),
+        revisedBy: user?.displayName || user?.email || 'Admin Keuangan'
+      });
+
+      showToast(`Transaksi berhasil direvisi! Saldo ${student.name} disesuaikan menjadi ${formatRupiah(updatedSavings)}.`);
+      setShowEditTxModal(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan revisi transaksi.', 'error');
+    } finally {
+      setEditTxSaving(false);
+    }
+  };
+
+  // 5. Delete / Cancel Specific Transaction
+  const handleDeleteTx = async (tx: any) => {
+    const student = studentMap.get(tx.studentId);
+    const actionName = tx.isOutflow ? 'penarikan' : 'setoran';
+    const confirmMsg = `Yakin ingin membatalkan transaksi ${actionName} ${formatRupiah(tx.nominal)} untuk ${tx.studentName}? Saldo tabungan siswa akan dikembalikan secara otomatis.`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // Revert savings
+      if (student) {
+        const currentSavings = Number(student.savings) || 0;
+        // If it was deposit (+), rollback decreases it (-). If it was withdrawal (-), rollback increases it (+).
+        const revertedSavings = tx.isOutflow 
+          ? currentSavings + tx.nominal 
+          : Math.max(0, currentSavings - tx.nominal);
+
+        await updateDoc(doc(db, 'users', student.id), { savings: revertedSavings });
+      }
+
+      // Delete payment doc
+      await deleteDoc(doc(db, 'payments', tx.id));
+
+      showToast(`Transaksi ${formatRupiah(tx.nominal)} dibatalkan dan saldo siswa berhasil dikembalikan.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal membatalkan transaksi.', 'error');
+    }
+  };
+
+  // Transactions belonging to the currently selected student for revision
+  const selectedStudentTransactions = useMemo(() => {
+    if (!selectedStudentForRevision) return [];
+    return allSavingsPayments.filter(p => p.studentId === selectedStudentForRevision.id);
+  }, [allSavingsPayments, selectedStudentForRevision]);
+
   // Batch toggle all visible students
   const handleToggleSelectAll = () => {
     const visibleIds = paginatedStudents.map(s => s.id);
@@ -497,7 +680,6 @@ export default function FinanceTabunganTab({
     }
 
     if (!qiDirectSave) {
-      // Just populate table inputs so user can review and adjust!
       setRowInputs(prev => {
         const next = { ...prev };
         studentsInClass.forEach(s => {
@@ -512,7 +694,6 @@ export default function FinanceTabunganTab({
       if (qiClass !== 'Semua') setSelectedClass(qiClass);
       showToast(`Nominal ${formatRupiah(amountNum)} diisikan ke tabel untuk ${studentsInClass.length} siswa kelas ${qiClass}. Silakan periksa lalu simpan.`);
     } else {
-      // Directly commit to database
       if (!confirm(`Yakin ingin LANGSUNG menyimpan setoran ${formatRupiah(amountNum)} untuk ${studentsInClass.length} siswa kelas ${qiClass}? Total dana: ${formatRupiah(amountNum * studentsInClass.length)}`)) {
         return;
       }
@@ -611,7 +792,6 @@ export default function FinanceTabunganTab({
           const amount = Number(String(amountRaw).replace(/[^0-9]/g, '')) || 0;
           const notes = String(row['Keterangan'] || row['keterangan'] || 'Setoran Tabungan').trim();
 
-          // Find student by NISN, NIS (email), or exact name
           const matched = activeStudents.find(s => {
             const sNisn = String(s.nisn || '').trim();
             const sNis = String(s.email?.split('@')[0] || '').trim();
@@ -738,32 +918,6 @@ export default function FinanceTabunganTab({
       return matchDate && matchClass && matchType && matchSearch;
     }).sort((a, b) => (b.txDateStr || '').localeCompare(a.txDateStr || ''));
   }, [allSavingsPayments, startDate, endDate, selectedClass, selectedTxType, historySearchTerm]);
-
-  const historyStats = useMemo(() => {
-    let totalSetoran = 0;
-    let countSetoran = 0;
-    let totalPenarikan = 0;
-    let countPenarikan = 0;
-
-    filteredSavingsTransactions.forEach(p => {
-      if (p.isOutflow) {
-        totalPenarikan += p.nominal;
-        countPenarikan++;
-      } else {
-        totalSetoran += p.nominal;
-        countSetoran++;
-      }
-    });
-
-    return {
-      totalSetoran,
-      countSetoran,
-      totalPenarikan,
-      countPenarikan,
-      netCashflow: totalSetoran - totalPenarikan,
-      totalTx: filteredSavingsTransactions.length
-    };
-  }, [filteredSavingsTransactions]);
 
   const periodLabel = useMemo(() => {
     if (!startDate && !endDate) return 'Semua Waktu';
@@ -900,7 +1054,7 @@ export default function FinanceTabunganTab({
         className="hidden"
       />
 
-      {/* Header Bar with Breadcrumb (Matches Screenshot Top) */}
+      {/* Header Bar with Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
@@ -911,7 +1065,7 @@ export default function FinanceTabunganTab({
               Tabungan Siswa
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Kelola dan input data tabungan siswa dengan cepat, mudah dan rapi.
+              Kelola dan input data tabungan siswa dengan cepat, mudah, rapi, dan dapat direvisi kapan saja.
             </p>
           </div>
         </div>
@@ -927,7 +1081,7 @@ export default function FinanceTabunganTab({
       </div>
 
       {/* =============================================================== */}
-      {/* 4 TOP STAT CARDS (Matches the 4 stat cards in reference image)  */}
+      {/* 4 TOP STAT CARDS                                                */}
       {/* =============================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -979,7 +1133,7 @@ export default function FinanceTabunganTab({
           </div>
         </div>
 
-        {/* Card 4: Siswa dengan Saldo Terbanyak (Clickable to open Top Savers Modal) */}
+        {/* Card 4: Siswa dengan Saldo Terbanyak */}
         <button
           type="button"
           onClick={() => setShowTopSaversModal(true)}
@@ -1005,7 +1159,7 @@ export default function FinanceTabunganTab({
       </div>
 
       {/* =============================================================== */}
-      {/* MAIN TWO-COLUMN LAYOUT (Matches reference image structure)     */}
+      {/* MAIN TWO-COLUMN LAYOUT                                          */}
       {/* =============================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
@@ -1021,7 +1175,7 @@ export default function FinanceTabunganTab({
               <div>
                 <h2 className="text-lg font-bold text-slate-900 leading-tight">Input Tabungan Siswa</h2>
                 <p className="text-xs text-slate-500 font-medium">
-                  Pilih metode input yang paling sesuai. Anda bisa input satu per satu, pilih banyak sekaligus, atau gunakan fitur import.
+                  Pilih metode input yang paling sesuai. Anda bisa input satu per satu, pilih banyak sekaligus, gunakan fitur import, atau revisi kesalahan input.
                 </p>
               </div>
             </div>
@@ -1083,7 +1237,7 @@ export default function FinanceTabunganTab({
                 }`}
               >
                 <History size={14} className={activeTabMethod === 'history' ? 'text-white' : 'text-slate-500'} />
-                <span>Riwayat Transaksi</span>
+                <span>Riwayat Transaksi & Revisi</span>
               </button>
             </div>
           </div>
@@ -1094,7 +1248,7 @@ export default function FinanceTabunganTab({
           {activeTabMethod !== 'history' && (
             <div className="space-y-4">
               
-              {/* Filter and Search Bar (Matches Screenshot) */}
+              {/* Filter and Search Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2">
                 
                 {/* Search Input */}
@@ -1173,7 +1327,7 @@ export default function FinanceTabunganTab({
 
               </div>
 
-              {/* Batch Action Toolbar Bar (Matches Reference Image) */}
+              {/* Batch Action Toolbar Bar */}
               <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 rounded-2xl border border-slate-200/60">
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
@@ -1255,7 +1409,7 @@ export default function FinanceTabunganTab({
                 </div>
               </div>
 
-              {/* SPREADSHEET TABLE (Pixel-Accurate to Reference Image) */}
+              {/* SPREADSHEET TABLE */}
               <div className="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-2xs">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
@@ -1275,7 +1429,7 @@ export default function FinanceTabunganTab({
                       <th className="py-3 px-3 w-32 text-right">Saldo Saat Ini</th>
                       <th className="py-3 px-3 w-36 text-center">Input Setoran</th>
                       <th className="py-3 px-3 min-w-[160px]">Keterangan</th>
-                      <th className="py-3 px-3 w-24 text-center">Aksi</th>
+                      <th className="py-3 px-3 w-32 text-center">Aksi & Revisi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1286,7 +1440,6 @@ export default function FinanceTabunganTab({
                       const hasDepositedToday = depositedTodayStudentIds.has(student.id);
                       const rowState = rowInputs[student.id] || { amount: '', notes: 'Setoran Tabungan' };
 
-                      // Short class code for badge (e.g. B1, B2, UTSMAN -> B1 / U1)
                       const classBadge = student.kelas?.toLowerCase().includes('utsman') 
                         ? 'B1' 
                         : student.kelas?.toLowerCase().includes('umar') 
@@ -1391,7 +1544,7 @@ export default function FinanceTabunganTab({
                             />
                           </td>
 
-                          {/* Aksi: Green Checkmark & Red X (Matches Screenshot) */}
+                          {/* Aksi: Green Checkmark, Red X, & Amber Edit/Revisi */}
                           <td className="py-3 px-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               {/* Green Check Button */}
@@ -1413,7 +1566,7 @@ export default function FinanceTabunganTab({
                                 )}
                               </button>
 
-                              {/* Red X Button */}
+                              {/* Red X Button (Clear) */}
                               <button
                                 type="button"
                                 onClick={() => handleClearSingleRow(student.id)}
@@ -1421,6 +1574,16 @@ export default function FinanceTabunganTab({
                                 className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-all cursor-pointer"
                               >
                                 <X size={14} className="stroke-[2.5]" />
+                              </button>
+
+                              {/* Amber Revisi / Koreksi Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenStudentRevision(student)}
+                                title="Revisi / Koreksi Tabungan Santri Ini"
+                                className="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                              >
+                                <Edit3 size={14} />
                               </button>
                             </div>
                           </td>
@@ -1439,7 +1602,7 @@ export default function FinanceTabunganTab({
                 </table>
               </div>
 
-              {/* Bottom Pagination Bar (Matches Reference Image) */}
+              {/* Bottom Pagination Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 text-xs text-slate-500 font-medium">
                 <div>
                   Menampilkan {paginatedStudents.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredStudents.length)} dari {filteredStudents.length} data
@@ -1573,7 +1736,7 @@ export default function FinanceTabunganTab({
                       <th className="py-3 px-3 text-right">Nominal</th>
                       <th className="py-3 px-3 text-right">Saldo Saat Itu</th>
                       <th className="py-3 px-4">Keterangan</th>
-                      <th className="py-3 px-3 text-center">Kuitansi</th>
+                      <th className="py-3 px-3 text-center w-28">Aksi & Revisi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1606,16 +1769,48 @@ export default function FinanceTabunganTab({
                         <td className="py-3 px-3 text-right font-medium text-slate-600">
                           {formatRupiah(tx.currentSaving)}
                         </td>
-                        <td className="py-3 px-4 text-slate-500">{tx.description || '-'}</td>
+                        <td className="py-3 px-4 text-slate-500">
+                          {tx.description || '-'}
+                          {tx.revisedBy && (
+                            <span className="block text-[9px] text-amber-600 font-bold mt-0.5">
+                              (Direvisi oleh {tx.revisedBy})
+                            </span>
+                          )}
+                        </td>
+                        
+                        {/* Aksi Kolom Riwayat: Revisi, Batalkan, & Cetak */}
                         <td className="py-3 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handlePrintReceipt(tx)}
-                            className="p-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg text-xs transition-colors cursor-pointer"
-                            title="Cetak Kuitansi"
-                          >
-                            <Printer size={13} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Tombol Revisi Transaksi */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditTx(tx)}
+                              className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs transition-colors cursor-pointer"
+                              title="Revisi Transaksi Ini"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+
+                            {/* Tombol Batalkan / Hapus Transaksi */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTx(tx)}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs transition-colors cursor-pointer"
+                              title="Batalkan / Hapus Transaksi"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+
+                            {/* Tombol Cetak Kuitansi */}
+                            <button
+                              type="button"
+                              onClick={() => handlePrintReceipt(tx)}
+                              className="p-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg text-xs transition-colors cursor-pointer"
+                              title="Cetak Kuitansi"
+                            >
+                              <Printer size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1636,7 +1831,7 @@ export default function FinanceTabunganTab({
 
         </div>
 
-        {/* RIGHT SIDEBAR (3 or 4 cols): Quick Input, Import Excel, Tips (Matches Reference UI) */}
+        {/* RIGHT SIDEBAR (3 or 4 cols): Quick Input, Import Excel, Tips */}
         <div className="lg:col-span-4 xl:col-span-3 space-y-5">
           
           {/* Card 1: ⚡ Quick Input */}
@@ -1778,17 +1973,17 @@ export default function FinanceTabunganTab({
             </div>
           </div>
 
-          {/* Card 3: ℹ Tips (Matches Screenshot) */}
+          {/* Card 3: ℹ Tips */}
           <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-3xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs uppercase tracking-wider">
               <Info size={16} className="text-emerald-700" />
-              <span>Tips Efisiensi</span>
+              <span>Tips & Fitur Revisi</span>
             </div>
 
             <ul className="space-y-2 text-xs text-emerald-950/80 font-medium list-disc list-inside leading-relaxed">
+              <li>Gunakan tombol <b>✏️ Revisi</b> di baris tabel untuk mengoreksi saldo atau membatalkan transaksi salah input.</li>
+              <li>Pada tab <b>Riwayat Transaksi</b>, Anda dapat mengedit atau menghapus transaksi kapan saja; saldo siswa akan disesuaikan otomatis.</li>
               <li>Gunakan fitur <b>Input Massal</b> untuk menghemat waktu input per kelas.</li>
-              <li>Pastikan data NISN sesuai saat upload file Excel.</li>
-              <li>Anda dapat mengubah nominal kapan saja di tabel sebelum disimpan.</li>
               <li>Tekan tombol <b>Enter</b> pada keyboard untuk berpindah ke baris siswa berikutnya dengan sangat cepat.</li>
             </ul>
           </div>
@@ -1798,7 +1993,392 @@ export default function FinanceTabunganTab({
       </div>
 
       {/* =============================================================== */}
-      {/* MODAL: TOP 5 SAVERS (Triggered from Top Stat Card 4)            */}
+      {/* MODAL 1: REVISI TABUNGAN SANTRI (KOREKSI SALDO & RIWAYAT)       */}
+      {/* =============================================================== */}
+      {showRevisionModal && selectedStudentForRevision && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <FileEdit size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Revisi & Koreksi Tabungan</h3>
+                  <p className="text-xs text-slate-400">
+                    Koreksi saldo atau batalkan transaksi yang salah input untuk santri ini
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRevisionModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Student Info Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700 text-sm overflow-hidden">
+                  {selectedStudentForRevision.photoURL ? (
+                    <img src={selectedStudentForRevision.photoURL} alt={selectedStudentForRevision.name} className="w-full h-full object-cover" />
+                  ) : (
+                    selectedStudentForRevision.name?.charAt(0) || 'S'
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">{selectedStudentForRevision.name}</h4>
+                  <p className="text-[11px] text-slate-500">
+                    Kelas: {selectedStudentForRevision.kelas || 'RA'} • NISN: {selectedStudentForRevision.nisn || selectedStudentForRevision.email?.split('@')[0] || '-'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Saldo Saat Ini</span>
+                <p className="text-base font-black text-emerald-700">{formatRupiah(selectedStudentForRevision.savings || 0)}</p>
+              </div>
+            </div>
+
+            {/* Sub-Tabs: Koreksi Saldo vs Riwayat Transaksi */}
+            <div className="flex items-center gap-2 border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setRevisionSubTab('koreksi')}
+                className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  revisionSubTab === 'koreksi'
+                    ? 'border-emerald-600 text-emerald-800'
+                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                <Coins size={14} />
+                <span>Koreksi Saldo Langsung</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRevisionSubTab('riwayat')}
+                className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  revisionSubTab === 'riwayat'
+                    ? 'border-emerald-600 text-emerald-800'
+                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                <History size={14} />
+                <span>Riwayat Mutasi Siswa ({selectedStudentTransactions.length})</span>
+              </button>
+            </div>
+
+            {/* TAB 1: KOREKSI SALDO LANGSUNG */}
+            {revisionSubTab === 'koreksi' && (
+              <div className="space-y-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Saldo Baru yang Benar (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newBalanceInput}
+                    onChange={(e) => setNewBalanceInput(e.target.value)}
+                    placeholder="Contoh: 150000"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-base text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  
+                  {/* Selisih Live Calculation */}
+                  {(() => {
+                    const currentBal = Number(selectedStudentForRevision.savings) || 0;
+                    const newBal = Number(newBalanceInput);
+                    if (!isNaN(newBal) && newBalanceInput !== '') {
+                      const diff = newBal - currentBal;
+                      return (
+                        <div className="mt-2 flex items-center justify-between text-xs p-2 rounded-xl bg-slate-100">
+                          <span className="text-slate-500 font-medium">Perubahan Saldo (Selisih):</span>
+                          <span className={`font-black ${diff > 0 ? 'text-emerald-700' : diff < 0 ? 'text-rose-600' : 'text-slate-600'}`}>
+                            {diff > 0 ? `+${formatRupiah(diff)} (Bertambah)` : diff < 0 ? `-${formatRupiah(Math.abs(diff))} (Berkurang)` : 'Tidak ada perubahan'}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Alasan / Keterangan Koreksi
+                  </label>
+                  <input
+                    type="text"
+                    value={balanceCorrectionNotes}
+                    onChange={(e) => setBalanceCorrectionNotes(e.target.value)}
+                    placeholder="Contoh: Koreksi salah input setoran tanggal kemarin..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={logBalanceAdjustment}
+                    onChange={(e) => setLogBalanceAdjustment(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Catat transaksi penyesuaian di mutasi</p>
+                    <p className="text-[10px] text-slate-400">Akan membuat catatan riwayat penyesuaian agar mutasi tetap seimbang</p>
+                  </div>
+                </label>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowRevisionModal(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveBalanceCorrection}
+                    disabled={revisionSaving}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-200 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {revisionSaving ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Menyimpan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Simpan Revisi Saldo</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: RIWAYAT MUTASI SANTRI & BATALKAN TRANSAKSI */}
+            {revisionSubTab === 'riwayat' && (
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-slate-500">
+                  Berikut daftar mutasi tabungan siswa ini. Klik tombol <b>Edit</b> untuk merevisi nominal/keterangan, atau <b>Hapus</b> untuk membatalkan transaksi yang salah.
+                </p>
+
+                <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1">
+                  {selectedStudentTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="p-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100/70 transition-all flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          tx.isOutflow ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {tx.isOutflow ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-slate-900">{formatRupiah(tx.nominal)}</span>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                              tx.isOutflow ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {tx.isOutflow ? 'Tarik' : 'Setor'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {tx.txDateStr} • {tx.description || 'Setoran Tabungan'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowRevisionModal(false);
+                            handleOpenEditTx(tx);
+                          }}
+                          className="p-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                          title="Revisi Transaksi Ini"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTx(tx)}
+                          className="p-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                          title="Batalkan Transaksi Ini"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {selectedStudentTransactions.length === 0 && (
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      Belum ada catatan mutasi tabungan untuk santri ini.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================== */}
+      {/* MODAL 2: EDIT SPESIFIK TRANSAKSI TABUNGAN                      */}
+      {/* =============================================================== */}
+      {showEditTxModal && editingTx && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <Edit3 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Revisi Transaksi Tabungan</h3>
+                  <p className="text-xs text-slate-400">Edit nominal atau keterangan transaksi yang salah</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditTxModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Info Target Siswa */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <p className="text-xs font-bold text-slate-900">{editingTx.studentName}</p>
+              <p className="text-[11px] text-slate-500">Kelas: {editingTx.studentClass}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  Jenis Transaksi
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditTxType('tabungan')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      editTxType === 'tabungan'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    + Setoran Masuk
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditTxType('tabungan_keluar')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      editTxType === 'tabungan_keluar'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    - Penarikan Keluar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  Nominal Transaksi (Rp)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editTxAmount}
+                  onChange={(e) => setEditTxAmount(e.target.value)}
+                  placeholder="Contoh: 50000"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  Tanggal Transaksi
+                </label>
+                <input
+                  type="date"
+                  value={editTxDate}
+                  onChange={(e) => setEditTxDate(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  Keterangan Revisi
+                </label>
+                <input
+                  type="text"
+                  value={editTxNotes}
+                  onChange={(e) => setEditTxNotes(e.target.value)}
+                  placeholder="Contoh: Koreksi nominal setoran..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800 font-medium">
+                💡 <b>Perhatian:</b> Saldo tabungan santri akan disesuaikan secara otomatis sesuai selisih nominal baru ini.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowEditTxModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditTx}
+                disabled={editTxSaving}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-200 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {editTxSaving ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Simpan Revisi</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================== */}
+      {/* MODAL 3: TOP 5 SAVERS                                           */}
       {/* =============================================================== */}
       {showTopSaversModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1868,7 +2448,7 @@ export default function FinanceTabunganTab({
       )}
 
       {/* =============================================================== */}
-      {/* MODAL: EXCEL IMPORT PREVIEW & CONFIRMATION                       */}
+      {/* MODAL 4: EXCEL IMPORT PREVIEW & CONFIRMATION                    */}
       {/* =============================================================== */}
       {showExcelModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
