@@ -5423,6 +5423,7 @@ export default function DashboardAdmin() {
                     onOpenTabunganModal={() => setShowTabunganModal(true)}
                     handlePrintReceipt={handlePrintReceipt}
                     settings={settings}
+                    user={user}
                   />
                 )}
 
