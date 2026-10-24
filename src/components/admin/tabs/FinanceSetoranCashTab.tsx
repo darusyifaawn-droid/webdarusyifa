@@ -109,21 +109,11 @@ export default function FinanceSetoranCashTab({
     directVerifyTreasurer: true
   });
 
-  // Dynamic Categories pulled from iuranCategories, payments, and system defaults
+  // Dynamic Categories pulled directly from Manajemen Grup Iuran (iuranCategories)
   const dynamicCategories = useMemo(() => {
-    const list: { id: string; label: string; desc: string }[] = [
-      { id: 'Tabungan', label: 'Tabungan', desc: 'Setoran uang tabungan siswa' },
-      { id: 'Iuran Bulanan / SPP', label: 'Iuran Bulanan / SPP', desc: 'Setoran SPP / iuran rutin bulanan' },
-      { id: 'Uang Kegiatan', label: 'Uang Kegiatan / Event', desc: 'Setoran kegiatan, field trip, perpisahan' },
-      { id: 'PPDB / Pendaftaran', label: 'PPDB / Pendaftaran', desc: 'Setoran formulir & uang pendaftaran siswa baru' },
-      { id: 'Penjualan Buku / Seragam', label: 'Penjualan Buku / Seragam', desc: 'Setoran pembelian atribut & seragam' },
-      { id: 'Infaq / Shodaqoh', label: 'Infaq / Shodaqoh / Donasi', desc: 'Setoran infaq Jumat / shodaqoh sukarela' },
-    ];
-
     const categoryMap = new Map<string, { id: string; label: string; desc: string }>();
-    list.forEach(item => categoryMap.set(item.id.toLowerCase(), item));
+    categoryMap.set('tabungan', { id: 'Tabungan', label: 'Tabungan', desc: 'Setoran uang tabungan siswa' });
 
-    // Tarik data dari data iuran keuangan (iuranCategories)
     if (iuranCategories && Array.isArray(iuranCategories)) {
       iuranCategories.forEach((cat: any) => {
         const name = (typeof cat === 'string' ? cat : cat.name || '').trim();
@@ -137,19 +127,6 @@ export default function FinanceSetoranCashTab({
       });
     }
 
-    // Tarik data kategori dari riwayat pembayaran cash jika ada
-    payments.forEach((p: any) => {
-      const catName = (p.category || p.iuranName || '').trim();
-      if (catName && !categoryMap.has(catName.toLowerCase()) && !catName.toLowerCase().includes('tabungan_')) {
-        categoryMap.set(catName.toLowerCase(), {
-          id: catName,
-          label: catName,
-          desc: `Kategori pembayaran: ${catName}`
-        });
-      }
-    });
-
-    // Tambahkan opsi Lainnya
     if (!categoryMap.has('lainnya')) {
       categoryMap.set('lainnya', {
         id: 'Lainnya',
@@ -159,7 +136,7 @@ export default function FinanceSetoranCashTab({
     }
 
     return Array.from(categoryMap.values());
-  }, [iuranCategories, payments]);
+  }, [iuranCategories]);
 
   // Dynamic School Class Sources
   const availableClassSources = useMemo(() => {

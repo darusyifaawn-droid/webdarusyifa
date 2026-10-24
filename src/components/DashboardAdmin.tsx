@@ -320,31 +320,52 @@ export default function DashboardAdmin() {
     const c = (cat || '').toLowerCase().trim();
     const n = (name || '').toLowerCase().trim();
     const d = (desc || '').toLowerCase().trim();
+    const combined = `${c} ${n} ${d}`;
 
-    // Specific category protections to avoid false-matching generic activities
     if (f.includes('manasik')) {
-      return c.includes('manasik') || n.includes('manasik') || d.includes('manasik');
+      return combined.includes('manasik') || (f.includes('outing') && combined.includes('outing'));
     }
     if (f.includes('maulid')) {
-      return c.includes('maulid') || n.includes('maulid') || d.includes('maulid');
+      return combined.includes('maulid');
     }
     if (f.includes('hut ri') || f.includes('17 agustus')) {
-      return c.includes('hut ri') || n.includes('hut ri') || d.includes('hut ri') || c.includes('17 agustus') || n.includes('17 agustus') || d.includes('17 agustus');
+      return combined.includes('hut ri') || combined.includes('17 agustus') || combined.includes('kemerdekaan');
     }
-    if (f.includes('ppdb') || f.includes('pendaftaran')) {
-      return c.includes('ppdb') || n.includes('ppdb') || d.includes('ppdb') || c.includes('daftar') || n.includes('daftar') || d.includes('daftar');
+    if (f.includes('ppdb') || f.includes('pendaftaran') || f.includes('formulir')) {
+      return combined.includes('ppdb') || combined.includes('pendaftaran') || combined.includes('formulir') || combined.includes('daftar');
     }
     if (f.includes('buku')) {
-      return c.includes('buku') || n.includes('buku') || d.includes('buku');
+      return combined.includes('buku');
+    }
+    if (f.includes('pts') || f.includes('uts')) {
+      return combined.includes('pts') || combined.includes('uts') || combined.includes('tengah semester');
     }
 
-    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum']);
-    if (c === f) return true;
-    if (c && c.includes(f)) return true;
+    const months = [
+      'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
+      'januari', 'februari', 'maret', 'april', 'mei', 'juni'
+    ];
+    for (const m of months) {
+      if (f.includes(m)) {
+        if (!combined.includes(m)) return false;
+        const nonSPPWords = ['manasik', 'maulid', 'hut ri', '17 agustus', 'ppdb', 'daftar', 'buku', 'dsp', 'gedung', 'sarana', 'infaq', 'shodaqoh', 'wisuda', 'pts', 'uts'];
+        if (nonSPPWords.some(w => combined.includes(w))) return false;
+        return combined.includes('spp') || combined.includes('bulanan') || combined.includes('iuran') || c === 'spp';
+      }
+    }
+
+    if (f.includes('dsp') || f.includes('gedung') || f.includes('sarana')) {
+      return combined.includes('dsp') || combined.includes('gedung') || combined.includes('sarana');
+    }
+    if (f.includes('infaq') || f.includes('shodaqoh') || f.includes('sedekah')) {
+      return combined.includes('infaq') || combined.includes('shodaqoh') || combined.includes('sedekah');
+    }
+
+    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum', 'spp', 'tagihan', 'pembayaran']);
+    if (c === f || (c && c.includes(f))) return true;
     if (c && !genericWords.has(c) && f.includes(c)) return true;
 
-    if (n === f) return true;
-    if (n && n.includes(f)) return true;
+    if (n === f || (n && n.includes(f))) return true;
     if (n && !genericWords.has(n) && f.includes(n)) return true;
 
     if (d && (d === f || d.includes(f))) return true;
@@ -438,7 +459,6 @@ export default function DashboardAdmin() {
     let paidCash = 0;
     let paidTransfer = 0;
     let paidTabungan = 0;
-    let hasCategoryPayment = false;
 
     payments.forEach(p => {
       if (p.studentId !== u.id) return;
@@ -456,7 +476,6 @@ export default function DashboardAdmin() {
       if (match) {
         const amt = Number(p.amount || 0);
         filteredPaid += amt;
-        hasCategoryPayment = true;
 
         const m = (p.method || '').toLowerCase();
         if (m === 'transfer') {
@@ -482,22 +501,16 @@ export default function DashboardAdmin() {
 
     let hideByFilter = false;
 
-    // When category is filtered, exclude students that have 0 obligations (neither arrears nor payments in that category)
-    if (filterFinanceCategory) {
-      if (!hasCategoryArrear && !hasCategoryPayment) {
-        hideByFilter = true;
-      }
-    }
-
-    // When payment method is filtered, only show students with payments matching the method (or arrears in category)
-    if (filterFinanceMethod && filteredPaid === 0 && !hasCategoryArrear) {
-      hideByFilter = true;
+    // Filter Metode Bayar
+    if (filterFinanceMethod) {
+      if (filterFinanceMethod === 'Tunai' && paidCash === 0) hideByFilter = true;
+      else if (filterFinanceMethod === 'Transfer' && paidTransfer === 0) hideByFilter = true;
+      else if (filterFinanceMethod === 'Tabungan' && paidTabungan === 0) hideByFilter = true;
     }
 
     // Status filter (Lunas / Menunggak)
     if (filterKeuanganStatus === 'lunas') {
       if (filteredArrears > 0) hideByFilter = true;
-      if (filterFinanceCategory && filteredPaid === 0 && filteredArrears === 0) hideByFilter = true;
     } else if (filterKeuanganStatus === 'menunggak') {
       if (filteredArrears === 0) hideByFilter = true;
     }
@@ -741,8 +754,14 @@ export default function DashboardAdmin() {
     handleFirestoreError(error, OperationType.LIST, 'exams');
   });
 
-  const unsubPayments = onSnapshot(query(collection(db, 'payments'), orderBy('createdAt', 'desc'), limit(500)), (snapshot) => {
-    setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  const unsubPayments = onSnapshot(collection(db, 'payments'), (snapshot) => {
+    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    docs.sort((a: any, b: any) => {
+      const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.date ? new Date(a.date).getTime() : 0);
+      const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.date ? new Date(b.date).getTime() : 0);
+      return timeB - timeA;
+    });
+    setPayments(docs);
   }, (error) => {
     handleFirestoreError(error, OperationType.LIST, 'payments');
   });
@@ -2241,6 +2260,8 @@ export default function DashboardAdmin() {
         method: method,
         status: isLunas ? 'lunas' : 'cicilan',
         type: 'pembayaran',
+        iuranCategory: detail.category || filterFinanceCategory || 'Umum',
+        iuranName: detail.name,
         createdAt: serverTimestamp(),
         date: new Date().toISOString().split('T')[0]
       });
@@ -3490,19 +3511,6 @@ export default function DashboardAdmin() {
             <Home size={18} className={activeTab === 'overview' ? 'text-white' : 'text-slate-400'} />
             <span className="tracking-tight text-xs">Dashboard</span>
           </button>
-
-          <button
-            onClick={() => { navigate('/virtual-office'); setIsSidebarOpen(false); }}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl font-bold text-xs transition-all bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 cursor-pointer shadow-2xs"
-          >
-            <div className="flex items-center gap-3">
-              <Sparkles size={16} className="text-emerald-600" />
-              <span className="tracking-tight text-xs">Virtual Office 3D</span>
-            </div>
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-emerald-600 text-white">
-              BARU
-            </span>
-          </button>
         </div>
 
         {/* Group: Data & Informasi */}
@@ -3898,16 +3906,6 @@ export default function DashboardAdmin() {
                 })()}
               </span>
             </div>
-
-            {/* Virtual Office 3D Shortcut */}
-            <button
-              onClick={() => navigate('/virtual-office')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all border border-emerald-200/80 cursor-pointer shadow-2xs active:scale-95"
-              title="Buka Pusat Kendali Virtual Office 3D RA Darusyifa"
-            >
-              <Sparkles size={14} className="text-emerald-600" />
-              <span>Virtual Office 3D</span>
-            </button>
 
             {/* Notification Bell */}
             <button 
@@ -6782,60 +6780,44 @@ export default function DashboardAdmin() {
                       </span>
                     </div>
                   </div>
-                  <div className="divide-y divide-gray-50 max-h-[350px] overflow-y-auto custom-scrollbar">
-                    {(selectedStudentForFinance.arrears_details || []).length === 0 ? (
-                      selectedStudentForFinance.arrears > 0 ? (
-                        <div className="p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-50/40 border border-amber-100 rounded-2xl m-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
-                              !
-                            </div>
-                            <div>
-                              <p className="font-black text-gray-800 text-xs sm:text-sm uppercase tracking-tight">Tunggakan Umum Siswa</p>
-                              <p className="text-[10px] text-amber-700 font-bold mt-0.5">Total tunggakan aktif yang belum dirinci per pos</p>
-                            </div>
+                  <div className="divide-y divide-gray-50 max-h-[380px] overflow-y-auto custom-scrollbar">
+                    {(() => {
+                      const details = [...(selectedStudentForFinance.arrears_details || [])];
+                      if (filterFinanceCategory) {
+                        const hasMatch = details.some((d: any) => isFinanceCategoryMatch(d.category, d.name, '', filterFinanceCategory));
+                        if (!hasMatch && (selectedStudentForFinance.viewArrears || 0) > 0) {
+                          details.push({
+                            id: `cat-${filterFinanceCategory}`,
+                            name: filterFinanceCategory,
+                            category: filterFinanceCategory,
+                            amount: selectedStudentForFinance.viewArrears,
+                            date: 'Tagihan Aktif'
+                          });
+                        }
+                      }
+                      if (details.length === 0) {
+                        const remaining = selectedStudentForFinance.viewArrears !== undefined ? selectedStudentForFinance.viewArrears : (selectedStudentForFinance.arrears || 0);
+                        if (remaining > 0) {
+                          details.push({
+                            id: 'general',
+                            name: filterFinanceCategory ? `Tagihan ${filterFinanceCategory}` : 'Tunggakan Siswa',
+                            category: filterFinanceCategory || 'Umum',
+                            amount: remaining,
+                            date: 'Tagihan Aktif'
+                          });
+                        }
+                      }
+
+                      if (details.length === 0) {
+                        return (
+                          <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
+                            Tidak ada tagihan aktif
                           </div>
-                          <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-center">
-                            <div className="text-right">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Total Tagihan</p>
-                              <p className="font-black text-red-500 text-sm sm:text-base">Rp {Number(selectedStudentForFinance.arrears).toLocaleString('id-ID')}</p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <button 
-                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Tunai')}
-                                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-emerald-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
-                                title="Bayar secara Tunai"
-                              >
-                                <Banknote size={12} />
-                                Bayar Tunai
-                              </button>
-                              <button 
-                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Transfer')}
-                                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-blue-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
-                                title="Bayar secara Transfer Bank"
-                              >
-                                <ArrowRight size={12} />
-                                Bayar Transfer
-                              </button>
-                              <button 
-                                onClick={() => handleOneClickPayment(selectedStudentForFinance, { id: 'general', name: 'Tunggakan Siswa', amount: selectedStudentForFinance.arrears }, 'Tabungan')}
-                                className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-amber-200 shrink-0 flex items-center gap-1 active:scale-95 shadow-2xs cursor-pointer"
-                                title={`Bayar menggunakan Saldo Tabungan (Saldo: Rp ${Number(selectedStudentForFinance.savings || 0).toLocaleString('id-ID')})`}
-                              >
-                                <Wallet size={12} className="text-amber-600" />
-                                Bayar Tabungan
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-12 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
-                          Tidak ada tagihan aktif
-                        </div>
-                      )
-                    ) : (
-                      selectedStudentForFinance.arrears_details.map((item: any, i: number) => (
-                        <div key={i} className="px-6 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                        );
+                      }
+
+                      return details.map((item: any, i: number) => (
+                        <div key={item.id || i} className="px-6 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                             <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400 shrink-0">
                               {i + 1}
@@ -6847,7 +6829,7 @@ export default function DashboardAdmin() {
                           </div>
                           <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-center shrink-0">
                             <div className="text-right">
-                              <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Nominal</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Nominal</p>
                               <p className="font-black text-red-500 text-xs sm:text-sm uppercase">Rp {Number(item.amount).toLocaleString('id-ID')}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -6878,8 +6860,8 @@ export default function DashboardAdmin() {
                             </div>
                           </div>
                         </div>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </div>
                 </div>
                 
@@ -6890,16 +6872,16 @@ export default function DashboardAdmin() {
                       <div className="w-8 h-8 bg-white text-slate-400 rounded-lg flex items-center justify-center border border-slate-100">
                         <HistoryIcon size={16} />
                       </div>
-                      <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Terakhir</h4>
+                      <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest">Riwayat Transaksi Lengkap</h4>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    {payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).length === 0 ? (
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
+                    {payments.filter(p => p.studentId === selectedStudentForFinance.id).length === 0 ? (
                       <div className="p-8 text-center text-gray-300 font-black text-[10px] uppercase tracking-widest italic opacity-40">
                         Belum ada riwayat transaksi
                       </div>
                     ) : (
-                      payments.filter(p => p.studentId === selectedStudentForFinance.id).slice(0, 10).map(p => (
+                      payments.filter(p => p.studentId === selectedStudentForFinance.id).map(p => (
                         <div key={p.id} className="bg-white p-4 rounded-2xl border border-white flex items-center justify-between shadow-sm">
                           <div className="flex items-center gap-4">
                             <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>

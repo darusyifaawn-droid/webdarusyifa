@@ -1244,13 +1244,6 @@ export default function DashboardSiswa() {
  <span className="text-sm tracking-tight">Kaldik</span>
  </button>
  <button 
- onClick={() => { navigate('/virtual-office'); setIsSidebarOpen(false); }}
- className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 mt-4 cursor-pointer active:scale-95 shadow-xs"
- >
- <Sparkles size={20} className="text-emerald-600" />
- <span className="text-sm tracking-tight">Virtual Office 3D</span>
- </button>
- <button 
  onClick={() => { navigate('/juknis'); setIsSidebarOpen(false); }}
  className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-2"
  >

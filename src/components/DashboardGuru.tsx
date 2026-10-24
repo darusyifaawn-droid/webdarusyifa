@@ -1331,16 +1331,6 @@ export default function DashboardGuru() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Virtual Office 3D Shortcut */}
-            <button
-              onClick={() => navigate('/virtual-office')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all border border-emerald-200/80 cursor-pointer shadow-2xs active:scale-95"
-              title="Buka Pusat Kendali Virtual Office 3D RA Darusyifa"
-            >
-              <Sparkles size={14} className="text-emerald-600" />
-              <span>Virtual Office 3D</span>
-            </button>
-
             {/* Notification Bell */}
             <button
               onClick={() => setActiveTab('announcements')}

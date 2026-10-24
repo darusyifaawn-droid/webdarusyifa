@@ -216,7 +216,7 @@ export default function FinanceSetoranReconciliation({
       if (f.includes(m)) {
         if (!combined.includes(m)) return false;
         // Kecualikan transaksi pos acara non-SPP yang kebetulan menyebut nama bulan
-        const nonSPPWords = ['manasik', 'maulid', 'hut ri', '17 agustus', 'ppdb', 'daftar', 'buku', 'dsp', 'gedung', 'sarana', 'infaq', 'shodaqoh', 'wisuda'];
+        const nonSPPWords = ['manasik', 'maulid', 'hut ri', '17 agustus', 'ppdb', 'daftar', 'buku', 'dsp', 'gedung', 'sarana', 'infaq', 'shodaqoh', 'wisuda', 'pts', 'uts'];
         if (nonSPPWords.some(w => combined.includes(w))) return false;
         return combined.includes('spp') || combined.includes('bulanan') || combined.includes('iuran') || c === 'spp';
       }
@@ -233,7 +233,7 @@ export default function FinanceSetoranReconciliation({
     }
 
     // 10. General / Kategori Kustom lainnya
-    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum']);
+    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum', 'spp', 'tagihan', 'pembayaran']);
     if (c === f || (c && c.includes(f))) return true;
     if (c && !genericWords.has(c) && f.includes(c)) return true;
 
@@ -442,14 +442,13 @@ export default function FinanceSetoranReconciliation({
       }
     });
 
-    // 2. REKONSILIASI KATEGORI IURAN RESMI (Persis Sesuai Dropdown Laporan Rekap Keuangan)
-    // Berdasarkan gambar resmi sistem: BUKU LANJUTAN, HUT RI 17 AGUSTUS, MANASIK HAJI & OUTING CLASS, MAULID NABI MUHAMMAD SAW, PPDB, PTS GANJIL, SPP AGUSTUS, SPP JULI, SPP OKTOBER, SPP SEPTEMBER
-    const canonicalCategories: { id: string; name: string; group: 'SPP Bulanan' | 'Non-SPP / Kegiatan'; monthKeyword?: string }[] = [
+    // 2. REKONSILIASI KATEGORI IURAN RESMI (Murni dari Manajemen Grup Iuran & Sinkron 100% dengan Laporan Rekap)
+    const fallbackCategories: { id: string; name: string; group: 'SPP Bulanan' | 'Non-SPP / Kegiatan' }[] = [
       { id: 'manasik_haji_outing_class', name: 'MANASIK HAJI & OUTING CLASS', group: 'Non-SPP / Kegiatan' },
-      { id: 'spp_oktober', name: 'SPP OKTOBER', group: 'SPP Bulanan', monthKeyword: 'oktober' },
-      { id: 'spp_september', name: 'SPP SEPTEMBER', group: 'SPP Bulanan', monthKeyword: 'september' },
-      { id: 'spp_agustus', name: 'SPP AGUSTUS', group: 'SPP Bulanan', monthKeyword: 'agustus' },
-      { id: 'spp_juli', name: 'SPP JULI', group: 'SPP Bulanan', monthKeyword: 'juli' },
+      { id: 'spp_oktober', name: 'SPP OKTOBER', group: 'SPP Bulanan' },
+      { id: 'spp_september', name: 'SPP SEPTEMBER', group: 'SPP Bulanan' },
+      { id: 'spp_agustus', name: 'SPP AGUSTUS', group: 'SPP Bulanan' },
+      { id: 'spp_juli', name: 'SPP JULI', group: 'SPP Bulanan' },
       { id: 'pts_ganjil', name: 'PTS GANJIL', group: 'Non-SPP / Kegiatan' },
       { id: 'maulid_nabi', name: 'MAULID NABI MUHAMMAD SAW', group: 'Non-SPP / Kegiatan' },
       { id: 'hut_ri_17_agustus', name: 'HUT RI 17 AGUSTUS', group: 'Non-SPP / Kegiatan' },
@@ -457,46 +456,28 @@ export default function FinanceSetoranReconciliation({
       { id: 'ppdb', name: 'PPDB', group: 'Non-SPP / Kegiatan' },
     ];
 
-    // Sisipkan kategori lain dari Firestore iuranCategories jika ada yang belum tercakup
-    const categoriesToProcess = [...canonicalCategories];
-    if (iuranCategories && Array.isArray(iuranCategories)) {
+    const categoriesToProcess: { id: string; name: string; group: 'SPP Bulanan' | 'Non-SPP / Kegiatan' }[] = [];
+    if (iuranCategories && Array.isArray(iuranCategories) && iuranCategories.length > 0) {
       iuranCategories.forEach((cat: any) => {
         const catName = (typeof cat === 'string' ? cat : cat.name || '').trim();
         if (catName && !catName.toLowerCase().includes('tabung')) {
           const upper = catName.toUpperCase();
-          const already = categoriesToProcess.some(c => 
-            c.name.toUpperCase() === upper || 
-            (upper.includes('MANASIK') && c.id === 'manasik_haji_outing_class') ||
-            (upper.includes('HUT RI') && c.id === 'hut_ri_17_agustus') ||
-            (upper.includes('MAULID') && c.id === 'maulid_nabi') ||
-            (upper.includes('BUKU') && c.id === 'buku_lanjutan') ||
-            (upper.includes('PPDB') && c.id === 'ppdb') ||
-            (upper.includes('PTS') && c.id === 'pts_ganjil')
-          );
-          if (!already) {
-            const isSPP = upper.includes('SPP') || upper.includes('BULANAN');
-            const cleanId = catName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            categoriesToProcess.push({
-              id: cleanId,
-              name: catName,
-              group: isSPP ? 'SPP Bulanan' : 'Non-SPP / Kegiatan'
-            });
-          }
+          const isSPP = upper.includes('SPP') || upper.includes('BULANAN');
+          const cleanId = cat.id || catName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          categoriesToProcess.push({
+            id: cleanId,
+            name: catName,
+            group: isSPP ? 'SPP Bulanan' : 'Non-SPP / Kegiatan'
+          });
         }
       });
+    } else {
+      categoriesToProcess.push(...fallbackCategories);
     }
 
-    // Proses setiap kategori secara akurat
+    // Proses setiap kategori secara akurat (100% sinkron dengan Laporan Rekap)
     categoriesToProcess.forEach(cat => {
-      const isSPP = cat.group === 'SPP Bulanan';
-      const isManasik = cat.name.toUpperCase().includes('MANASIK') || cat.id === 'manasik_haji_outing_class';
       const catName = cat.name.trim();
-
-      // Nominal Standar Resmi:
-      // SPP: Rp 50.000 / siswa
-      // Manasik: Rp 200.000 / siswa (instruksi langsung dari user: tagihan manasik kan 200.000)
-      const defaultSPPAmount = 50000;
-      const defaultManasikAmount = 200000;
 
       const studentsList: StudentBillingStatus[] = [];
       let totalPaidCashForCat = 0;
@@ -551,7 +532,7 @@ export default function FinanceSetoranReconciliation({
 
         const stPaidTotal = stPaidCash + stPaidTransfer + stPaidTabungan;
 
-        // 2. Ambil tunggakan riil siswa dari arrears_details
+        // 2. Ambil tunggakan riil siswa dari arrears_details (murni data database asli)
         let recordedArrearsAmount = 0;
         (st.arrears_details || []).forEach((a: any) => {
           if (isFinanceCategoryMatch(a.category, a.name, '', catName)) {
@@ -559,38 +540,11 @@ export default function FinanceSetoranReconciliation({
           }
         });
 
-        let stUnpaidAmount = 0;
-        let stTargetAmount = 0;
+        const stUnpaidAmount = recordedArrearsAmount;
+        const stTargetAmount = stPaidTotal + stUnpaidAmount;
         let stStatus: StudentBillingStatus['status'] = 'lunas';
 
-        if (isManasik) {
-          // KHUSUS MANASIK HAJI: Kewajiban resmi Rp 200.000 / siswa
-          stTargetAmount = defaultManasikAmount;
-          if (recordedArrearsAmount > 0) {
-            stUnpaidAmount = recordedArrearsAmount;
-          } else if (stPaidTotal >= defaultManasikAmount) {
-            stUnpaidAmount = 0;
-          } else {
-            // Siswa belum lunas Manasik Haji
-            stUnpaidAmount = Math.max(0, defaultManasikAmount - stPaidTotal);
-          }
-        } else if (isSPP) {
-          // SPP Bulanan: Kewajiban standar Rp 50.000 / siswa
-          stTargetAmount = defaultSPPAmount;
-          if (recordedArrearsAmount > 0) {
-            stUnpaidAmount = recordedArrearsAmount;
-          } else if (stPaidTotal >= defaultSPPAmount) {
-            stUnpaidAmount = 0;
-          } else {
-            stUnpaidAmount = Math.max(0, defaultSPPAmount - stPaidTotal);
-          }
-        } else {
-          // Non-SPP Lainnya (PPDB, Buku Lanjutan, Maulid, HUT RI, PTS, dll)
-          stUnpaidAmount = recordedArrearsAmount;
-          stTargetAmount = stPaidTotal + stUnpaidAmount;
-        }
-
-        // Tentukan Status Siswa
+        // Tentukan Status Siswa (sinkron 1:1 dengan Laporan Rekap)
         if (stUnpaidAmount > 0 && stPaidTotal > 0) {
           stStatus = 'sebagian';
           partialCount++;
@@ -599,7 +553,7 @@ export default function FinanceSetoranReconciliation({
           unpaidCount++;
         } else {
           stStatus = 'lunas';
-          if (stTargetAmount > 0 || stPaidTotal > 0) paidCount++;
+          paidCount++;
         }
 
         totalPaidCashForCat += stPaidCash;

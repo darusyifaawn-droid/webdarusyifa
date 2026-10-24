@@ -304,22 +304,6 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-8 border-t border-slate-50 space-y-3">
           <Link 
-            to="/virtual-office" 
-            className="group flex items-center justify-between p-4 bg-emerald-50/80 hover:bg-emerald-50 rounded-2xl transition-all border border-emerald-200/80 shadow-2xs"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <Sparkles size={20} />
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800/70 leading-none mb-1">Pusat Kendali Operasional</p>
-                <p className="text-xs font-bold text-emerald-900">Virtual Office RA Darusyifa (Hybrid 3D)</p>
-              </div>
-            </div>
-            <ArrowLeft size={16} className="text-emerald-500 rotate-180 group-hover:translate-x-1 transition-transform" />
-          </Link>
-
-          <Link 
             to="/juknis" 
             className="group flex items-center justify-between p-4 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl transition-all border border-emerald-100/50"
           >
