@@ -321,8 +321,32 @@ export default function DashboardAdmin() {
     const n = (name || '').toLowerCase().trim();
     const d = (desc || '').toLowerCase().trim();
 
-    if (c && (c === f || c.includes(f) || (f.length >= 3 && f.includes(c)))) return true;
-    if (n && (n === f || n.includes(f) || (f.length >= 3 && f.includes(n)))) return true;
+    // Specific category protections to avoid false-matching generic activities
+    if (f.includes('manasik')) {
+      return c.includes('manasik') || n.includes('manasik') || d.includes('manasik');
+    }
+    if (f.includes('maulid')) {
+      return c.includes('maulid') || n.includes('maulid') || d.includes('maulid');
+    }
+    if (f.includes('hut ri') || f.includes('17 agustus')) {
+      return c.includes('hut ri') || n.includes('hut ri') || d.includes('hut ri') || c.includes('17 agustus') || n.includes('17 agustus') || d.includes('17 agustus');
+    }
+    if (f.includes('ppdb') || f.includes('pendaftaran')) {
+      return c.includes('ppdb') || n.includes('ppdb') || d.includes('ppdb') || c.includes('daftar') || n.includes('daftar') || d.includes('daftar');
+    }
+    if (f.includes('buku')) {
+      return c.includes('buku') || n.includes('buku') || d.includes('buku');
+    }
+
+    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum']);
+    if (c === f) return true;
+    if (c && c.includes(f)) return true;
+    if (c && !genericWords.has(c) && f.includes(c)) return true;
+
+    if (n === f) return true;
+    if (n && n.includes(f)) return true;
+    if (n && !genericWords.has(n) && f.includes(n)) return true;
+
     if (d && (d === f || d.includes(f))) return true;
 
     return false;

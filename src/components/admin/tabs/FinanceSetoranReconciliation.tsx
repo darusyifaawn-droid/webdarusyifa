@@ -34,6 +34,7 @@ export interface StudentBillingStatus {
   paidAmount: number;
   paidCash: number;
   paidTransfer: number;
+  paidTabungan: number;
   unpaidAmount: number;
   status: 'lunas' | 'sebagian' | 'belum_bayar';
   paymentMethod?: string;
@@ -48,6 +49,7 @@ export interface CategoryReconciliation {
   totalTarget: number;
   totalPaidCash: number;
   totalPaidTransfer: number;
+  totalPaidTabungan: number;
   totalPaidAll: number;
   totalUnpaidStudentsAmount: number;
   allStudentsCount: number;
@@ -139,19 +141,177 @@ export default function FinanceSetoranReconciliation({
     return map;
   }, [activeStudents]);
 
-  // Helper cek pembayaran tunai
-  const isPaymentCash = (p: any) => {
-    if (p.status === 'ditolak' || p.status === 'rejected') return false;
-    const method = (p.paymentMethod || p.method || '').toLowerCase();
-    if (!method) return true;
-    return method === 'tunai' || method === 'cash';
+  // Helper parse rincian metode pembayaran siswa
+  const parsePaymentMethod = (p: any) => {
+    if (p.status === 'ditolak' || p.status === 'rejected' || p.status === 'pending') {
+      return { cash: 0, transfer: 0, tabungan: 0, method: '-' };
+    }
+    const amt = Number(p.amount) || 0;
+    const m = (p.method || p.paymentMethod || '').toLowerCase();
+    
+    if (m === 'transfer' || m.includes('transfer') || m.includes('bank') || m.includes('qris') || m.includes('online')) {
+      return { cash: 0, transfer: amt, tabungan: 0, method: 'Transfer' };
+    }
+    if (m === 'tabungan' || m.includes('tabung')) {
+      return { cash: 0, transfer: 0, tabungan: amt, method: 'Tabungan' };
+    }
+    if (m === 'campuran') {
+      const fromSavings = p.mixedDetails ? (Number(p.mixedDetails.fromSavings) || 0) : 0;
+      const fromCash = p.mixedDetails ? (Number(p.mixedDetails.fromCash) || 0) : amt;
+      return { cash: fromCash, transfer: 0, tabungan: fromSavings, method: 'Campuran' };
+    }
+    return { cash: amt, transfer: 0, tabungan: 0, method: 'Tunai' };
   };
 
-  // Helper cek pembayaran transfer
-  const isPaymentTransfer = (p: any) => {
-    if (p.status === 'ditolak' || p.status === 'rejected') return false;
-    const method = (p.paymentMethod || p.method || '').toLowerCase();
-    return method.includes('transfer') || method.includes('bank') || method.includes('qris') || method.includes('online');
+  // Helper matching kategori presisi 1:1 dengan Laporan Rekap Keuangan (DashboardAdmin)
+  const isFinanceCategoryMatch = (
+    itemCat?: string,
+    itemName?: string,
+    itemDesc?: string,
+    targetCatName?: string
+  ): boolean => {
+    if (!targetCatName || !targetCatName.trim()) return true;
+    const f = targetCatName.toLowerCase().trim();
+    const c = (itemCat || '').toLowerCase().trim();
+    const n = (itemName || '').toLowerCase().trim();
+    const d = (itemDesc || '').toLowerCase().trim();
+    const combined = `${c} ${n} ${d}`;
+
+    // 1. MANASIK HAJI & OUTING CLASS
+    if (f.includes('manasik')) {
+      return combined.includes('manasik') || (f.includes('outing') && combined.includes('outing'));
+    }
+
+    // 2. MAULID NABI
+    if (f.includes('maulid')) {
+      return combined.includes('maulid');
+    }
+
+    // 3. HUT RI 17 AGUSTUS
+    if (f.includes('hut ri') || f.includes('17 agustus')) {
+      return combined.includes('hut ri') || combined.includes('17 agustus') || combined.includes('kemerdekaan');
+    }
+
+    // 4. PPDB / Pendaftaran
+    if (f.includes('ppdb') || f.includes('pendaftaran') || f.includes('formulir')) {
+      return combined.includes('ppdb') || combined.includes('pendaftaran') || combined.includes('formulir') || combined.includes('daftar');
+    }
+
+    // 5. BUKU LANJUTAN
+    if (f.includes('buku')) {
+      return combined.includes('buku');
+    }
+
+    // 6. PTS GANJIL
+    if (f.includes('pts') || f.includes('uts')) {
+      return combined.includes('pts') || combined.includes('uts') || combined.includes('tengah semester');
+    }
+
+    // 7. SPP BULANAN (Sesuai Bulan Spesifik: Juli, Agustus, September, Oktober, dst.)
+    const months = [
+      'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
+      'januari', 'februari', 'maret', 'april', 'mei', 'juni'
+    ];
+    for (const m of months) {
+      if (f.includes(m)) {
+        if (!combined.includes(m)) return false;
+        // Kecualikan transaksi pos acara non-SPP yang kebetulan menyebut nama bulan
+        const nonSPPWords = ['manasik', 'maulid', 'hut ri', '17 agustus', 'ppdb', 'daftar', 'buku', 'dsp', 'gedung', 'sarana', 'infaq', 'shodaqoh', 'wisuda'];
+        if (nonSPPWords.some(w => combined.includes(w))) return false;
+        return combined.includes('spp') || combined.includes('bulanan') || combined.includes('iuran') || c === 'spp';
+      }
+    }
+
+    // 8. DSP / GEDUNG / SARANA
+    if (f.includes('dsp') || f.includes('gedung') || f.includes('sarana')) {
+      return combined.includes('dsp') || combined.includes('gedung') || combined.includes('sarana');
+    }
+
+    // 9. INFAQ & SHODAQOH
+    if (f.includes('infaq') || f.includes('shodaqoh') || f.includes('sedekah')) {
+      return combined.includes('infaq') || combined.includes('shodaqoh') || combined.includes('sedekah');
+    }
+
+    // 10. General / Kategori Kustom lainnya
+    const genericWords = new Set(['kegiatan', 'uang', 'iuran', 'biaya', 'dana', 'umum']);
+    if (c === f || (c && c.includes(f))) return true;
+    if (c && !genericWords.has(c) && f.includes(c)) return true;
+
+    if (n === f || (n && n.includes(f))) return true;
+    if (n && !genericWords.has(n) && f.includes(n)) return true;
+
+    if (d && (d === f || d.includes(f))) return true;
+
+    return false;
+  };
+
+  // Helper matching deposit setoran cash bendahara dengan kategori iuran
+  const matchesDepositCategory = (catName: string, deposit: CashDeposit): boolean => {
+    // 1. Direct categoryKey match jika disetor via tombol cepat
+    if (deposit.categoryKey) {
+      const ck = deposit.categoryKey.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cn = catName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (ck === cn || ck.includes(cn) || cn.includes(ck)) return true;
+    }
+
+    const dType = (deposit.depositType || '').toLowerCase().trim();
+    const dDesc = (deposit.description || '').toLowerCase().trim();
+    const cName = catName.toLowerCase().trim();
+
+    // Setoran tabungan hanya mencocokkan tabungan
+    if (cName.includes('tabung')) {
+      return dType.includes('tabung') || dDesc.includes('tabung');
+    }
+    if (dType.includes('tabung') || dDesc.includes('tabung')) {
+      return false;
+    }
+
+    // Kesamaan langsung
+    if (dType === cName || dDesc.includes(cName)) return true;
+
+    // Manasik
+    if (cName.includes('manasik')) {
+      return dType.includes('manasik') || dDesc.includes('manasik');
+    }
+
+    // Maulid
+    if (cName.includes('maulid')) {
+      return dType.includes('maulid') || dDesc.includes('maulid');
+    }
+
+    // HUT RI 17 Agustus
+    if (cName.includes('hut ri') || cName.includes('17 agustus')) {
+      return dType.includes('hut ri') || dDesc.includes('hut ri') || dType.includes('17 agustus') || dDesc.includes('17 agustus');
+    }
+
+    // Buku Lanjutan
+    if (cName.includes('buku')) {
+      return dType.includes('buku') || dDesc.includes('buku');
+    }
+
+    // PPDB
+    if (cName.includes('ppdb') || cName.includes('daftar')) {
+      return dType.includes('ppdb') || dDesc.includes('ppdb') || dType.includes('daftar') || dDesc.includes('daftar');
+    }
+
+    // PTS Ganjil
+    if (cName.includes('pts') || cName.includes('uts')) {
+      return dType.includes('pts') || dDesc.includes('pts') || dType.includes('uts') || dDesc.includes('uts');
+    }
+
+    // SPP Bulanan
+    if (cName.includes('spp') || cName.includes('bulanan')) {
+      const months = ['juli', 'agustus', 'september', 'oktober', 'november', 'desember', 'januari', 'februari', 'maret', 'april', 'mei', 'juni'];
+      for (const m of months) {
+        if (cName.includes(m)) {
+          return (dType.includes(m) || dDesc.includes(m)) && 
+                 (dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp') || dDesc.includes('bulanan') || dType === 'iuran bulanan');
+        }
+      }
+      return dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp');
+    }
+
+    return false;
   };
 
   // REKONSILIASI LENGKAP SEMUA KATEGORI & TABUNGAN
@@ -159,7 +319,7 @@ export default function FinanceSetoranReconciliation({
     const list: CategoryReconciliation[] = [];
 
     // 1. REKONSILIASI KHUSUS: TABUNGAN SISWA
-    // Hitung seluruh tabungan yang masuk ke sekolah (total saldo tabungan riil 55 siswa)
+    // Total saldo tabungan riil seluruh siswa aktif
     const totalSavingsBalanceAllStudents = activeStudents.reduce((sum, u) => sum + (Number(u.savings) || 0), 0);
 
     const tabunganPayments = payments.filter(p => {
@@ -169,17 +329,18 @@ export default function FinanceSetoranReconciliation({
       return pType === 'tabungan' || pType === 'tabungan_masuk' || pCat.includes('tabung');
     });
 
-    const tabunganCashPayments = tabunganPayments.filter(p => isPaymentCash(p));
+    const tabunganCashPayments = tabunganPayments.filter(p => {
+      const parsed = parsePaymentMethod(p);
+      return parsed.cash > 0;
+    });
     const totalTabunganCashIn = tabunganCashPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     // Penarikan tabungan tunai
     const tabunganCashOut = payments
-      .filter(p => p.status !== 'ditolak' && (p.type || '').toLowerCase() === 'tabungan_keluar' && isPaymentCash(p))
+      .filter(p => p.status !== 'ditolak' && (p.type || '').toLowerCase() === 'tabungan_keluar')
       .reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     const netTabunganCashIn = Math.max(0, totalTabunganCashIn - tabunganCashOut);
-
-    // Total tabungan masuk yang dihimpun (gunakan yang lebih besar antara saldo buku tabungan vs mutasi)
     const totalTabunganMasukSemua = Math.max(totalSavingsBalanceAllStudents, netTabunganCashIn);
 
     // Setoran cash Tabungan yang telah disahkan bendahara
@@ -227,7 +388,7 @@ export default function FinanceSetoranReconciliation({
       }
     }
 
-    // Bangun daftar siswa untuk modal tabungan
+    // Daftar siswa tabungan
     const tabunganStudentList: StudentBillingStatus[] = activeStudents.map(st => {
       const savings = Number(st.savings) || 0;
       return {
@@ -241,6 +402,7 @@ export default function FinanceSetoranReconciliation({
         paidAmount: savings,
         paidCash: savings,
         paidTransfer: 0,
+        paidTabungan: 0,
         unpaidAmount: 0,
         status: savings > 0 ? 'lunas' : 'belum_bayar',
         paymentMethod: 'Tunai',
@@ -256,6 +418,7 @@ export default function FinanceSetoranReconciliation({
       totalTarget: totalTabunganMasukSemua,
       totalPaidCash: totalTabunganMasukSemua,
       totalPaidTransfer: 0,
+      totalPaidTabungan: 0,
       totalPaidAll: totalTabunganMasukSemua,
       totalUnpaidStudentsAmount: 0,
       allStudentsCount: activeStudents.length,
@@ -279,136 +442,169 @@ export default function FinanceSetoranReconciliation({
       }
     });
 
-    // 2. REKONSILIASI KATEGORI IURAN (SPP & NON-SPP)
-    const standardSPPMonths = [
-      { id: 'spp_juli_2026', name: 'SPP Juli 2026', monthKeyword: 'juli' },
-      { id: 'spp_agustus_2026', name: 'SPP Agustus 2026', monthKeyword: 'agustus' },
-      { id: 'spp_september_2026', name: 'SPP September 2026', monthKeyword: 'september' },
-      { id: 'spp_oktober_2026', name: 'SPP Oktober 2026', monthKeyword: 'oktober' },
-      { id: 'spp_november_2026', name: 'SPP November 2026', monthKeyword: 'november' },
-      { id: 'spp_desember_2026', name: 'SPP Desember 2026', monthKeyword: 'desember' },
-      { id: 'spp_januari_2027', name: 'SPP Januari 2027', monthKeyword: 'januari' },
-      { id: 'spp_februari_2027', name: 'SPP Februari 2027', monthKeyword: 'februari' },
-      { id: 'spp_maret_2027', name: 'SPP Maret 2027', monthKeyword: 'maret' },
-      { id: 'spp_april_2027', name: 'SPP April 2027', monthKeyword: 'april' },
-      { id: 'spp_mei_2027', name: 'SPP Mei 2027', monthKeyword: 'mei' },
-      { id: 'spp_juni_2027', name: 'SPP Juni 2027', monthKeyword: 'juni' }
+    // 2. REKONSILIASI KATEGORI IURAN RESMI (Persis Sesuai Dropdown Laporan Rekap Keuangan)
+    // Berdasarkan gambar resmi sistem: BUKU LANJUTAN, HUT RI 17 AGUSTUS, MANASIK HAJI & OUTING CLASS, MAULID NABI MUHAMMAD SAW, PPDB, PTS GANJIL, SPP AGUSTUS, SPP JULI, SPP OKTOBER, SPP SEPTEMBER
+    const canonicalCategories: { id: string; name: string; group: 'SPP Bulanan' | 'Non-SPP / Kegiatan'; monthKeyword?: string }[] = [
+      { id: 'manasik_haji_outing_class', name: 'MANASIK HAJI & OUTING CLASS', group: 'Non-SPP / Kegiatan' },
+      { id: 'spp_oktober', name: 'SPP OKTOBER', group: 'SPP Bulanan', monthKeyword: 'oktober' },
+      { id: 'spp_september', name: 'SPP SEPTEMBER', group: 'SPP Bulanan', monthKeyword: 'september' },
+      { id: 'spp_agustus', name: 'SPP AGUSTUS', group: 'SPP Bulanan', monthKeyword: 'agustus' },
+      { id: 'spp_juli', name: 'SPP JULI', group: 'SPP Bulanan', monthKeyword: 'juli' },
+      { id: 'pts_ganjil', name: 'PTS GANJIL', group: 'Non-SPP / Kegiatan' },
+      { id: 'maulid_nabi', name: 'MAULID NABI MUHAMMAD SAW', group: 'Non-SPP / Kegiatan' },
+      { id: 'hut_ri_17_agustus', name: 'HUT RI 17 AGUSTUS', group: 'Non-SPP / Kegiatan' },
+      { id: 'buku_lanjutan', name: 'BUKU LANJUTAN', group: 'Non-SPP / Kegiatan' },
+      { id: 'ppdb', name: 'PPDB', group: 'Non-SPP / Kegiatan' },
     ];
 
-    const nonSPPCategories: { id: string; name: string }[] = [
-      { id: 'dsp_uang_gedung', name: 'DSP / Uang Gedung / Sarana' },
-      { id: 'uang_kegiatan', name: 'Uang Kegiatan & Outbound' },
-      { id: 'buku_seragam', name: 'Penjualan Buku & Seragam' },
-      { id: 'ppdb_pendaftaran', name: 'PPDB & Formulir Pendaftaran' },
-      { id: 'infaq_shodaqoh', name: 'Infaq Jumat & Shodaqoh' }
-    ];
-
+    // Sisipkan kategori lain dari Firestore iuranCategories jika ada yang belum tercakup
+    const categoriesToProcess = [...canonicalCategories];
     if (iuranCategories && Array.isArray(iuranCategories)) {
       iuranCategories.forEach((cat: any) => {
         const catName = (typeof cat === 'string' ? cat : cat.name || '').trim();
         if (catName && !catName.toLowerCase().includes('tabung')) {
-          const isMonthSPP = standardSPPMonths.some(m => catName.toLowerCase().includes(m.monthKeyword));
-          if (!isMonthSPP) {
+          const upper = catName.toUpperCase();
+          const already = categoriesToProcess.some(c => 
+            c.name.toUpperCase() === upper || 
+            (upper.includes('MANASIK') && c.id === 'manasik_haji_outing_class') ||
+            (upper.includes('HUT RI') && c.id === 'hut_ri_17_agustus') ||
+            (upper.includes('MAULID') && c.id === 'maulid_nabi') ||
+            (upper.includes('BUKU') && c.id === 'buku_lanjutan') ||
+            (upper.includes('PPDB') && c.id === 'ppdb') ||
+            (upper.includes('PTS') && c.id === 'pts_ganjil')
+          );
+          if (!already) {
+            const isSPP = upper.includes('SPP') || upper.includes('BULANAN');
             const cleanId = catName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            if (!nonSPPCategories.some(n => n.id === cleanId || n.name.toLowerCase() === catName.toLowerCase())) {
-              nonSPPCategories.push({ id: cleanId, name: catName });
-            }
+            categoriesToProcess.push({
+              id: cleanId,
+              name: catName,
+              group: isSPP ? 'SPP Bulanan' : 'Non-SPP / Kegiatan'
+            });
           }
         }
       });
     }
 
-    // Gabungkan list pos yang akan dianalisis
-    const categoriesToProcess: { id: string; name: string; group: 'SPP Bulanan' | 'Non-SPP / Kegiatan'; monthKeyword?: string }[] = [
-      ...standardSPPMonths.map(m => ({ ...m, group: 'SPP Bulanan' as const })),
-      ...nonSPPCategories.map(n => ({ ...n, group: 'Non-SPP / Kegiatan' as const }))
-    ];
-
-    // Helper nominal default SPP
-    const sppCat = iuranCategories?.find((c: any) => (c.name || '').toLowerCase().includes('spp'));
-    const defaultSPPAmount = Number(sppCat?.amount || sppCat?.nominal) || 250000;
-
+    // Proses setiap kategori secara akurat
     categoriesToProcess.forEach(cat => {
-      const catKeywords = cat.monthKeyword 
-        ? [cat.monthKeyword] 
-        : cat.name.toLowerCase().split(/[\s/&]+/).filter(w => w.length > 2);
+      const isSPP = cat.group === 'SPP Bulanan';
+      const isManasik = cat.name.toUpperCase().includes('MANASIK') || cat.id === 'manasik_haji_outing_class';
+      const catName = cat.name.trim();
 
-      // 1. Identifikasi status SETIAP siswa dari seluruh 55 siswa aktif
+      // Nominal Standar Resmi:
+      // SPP: Rp 50.000 / siswa
+      // Manasik: Rp 200.000 / siswa (instruksi langsung dari user: tagihan manasik kan 200.000)
+      const defaultSPPAmount = 50000;
+      const defaultManasikAmount = 200000;
+
       const studentsList: StudentBillingStatus[] = [];
       let totalPaidCashForCat = 0;
       let totalPaidTransferForCat = 0;
+      let totalPaidTabunganForCat = 0;
       let totalUnpaidForCat = 0;
       let paidCount = 0;
       let partialCount = 0;
       let unpaidCount = 0;
 
       activeStudents.forEach(st => {
-        // Cek pembayaran siswa di koleksi payments
-        const studentPayments = payments.filter(p => {
-          if (p.studentId !== st.id) return false;
-          if (p.status === 'ditolak' || p.status === 'rejected') return false;
-          const pType = (p.type || '').toLowerCase();
-          if (pType === 'tabungan' || pType === 'tabungan_masuk' || pType === 'tabungan_keluar') return false;
-          const combined = `${p.category || ''} ${p.iuranName || ''} ${p.description || ''}`.toLowerCase();
-          return catKeywords.some(kw => combined.includes(kw));
-        });
-
+        // 1. Ambil pembayaran riil siswa dari koleksi payments untuk kategori ini
         let stPaidCash = 0;
         let stPaidTransfer = 0;
+        let stPaidTabungan = 0;
         let lastPayDate = '';
-        let lastMethod = 'Tunai';
+        let lastMethod = '-';
 
-        studentPayments.forEach(p => {
-          const amt = Number(p.amount) || 0;
-          if (isPaymentCash(p)) {
-            stPaidCash += amt;
-            lastMethod = 'Tunai';
-          } else {
-            stPaidTransfer += amt;
-            lastMethod = p.method || 'Transfer';
+        payments.forEach(p => {
+          if (p.studentId !== st.id) return;
+          if (p.status === 'ditolak' || p.status === 'rejected' || p.status === 'pending') return;
+          const pType = (p.type || '').toLowerCase();
+          if (pType === 'tagihan' || pType === 'tabungan' || pType === 'tabungan_masuk' || pType === 'tabungan_keluar') return;
+
+          const isMatch = isFinanceCategoryMatch(p.iuranCategory || p.category, p.iuranName || p.name, p.description, catName);
+          if (isMatch) {
+            const amt = Number(p.amount) || 0;
+            const m = (p.method || p.paymentMethod || '').toLowerCase();
+            if (m === 'transfer' || m.includes('bank') || m.includes('qris') || m.includes('online')) {
+              stPaidTransfer += amt;
+              lastMethod = 'Transfer';
+            } else if (m === 'tabungan' || m.includes('tabung')) {
+              stPaidTabungan += amt;
+              lastMethod = 'Tabungan';
+            } else if (m === 'campuran') {
+              if (p.mixedDetails) {
+                const sPart = Number(p.mixedDetails.fromSavings) || 0;
+                const cPart = Number(p.mixedDetails.fromCash) || 0;
+                stPaidTabungan += sPart;
+                stPaidCash += cPart;
+              } else {
+                stPaidCash += amt;
+              }
+              lastMethod = 'Campuran';
+            } else {
+              stPaidCash += amt;
+              lastMethod = 'Tunai';
+            }
+            if (p.date) lastPayDate = p.date;
           }
-          if (p.date) lastPayDate = p.date;
         });
 
-        const stPaidTotal = stPaidCash + stPaidTransfer;
+        const stPaidTotal = stPaidCash + stPaidTransfer + stPaidTabungan;
 
-        // Cek tunggakan siswa di arrears_details
-        const arrDetail = (st.arrears_details || []).find((a: any) => {
-          const aName = (a.name || '').toLowerCase();
-          return catKeywords.some(kw => aName.includes(kw));
+        // 2. Ambil tunggakan riil siswa dari arrears_details
+        let recordedArrearsAmount = 0;
+        (st.arrears_details || []).forEach((a: any) => {
+          if (isFinanceCategoryMatch(a.category, a.name, '', catName)) {
+            recordedArrearsAmount += Number(a.amount) || 0;
+          }
         });
 
         let stUnpaidAmount = 0;
         let stTargetAmount = 0;
+        let stStatus: StudentBillingStatus['status'] = 'lunas';
 
-        if (arrDetail) {
-          stUnpaidAmount = Number(arrDetail.amount) || 0;
-          stTargetAmount = stPaidTotal + stUnpaidAmount;
-        } else if (stPaidTotal > 0) {
-          stUnpaidAmount = 0;
-          stTargetAmount = stPaidTotal;
+        if (isManasik) {
+          // KHUSUS MANASIK HAJI: Kewajiban resmi Rp 200.000 / siswa
+          stTargetAmount = defaultManasikAmount;
+          if (recordedArrearsAmount > 0) {
+            stUnpaidAmount = recordedArrearsAmount;
+          } else if (stPaidTotal >= defaultManasikAmount) {
+            stUnpaidAmount = 0;
+          } else {
+            // Siswa belum lunas Manasik Haji
+            stUnpaidAmount = Math.max(0, defaultManasikAmount - stPaidTotal);
+          }
+        } else if (isSPP) {
+          // SPP Bulanan: Kewajiban standar Rp 50.000 / siswa
+          stTargetAmount = defaultSPPAmount;
+          if (recordedArrearsAmount > 0) {
+            stUnpaidAmount = recordedArrearsAmount;
+          } else if (stPaidTotal >= defaultSPPAmount) {
+            stUnpaidAmount = 0;
+          } else {
+            stUnpaidAmount = Math.max(0, defaultSPPAmount - stPaidTotal);
+          }
         } else {
-          // Belum bayar dan tidak ada detail khusus, gunakan estimasi nominal kategori
-          const estimatedNominal = cat.group === 'SPP Bulanan' ? defaultSPPAmount : 0;
-          stUnpaidAmount = estimatedNominal;
-          stTargetAmount = estimatedNominal;
+          // Non-SPP Lainnya (PPDB, Buku Lanjutan, Maulid, HUT RI, PTS, dll)
+          stUnpaidAmount = recordedArrearsAmount;
+          stTargetAmount = stPaidTotal + stUnpaidAmount;
         }
 
-        // Tentukan status siswa
-        let stStatus: StudentBillingStatus['status'] = 'belum_bayar';
-        if (stTargetAmount > 0 && stUnpaidAmount === 0 && stPaidTotal >= stTargetAmount) {
-          stStatus = 'lunas';
-          paidCount++;
-        } else if (stPaidTotal > 0 && stUnpaidAmount > 0) {
+        // Tentukan Status Siswa
+        if (stUnpaidAmount > 0 && stPaidTotal > 0) {
           stStatus = 'sebagian';
           partialCount++;
-        } else {
+        } else if (stUnpaidAmount > 0 && stPaidTotal === 0) {
           stStatus = 'belum_bayar';
           unpaidCount++;
+        } else {
+          stStatus = 'lunas';
+          if (stTargetAmount > 0 || stPaidTotal > 0) paidCount++;
         }
 
         totalPaidCashForCat += stPaidCash;
         totalPaidTransferForCat += stPaidTransfer;
+        totalPaidTabunganForCat += stPaidTabungan;
         totalUnpaidForCat += stUnpaidAmount;
 
         studentsList.push({
@@ -422,6 +618,7 @@ export default function FinanceSetoranReconciliation({
           paidAmount: stPaidTotal,
           paidCash: stPaidCash,
           paidTransfer: stPaidTransfer,
+          paidTabungan: stPaidTabungan,
           unpaidAmount: stUnpaidAmount,
           status: stStatus,
           paymentMethod: stPaidTotal > 0 ? lastMethod : '-',
@@ -429,13 +626,10 @@ export default function FinanceSetoranReconciliation({
         });
       });
 
-      // 2. Cek setoran cash bendahara yang sudah diserahkan ke Kepala Sekolah / Yayasan
-      const matchingDeposits = deposits.filter(d => {
-        if (d.categoryKey && d.categoryKey === cat.id) return true;
-        const dType = (d.depositType || '').toLowerCase();
-        const dDesc = (d.description || '').toLowerCase();
-        return catKeywords.some(kw => dDesc.includes(kw) || dType.includes(kw));
-      }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      // 3. SINKRONISASI DENGAN RIWAYAT & PENGESAHAN SETORAN CASH
+      // Cari setoran cash bendahara ke Kepala Sekolah / Yayasan untuk pos ini
+      const matchingDeposits = deposits.filter(d => matchesDepositCategory(cat.name, d))
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
       const totalDepositedDisahkan = matchingDeposits
         .filter(d => d.status === 'disahkan')
@@ -445,7 +639,12 @@ export default function FinanceSetoranReconciliation({
         .filter(d => d.status !== 'disahkan' && d.status !== 'ditolak')
         .reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
+      // KUNCI UTAMA: HANYA UANG KAS FISIK (TUNAI) YANG DISETOR SECARA MANUAL OLEH BENDAHARA
+      // Transfer sudah otomatis masuk rekening bank sekolah, Tabungan adalah potongan saldo internal.
+      // Sisa kas tunai di bendahara yang BELUM disetorkan ke Kepala Sekolah / Yayasan:
       const remainingCashAtTreasurer = Math.max(0, totalPaidCashForCat - totalDepositedDisahkan);
+      const totalPaidAllCat = totalPaidCashForCat + totalPaidTransferForCat + totalPaidTabunganForCat;
+      const totalTargetAll = totalPaidAllCat + totalUnpaidForCat;
 
       const latestDeposit = matchingDeposits[0];
       const latestDepositDate = latestDeposit ? latestDeposit.date : null;
@@ -454,7 +653,7 @@ export default function FinanceSetoranReconciliation({
       let status: CategoryReconciliation['status'] = 'belum_ada_pembayaran';
       let statusLabel = 'Belum Ada Pembayaran Tunai Siswa';
       if (totalPaidCashForCat > 0) {
-        if (remainingCashAtTreasurer === 0) {
+        if (remainingCashAtTreasurer === 0 && totalDepositedDisahkan > 0) {
           status = 'sudah_disetor';
           statusLabel = 'Sudah Disetor Penuh ke Kas Sekolah';
         } else if (totalDepositedDisahkan > 0) {
@@ -466,36 +665,29 @@ export default function FinanceSetoranReconciliation({
         }
       }
 
-      const totalTargetAll = totalPaidCashForCat + totalPaidTransferForCat + totalUnpaidForCat;
-
-      // Filter: sertakan jika ada tagihan, pembayaran, setoran, atau bulan Agustus / Juli / September
-      const isRelevant = totalTargetAll > 0 || totalPaidCashForCat > 0 || totalDepositedDisahkan > 0 || 
-                         (cat.monthKeyword && ['agustus', 'juli', 'september', 'oktober'].includes(cat.monthKeyword));
-
-      if (isRelevant) {
-        list.push({
-          id: cat.id,
-          name: cat.name,
-          group: cat.group,
-          totalTarget: totalTargetAll,
-          totalPaidCash: totalPaidCashForCat,
-          totalPaidTransfer: totalPaidTransferForCat,
-          totalPaidAll: totalPaidCashForCat + totalPaidTransferForCat,
-          totalUnpaidStudentsAmount: totalUnpaidForCat,
-          allStudentsCount: activeStudents.length,
-          paidStudentsCount: paidCount,
-          partialStudentsCount: partialCount,
-          unpaidStudentsCount: unpaidCount,
-          studentsList,
-          totalDepositedDisahkan,
-          totalDepositedPending,
-          remainingCashAtTreasurer,
-          latestDepositDate,
-          latestDepositAmount,
-          status,
-          statusLabel
-        });
-      }
+      list.push({
+        id: cat.id,
+        name: cat.name,
+        group: cat.group,
+        totalTarget: totalTargetAll,
+        totalPaidCash: totalPaidCashForCat,
+        totalPaidTransfer: totalPaidTransferForCat,
+        totalPaidTabungan: totalPaidTabunganForCat,
+        totalPaidAll: totalPaidAllCat,
+        totalUnpaidStudentsAmount: totalUnpaidForCat,
+        allStudentsCount: activeStudents.length,
+        paidStudentsCount: paidCount,
+        partialStudentsCount: partialCount,
+        unpaidStudentsCount: unpaidCount,
+        studentsList,
+        totalDepositedDisahkan,
+        totalDepositedPending,
+        remainingCashAtTreasurer,
+        latestDepositDate,
+        latestDepositAmount,
+        status,
+        statusLabel
+      });
     });
 
     return list;
@@ -608,6 +800,7 @@ export default function FinanceSetoranReconciliation({
       'Siswa Belum Bayar': item.unpaidStudentsCount,
       'Terbayar Tunai (Rp)': item.totalPaidCash,
       'Terbayar Transfer (Rp)': item.totalPaidTransfer,
+      'Terbayar Tabungan (Rp)': item.totalPaidTabungan,
       'Total Terbayar (Rp)': item.totalPaidAll,
       'Disetorkan ke Kas Sekolah (Rp)': item.totalDepositedDisahkan,
       'Sisa Kas Belum Disetor di Bendahara (Rp)': item.remainingCashAtTreasurer,
@@ -629,17 +822,20 @@ export default function FinanceSetoranReconciliation({
         'Kelas': st.kelas,
         'NISN': st.nisn || '-',
         'Target Tagihan (Rp)': st.targetAmount,
-        'Sudah Dibayar (Rp)': st.paidAmount,
+        'Bayar Tunai (Rp)': st.paidCash,
+        'Bayar Transfer (Rp)': st.paidTransfer,
+        'Dari Tabungan (Rp)': st.paidTabungan,
+        'Total Sudah Dibayar (Rp)': st.paidAmount,
         'Sisa Tunggakan (Rp)': st.unpaidAmount,
         'Status': st.status === 'lunas' ? 'Lunas' : st.status === 'sebagian' ? 'Bayar Sebagian' : 'Belum Bayar',
         'Metode Bayar': st.paymentMethod || '-',
         'No WhatsApp': st.whatsapp || '-'
       }));
       const wsStudents = XLSX.utils.json_to_sheet(studentRows);
-      XLSX.utils.book_append_sheet(wb, wsStudents, 'Status 55 Siswa');
+      XLSX.utils.book_append_sheet(wb, wsStudents, `Status Siswa (${activeStudents.length})`);
     }
 
-    XLSX.writeFile(wb, `Rekonsiliasi_Setoran_Cash_55_Siswa_RA_Darusyifa_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Rekonsiliasi_Setoran_Cash_${activeStudents.length}_Siswa_RA_Darusyifa_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (
@@ -732,7 +928,7 @@ export default function FinanceSetoranReconciliation({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
                 <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider block">
-                  Total Semua Tabungan Masuk (55 Siswa)
+                  Total Semua Tabungan Masuk ({activeStudents.length} Siswa)
                 </span>
                 <div className="text-xl sm:text-2xl font-black text-white mt-1">
                   {formatRupiah(tabunganItem.totalTarget)}
@@ -990,6 +1186,29 @@ export default function FinanceSetoranReconciliation({
                   </div>
                 </div>
 
+                {/* Rincian Metode Diterima */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                  <div className="flex justify-between items-center text-[11px] font-black">
+                    <span className="text-slate-500 uppercase tracking-wider text-[10px]">Total Diterima:</span>
+                    <span className="text-slate-900">{formatRupiah(cat.totalPaidAll)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/60 text-[10px] font-bold">
+                    <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-100">
+                      💵 Tunai: {formatRupiah(cat.totalPaidCash)}
+                    </span>
+                    {cat.totalPaidTransfer > 0 && (
+                      <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded border border-blue-100">
+                        🏦 Transfer: {formatRupiah(cat.totalPaidTransfer)}
+                      </span>
+                    )}
+                    {cat.totalPaidTabungan > 0 && (
+                      <span className="px-1.5 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-100">
+                        💳 Tabungan: {formatRupiah(cat.totalPaidTabungan)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Sisa Kas di Bendahara VS Sisa Siswa Belum Bayar */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className={`p-3 rounded-xl border ${hasRemaining ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50 border-slate-100'}`}>
@@ -1000,21 +1219,35 @@ export default function FinanceSetoranReconciliation({
                       {formatRupiah(cat.remainingCashAtTreasurer)}
                     </div>
                     <span className="text-[9px] text-slate-400 block mt-0.5">
-                      Masuk: {formatRupiah(cat.totalPaidCash)} • Disetor: {formatRupiah(cat.totalDepositedDisahkan)}
+                      Tunai: {formatRupiah(cat.totalPaidCash)} • Disetor: {formatRupiah(cat.totalDepositedDisahkan)}
                     </span>
                   </div>
 
-                  <div className={`p-3 rounded-xl border ${hasUnpaid ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                      Siswa Belum Bayar
-                    </span>
-                    <div className={`text-sm font-black mt-0.5 ${hasUnpaid ? 'text-rose-700' : 'text-emerald-700'}`}>
-                      {formatRupiah(cat.totalUnpaidStudentsAmount)}
+                  {cat.isTabungan ? (
+                    <div className="p-3 rounded-xl border bg-emerald-50/80 border-emerald-200">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
+                        Status Tabungan
+                      </span>
+                      <div className="text-sm font-black mt-0.5 text-emerald-800">
+                        ✓ Bebas Tunggakan
+                      </div>
+                      <span className="text-[9px] text-emerald-600 block mt-0.5">
+                        {cat.paidStudentsCount} siswa aktif menabung sukarela
+                      </span>
                     </div>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">
-                      {cat.unpaidStudentsCount} siswa belum lunas (Lunas: {cat.paidStudentsCount})
-                    </span>
-                  </div>
+                  ) : (
+                    <div className={`p-3 rounded-xl border ${hasUnpaid ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                        Siswa Belum Bayar
+                      </span>
+                      <div className={`text-sm font-black mt-0.5 ${hasUnpaid ? 'text-rose-700' : 'text-emerald-700'}`}>
+                        {formatRupiah(cat.totalUnpaidStudentsAmount)}
+                      </div>
+                      <span className="text-[9px] text-slate-400 block mt-0.5">
+                        {cat.unpaidStudentsCount} siswa belum lunas (Lunas: {cat.paidStudentsCount})
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
@@ -1038,7 +1271,7 @@ export default function FinanceSetoranReconciliation({
                     className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <Users size={13} />
-                    <span>Rincian 55 Siswa</span>
+                    <span>Rincian Siswa ({activeStudents.length})</span>
                   </button>
                 </div>
               </div>
@@ -1052,8 +1285,8 @@ export default function FinanceSetoranReconciliation({
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider">
                 <th className="py-3 px-4">Pos Keuangan / Kategori</th>
-                <th className="py-3 px-4 text-center">Status Siswa (Total 55)</th>
-                <th className="py-3 px-4 text-right">Diterima Tunai Siswa</th>
+                <th className="py-3 px-4 text-center">Status Siswa ({activeStudents.length} Siswa)</th>
+                <th className="py-3 px-4 text-right">Diterima Siswa (Rincian Metode)</th>
                 <th className="py-3 px-4 text-right">Disahkan ke Kas Sekolah</th>
                 <th className="py-3 px-4 text-right">Sisa Kas di Bendahara</th>
                 <th className="py-3 px-4 text-center">Status Setoran Cash</th>
@@ -1082,34 +1315,67 @@ export default function FinanceSetoranReconciliation({
                       </div>
                     </td>
 
-                    {/* Status Siswa (55 Siswa) */}
+                    {/* Status Siswa */}
                     <td className="py-3.5 px-4 text-center">
-                      <div className="inline-flex items-center gap-1 text-[11px] font-bold">
-                        <span className="text-emerald-700 font-black">{cat.paidStudentsCount} Lunas</span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-rose-700 font-black">{cat.unpaidStudentsCount} Belum</span>
-                      </div>
-                      <button
-                        onClick={() => handleOpenStudentModal(cat)}
-                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold block mx-auto underline cursor-pointer mt-0.5"
-                      >
-                        Lihat 55 Siswa
-                      </button>
-                    </td>
-
-                    {/* Diterima Tunai */}
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="font-black text-slate-900">
-                        {formatRupiah(cat.totalPaidCash)}
-                      </span>
-                      {cat.totalPaidTransfer > 0 && (
-                        <div className="text-[10px] text-blue-600 font-bold">
-                          +{formatRupiah(cat.totalPaidTransfer)} online
+                      {cat.isTabungan ? (
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full text-[11px] font-black border border-emerald-200">
+                            <Users size={12} className="text-emerald-600" />
+                            <span>{cat.paidStudentsCount} Siswa Menabung</span>
+                          </div>
+                          <button
+                            onClick={() => handleOpenStudentModal(cat)}
+                            className="text-[10px] text-blue-600 hover:text-blue-800 font-bold block mx-auto underline cursor-pointer mt-1"
+                          >
+                            Lihat Buku Tabungan
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="inline-flex items-center gap-1 text-[11px] font-bold">
+                            <span className="text-emerald-700 font-black">{cat.paidStudentsCount} Lunas</span>
+                            <span className="text-slate-300">•</span>
+                            {cat.partialStudentsCount > 0 && (
+                              <>
+                                <span className="text-amber-700 font-black">{cat.partialStudentsCount} Sebagian</span>
+                                <span className="text-slate-300">•</span>
+                              </>
+                            )}
+                            <span className="text-rose-700 font-black">{cat.unpaidStudentsCount} Belum</span>
+                          </div>
+                          <button
+                            onClick={() => handleOpenStudentModal(cat)}
+                            className="text-[10px] text-blue-600 hover:text-blue-800 font-bold block mx-auto underline cursor-pointer mt-0.5"
+                          >
+                            Lihat {activeStudents.length} Siswa
+                          </button>
                         </div>
                       )}
                     </td>
 
-                    {/* Sudah Disahkan */}
+                    {/* Diterima Siswa (Rincian Metode: Tunai, Transfer, Tabungan) */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="font-black text-slate-900">
+                        {formatRupiah(cat.totalPaidAll)}
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5 mt-1 text-[10px] font-bold">
+                        <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                          💵 Tunai: {formatRupiah(cat.totalPaidCash)}
+                        </span>
+                        {cat.totalPaidTransfer > 0 && (
+                          <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                            🏦 Transfer: {formatRupiah(cat.totalPaidTransfer)}
+                          </span>
+                        )}
+                        {cat.totalPaidTabungan > 0 && (
+                          <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                            💳 Tabungan: {formatRupiah(cat.totalPaidTabungan)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Sudah Disahkan ke Kas Sekolah */}
                     <td className="py-3.5 px-4 text-right">
                       <span className="font-bold text-teal-800">
                         {formatRupiah(cat.totalDepositedDisahkan)}
@@ -1146,7 +1412,16 @@ export default function FinanceSetoranReconciliation({
 
                     {/* Siswa Belum Bayar */}
                     <td className="py-3.5 px-4 text-right">
-                      {hasUnpaid ? (
+                      {cat.isTabungan ? (
+                        <div>
+                          <span className="text-[11px] font-black text-emerald-700 block">
+                            ✓ Bebas Tunggakan
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            Tabungan Sukarela Siswa
+                          </span>
+                        </div>
+                      ) : hasUnpaid ? (
                         <div>
                           <div className="font-black text-rose-700">
                             {formatRupiah(cat.totalUnpaidStudentsAmount)}
@@ -1186,7 +1461,7 @@ export default function FinanceSetoranReconciliation({
                         )}
                         <button
                           onClick={() => handleOpenStudentModal(cat)}
-                          title="Lihat Rincian Status 55 Siswa"
+                          title={`Lihat Rincian Status ${activeStudents.length} Siswa`}
                           className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                         >
                           <Users size={14} />
@@ -1215,9 +1490,19 @@ export default function FinanceSetoranReconciliation({
                   Rincian Pembayaran: {selectedCategoryForModal.name}
                 </h3>
                 <div className="text-xs text-slate-300 font-medium mt-0.5 flex items-center gap-3 flex-wrap">
-                  <span>Lunas: <strong className="text-emerald-300">{selectedCategoryForModal.paidStudentsCount} Siswa</strong></span>
-                  <span>Belum Lunas: <strong className="text-rose-300">{selectedCategoryForModal.unpaidStudentsCount} Siswa</strong></span>
-                  <span>Total Tunggakan: <strong className="text-rose-400">{formatRupiah(selectedCategoryForModal.totalUnpaidStudentsAmount)}</strong></span>
+                  {selectedCategoryForModal.isTabungan ? (
+                    <>
+                      <span>Total Siswa: <strong className="text-emerald-300">{selectedCategoryForModal.allStudentsCount} Siswa</strong></span>
+                      <span>Aktif Menabung: <strong className="text-emerald-300">{selectedCategoryForModal.paidStudentsCount} Siswa</strong></span>
+                      <span>Total Saldo Tabungan: <strong className="text-emerald-300">{formatRupiah(selectedCategoryForModal.totalPaidCash)}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Lunas: <strong className="text-emerald-300">{selectedCategoryForModal.paidStudentsCount} Siswa</strong></span>
+                      <span>Belum Lunas: <strong className="text-rose-300">{selectedCategoryForModal.unpaidStudentsCount} Siswa</strong></span>
+                      <span>Total Tunggakan: <strong className="text-rose-400">{formatRupiah(selectedCategoryForModal.totalUnpaidStudentsAmount)}</strong></span>
+                    </>
+                  )}
                 </div>
               </div>
               <button
@@ -1233,12 +1518,16 @@ export default function FinanceSetoranReconciliation({
             <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
               {/* Status Tab Filter */}
               <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded-xl overflow-x-auto w-full sm:w-auto">
-                {[
+                {(selectedCategoryForModal.isTabungan ? [
+                  { id: 'all', label: `Semua (${selectedCategoryForModal.studentsList.length})` },
+                  { id: 'lunas', label: `Ada Saldo (${selectedCategoryForModal.paidStudentsCount})` },
+                  { id: 'belum_lunas', label: `Saldo Rp 0 (${selectedCategoryForModal.unpaidStudentsCount})` },
+                ] : [
                   { id: 'all', label: `Semua (${selectedCategoryForModal.studentsList.length})` },
                   { id: 'belum_lunas', label: `Belum Lunas (${selectedCategoryForModal.unpaidStudentsCount})` },
                   { id: 'sebagian', label: `Bayar Sebagian (${selectedCategoryForModal.partialStudentsCount})` },
                   { id: 'lunas', label: `Lunas (${selectedCategoryForModal.paidStudentsCount})` },
-                ].map(t => (
+                ]).map(t => (
                   <button
                     key={t.id}
                     onClick={() => setModalStatusTab(t.id as any)}
@@ -1283,26 +1572,70 @@ export default function FinanceSetoranReconciliation({
             <div className="overflow-y-auto flex-1 min-h-0">
               <table className="w-full text-left border-collapse text-xs">
                 <thead className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider sticky top-0 z-10">
-                  <tr>
-                    <th className="py-2.5 px-3">No</th>
-                    <th className="py-2.5 px-3">Nama Siswa</th>
-                    <th className="py-2.5 px-3">Kelas</th>
-                    <th className="py-2.5 px-3 text-right">Tagihan</th>
-                    <th className="py-2.5 px-3 text-right">Sudah Dibayar</th>
-                    <th className="py-2.5 px-3 text-right">Sisa Tunggakan</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
-                    <th className="py-2.5 px-3 text-center">Aksi / WA</th>
-                  </tr>
+                  {selectedCategoryForModal.isTabungan ? (
+                    <tr>
+                      <th className="py-2.5 px-3">No</th>
+                      <th className="py-2.5 px-3">Nama Siswa</th>
+                      <th className="py-2.5 px-3">Kelas</th>
+                      <th className="py-2.5 px-3 text-right">Saldo Tabungan Riil</th>
+                      <th className="py-2.5 px-3 text-center">Status Tabungan</th>
+                      <th className="py-2.5 px-3 text-center">Keterangan</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th className="py-2.5 px-3">No</th>
+                      <th className="py-2.5 px-3">Nama Siswa</th>
+                      <th className="py-2.5 px-3">Kelas</th>
+                      <th className="py-2.5 px-3 text-right">Tagihan</th>
+                      <th className="py-2.5 px-3 text-right">💵 Tunai</th>
+                      <th className="py-2.5 px-3 text-right">🏦 Transfer</th>
+                      <th className="py-2.5 px-3 text-right">💳 Tabungan</th>
+                      <th className="py-2.5 px-3 text-right">Total Bayar</th>
+                      <th className="py-2.5 px-3 text-right">Sisa Tunggakan</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Aksi / WA</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {modalFilteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={selectedCategoryForModal.isTabungan ? 6 : 11} className="py-8 text-center text-slate-400 text-xs">
                         Tidak ada siswa yang sesuai filter.
                       </td>
                     </tr>
                   ) : (
                     modalFilteredStudents.map((st, idx) => {
+                      if (selectedCategoryForModal.isTabungan) {
+                        return (
+                          <tr key={st.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-2.5 px-3 text-slate-400 font-bold">{idx + 1}</td>
+                            <td className="py-2.5 px-3">
+                              <div className="font-bold text-slate-900">{st.name}</div>
+                              {st.nisn && <div className="text-[10px] text-slate-400">NISN: {st.nisn}</div>}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-600">{st.kelas}</td>
+                            <td className="py-2.5 px-3 text-right font-black text-emerald-700">
+                              {formatRupiah(st.paidAmount)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {st.paidAmount > 0 ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                                  Aktif Menabung
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                                  Saldo Rp 0
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center text-emerald-700 font-semibold text-[11px]">
+                              ✓ Bebas Tunggakan
+                            </td>
+                          </tr>
+                        );
+                      }
+
                       const waLink = generateWhatsAppLink(st, selectedCategoryForModal.name);
 
                       return (
@@ -1317,6 +1650,15 @@ export default function FinanceSetoranReconciliation({
                             {formatRupiah(st.targetAmount)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-emerald-700">
+                            {st.paidCash > 0 ? formatRupiah(st.paidCash) : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-blue-700">
+                            {st.paidTransfer > 0 ? formatRupiah(st.paidTransfer) : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-amber-700">
+                            {st.paidTabungan > 0 ? formatRupiah(st.paidTabungan) : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-black text-slate-900">
                             {formatRupiah(st.paidAmount)}
                           </td>
                           <td className="py-2.5 px-3 text-right font-black text-rose-700">
@@ -1329,7 +1671,7 @@ export default function FinanceSetoranReconciliation({
                               </span>
                             ) : st.status === 'sebagian' ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800">
-                                Bayar Sebagian
+                                Sebagian
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800">

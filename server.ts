@@ -9,7 +9,7 @@ import firebaseConfig from "./firebase-applet-config.json" assert { type: "json"
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Initialize Firebase Admin
   let adminApp: App;
