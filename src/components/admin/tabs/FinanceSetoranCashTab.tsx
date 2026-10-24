@@ -54,6 +54,7 @@ interface FinanceSetoranCashTabProps {
   settings?: any;
   iuranCategories?: any[];
   schoolClasses?: any[];
+  filteredUsersForFinance?: any[];
 }
 
 export default function FinanceSetoranCashTab({ 
@@ -62,7 +63,8 @@ export default function FinanceSetoranCashTab({
   user, 
   settings, 
   iuranCategories = [], 
-  schoolClasses = [] 
+  schoolClasses = [],
+  filteredUsersForFinance = []
 }: FinanceSetoranCashTabProps) {
   const [deposits, setDeposits] = useState<CashDeposit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -733,6 +735,7 @@ export default function FinanceSetoranCashTab({
           deposits={deposits}
           iuranCategories={iuranCategories}
           schoolClasses={schoolClasses}
+          filteredUsersForFinance={filteredUsersForFinance}
           onOpenQuickDeposit={handleOpenQuickDeposit}
           onViewHistoryCategory={(catName) => {
             setSearchQuery(catName);

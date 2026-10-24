@@ -348,7 +348,10 @@ export default function DashboardAdmin() {
   };
 
   const filteredUsersForFinance = isFinanceFiltered ? allUsers.map(u => {
-    if (u.role !== 'siswa' || (u.status || 'Aktif') !== 'Aktif') return u;
+    const isStudent = (u.role || '').toLowerCase() === 'siswa' || (Boolean(u.kelas) && u.role !== 'guru' && u.role !== 'admin');
+    const statusLower = (u.status || 'Aktif').toLowerCase();
+    const isNotActiveStudent = statusLower === 'alumni' || statusLower === 'pindah' || statusLower === 'tidak aktif';
+    if (!isStudent || isNotActiveStudent) return u;
 
     // Apply basic user filters first (search by name or NISN)
     const searchLower = (filterFinanceStudentName || '').toLowerCase().trim();
@@ -666,11 +669,13 @@ export default function DashboardAdmin() {
     const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
       const rawUsers: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Merge and deduplicate by email so Admin always sees the latest changed password
+      // Students (role === 'siswa') are distinct individuals and must NEVER be deduplicated by email
+      // Sibling students frequently share parent's email or have placeholder email
       const userMap = new Map<string, any>();
       for (const u of rawUsers) {
+        const isStudent = (u.role || '').toLowerCase() === 'siswa' || (u.kelas && u.role !== 'guru' && u.role !== 'admin');
         const rawEmail = u.email ? String(u.email).trim().toLowerCase() : '';
-        const key = rawEmail || u.id;
+        const key = isStudent ? u.id : (rawEmail || u.id);
 
         if (!userMap.has(key)) {
           userMap.set(key, u);
@@ -5422,6 +5427,7 @@ export default function DashboardAdmin() {
                     settings={settings}
                     iuranCategories={iuranCategories}
                     schoolClasses={schoolClasses}
+                    filteredUsersForFinance={filteredUsersForFinance}
                   />
                 )}
 
