@@ -45,6 +45,7 @@ import {
   generateBuktiSetoranPrintHTML 
 } from '../../../lib/cashDepositUtils';
 import * as XLSX from 'xlsx';
+import FinanceSetoranReconciliation from './FinanceSetoranReconciliation';
 
 interface FinanceSetoranCashTabProps {
   payments: any[];
@@ -83,6 +84,9 @@ export default function FinanceSetoranCashTab({
   const [selectedDeposit, setSelectedDeposit] = useState<CashDeposit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Active Cash View: 'rekonsiliasi' (Monitoring Sisa & Tunggakan) or 'riwayat' (Data Setoran Cash)
+  const [activeCashView, setActiveCashView] = useState<'rekonsiliasi' | 'riwayat'>('rekonsiliasi');
+
   // Form State for Add / Edit
   const [formData, setFormData] = useState({
     depositNumber: '',
@@ -90,6 +94,7 @@ export default function FinanceSetoranCashTab({
     time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'),
     periodType: 'Harian' as 'Harian' | 'Mingguan' | 'Bulanan' | 'Custom',
     depositType: 'Tabungan' as any,
+    categoryKey: '',
     source: 'Kelas Umar',
     amount: '',
     description: '',
@@ -361,9 +366,41 @@ export default function FinanceSetoranCashTab({
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'),
       periodType: periodTab,
       depositType: 'Tabungan',
+      categoryKey: '',
       source: 'Kelas Umar',
       amount: '',
       description: 'Setoran uang tunai kas masuk ke Kepala Sekolah / Yayasan',
+      treasurerName: settings?.namaBendahara || user?.displayName || DEFAULT_TREASURER.name,
+      treasurerNip: settings?.nipBendahara || DEFAULT_TREASURER.nip,
+      treasurerTitle: settings?.jabatanBendahara || DEFAULT_TREASURER.title,
+      receiverName: settings?.namaKepsek || DEFAULT_PRINCIPAL.name,
+      receiverNip: settings?.nipKepsek || DEFAULT_PRINCIPAL.nip,
+      receiverTitle: settings?.jabatanKepsek || DEFAULT_PRINCIPAL.title,
+      directVerifyTreasurer: true
+    });
+    setShowAddModal(true);
+  };
+
+  // Quick Open Modal from Reconciliation Card with Pre-Filled Data
+  const handleOpenQuickDeposit = (depositData: {
+    depositType: string;
+    categoryKey: string;
+    amount: number;
+    description: string;
+    source?: string;
+    periodType?: 'Harian' | 'Mingguan' | 'Bulanan' | 'Custom';
+  }) => {
+    const nextNumber = generateDepositNumber(new Date().toISOString().split('T')[0], deposits.length);
+    setFormData({
+      depositNumber: nextNumber,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'),
+      periodType: depositData.periodType || 'Bulanan',
+      depositType: depositData.depositType as any,
+      categoryKey: depositData.categoryKey,
+      source: depositData.source || 'Semua Kelas / Gabungan',
+      amount: depositData.amount ? depositData.amount.toString() : '',
+      description: depositData.description || 'Setoran uang tunai kas masuk ke Kepala Sekolah / Yayasan',
       treasurerName: settings?.namaBendahara || user?.displayName || DEFAULT_TREASURER.name,
       treasurerNip: settings?.nipBendahara || DEFAULT_TREASURER.nip,
       treasurerTitle: settings?.jabatanBendahara || DEFAULT_TREASURER.title,
@@ -395,6 +432,7 @@ export default function FinanceSetoranCashTab({
         time: formData.time || '08:30',
         periodType: formData.periodType,
         depositType: formData.depositType,
+        categoryKey: formData.categoryKey || '',
         source: formData.source || 'Kelas Umar',
         amount: amt,
         description: formData.description.trim(),
@@ -654,7 +692,56 @@ export default function FinanceSetoranCashTab({
         </div>
       </div>
 
-      {/* 2. TOP METRICS CARDS */}
+      {/* VIEW MODE TOGGLE (Monitoring Sisa Kas vs Riwayat Transaksi) */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/60 overflow-x-auto custom-scrollbar">
+        <button
+          onClick={() => setActiveCashView('rekonsiliasi')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeCashView === 'rekonsiliasi'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Coins size={16} className={activeCashView === 'rekonsiliasi' ? 'text-emerald-600' : 'text-slate-400'} />
+          <span>Monitoring Sisa & Rekonsiliasi Kas</span>
+          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-200">
+            Fitur Baru
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveCashView('riwayat')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeCashView === 'riwayat'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <FileText size={16} className={activeCashView === 'riwayat' ? 'text-emerald-600' : 'text-slate-400'} />
+          <span>Riwayat & Pengesahan Setoran</span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black">
+            {deposits.length} Data
+          </span>
+        </button>
+      </div>
+
+      {/* CONDITIONAL CONTENT: REKONSILIASI OR RIWAYAT */}
+      {activeCashView === 'rekonsiliasi' ? (
+        <FinanceSetoranReconciliation
+          payments={payments}
+          allUsers={allUsers}
+          deposits={deposits}
+          iuranCategories={iuranCategories}
+          schoolClasses={schoolClasses}
+          onOpenQuickDeposit={handleOpenQuickDeposit}
+          onViewHistoryCategory={(catName) => {
+            setSearchQuery(catName);
+            setActiveCashView('riwayat');
+          }}
+        />
+      ) : (
+        <>
+          {/* 2. TOP METRICS CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Hari Ini */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[1.75rem] border border-slate-100 shadow-sm relative overflow-hidden">
@@ -1237,6 +1324,8 @@ export default function FinanceSetoranCashTab({
           </>
         )}
       </div>
+    </>
+  )}
 
       {/* 6. MODAL CATAT SETORAN BARU (MOBILE-PRECISION FIXED CONTAINER) */}
       {showAddModal && (

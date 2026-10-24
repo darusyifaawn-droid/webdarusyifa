@@ -18,6 +18,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import PiagamModal from './competition/PiagamModal';
 import { CompetitionParticipant, CompetitionEvent } from '../types/competition';
 import { DEFAULT_FASHION_SHOW_PARTICIPANTS, DEFAULT_FASHION_SHOW_EVENT } from '../data/competitionData';
+import NabungOnlineModal from './NabungOnlineModal';
 
 const MOTIVATIONAL_QUOTES = [
   "Anak yang rajin adalah kebanggaan orang tua dan guru.",
@@ -172,6 +173,7 @@ export default function DashboardSiswa() {
  
  // Payment Modal State
  const [showPaymentModal, setShowPaymentModal] = useState(false);
+ const [showNabungModal, setShowNabungModal] = useState(false);
  const [showPrintRapotModal, setShowPrintRapotModal] = useState(false);
  const [printRapotPeriod, setPrintRapotPeriod] = useState('PTS Ganjil');
  
@@ -1819,7 +1821,7 @@ export default function DashboardSiswa() {
                     { id: 'hafalan', label: 'Hafalan', icon: BookOpen, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', action: () => setActiveTab('hafalan') },
                     { id: 'progress', label: 'Rapor', icon: FileText, color: 'bg-amber-50 text-amber-600 border-amber-100', action: () => setActiveTab('progress') },
                     { id: 'administration', label: 'Pembayaran', icon: Wallet, color: 'bg-purple-50 text-purple-600 border-purple-100', action: () => setActiveTab('administration') },
-                    { id: 'tabungan', label: 'Tabungan', icon: Coins, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', action: () => setActiveTab('administration') },
+                    { id: 'tabungan', label: 'Tabungan', icon: Coins, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', action: () => { setActiveTab('administration'); setShowNabungModal(true); } },
                     { id: 'exams', label: 'Kartu Ujian', icon: FileCheck, color: 'bg-rose-50 text-rose-600 border-rose-100', action: () => setActiveTab('exams') },
                     { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-teal-50 text-teal-600 border-teal-100', action: () => setActiveTab('kaldik') },
                     { id: 'announcements', label: 'Pengumuman', icon: Megaphone, color: 'bg-orange-50 text-orange-600 border-orange-100', action: () => setActiveTab('announcements') },
@@ -3157,11 +3159,23 @@ export default function DashboardSiswa() {
  <div className="card-3d p-6 md:p-8">
  <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-6 md:mb-10">Ringkasan Administrasi Keuangan</h3>
  <div className="grid md:grid-cols-2 gap-6 md:gap-8">
- <div className="p-8 md:p-10 bg-green-600 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden">
+ <div className="p-8 md:p-10 bg-green-600 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-green-100 relative overflow-hidden flex flex-col justify-between">
+ <div className="relative z-10">
  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
  <h4 className="font-bold mb-3 md:mb-4 flex items-center gap-2 md:gap-3 text-green-100 uppercase tracking-widest text-[10px] md:text-xs"><CreditCard size={20} /> Saldo Tabungan</h4>
  <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
  <p className="text-[10px] md:text-xs text-green-100/60 mt-3 md:mt-4 leading-relaxed italic">Gunakan tabungan untuk keperluan sekolah yang terencana.</p>
+ </div>
+ <div className="mt-6 pt-4 border-t border-white/20 relative z-10">
+ <button
+ type="button"
+ onClick={() => setShowNabungModal(true)}
+ className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-green-800 hover:bg-green-50 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+ >
+ <Wallet size={16} className="text-green-700" />
+ Setor Tabungan Online (Transfer / QRIS)
+ </button>
+ </div>
  </div>
  <div className="p-8 md:p-10 bg-red-500 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
@@ -3299,19 +3313,17 @@ export default function DashboardSiswa() {
  </button>
  )}
  
- {pay.type !== 'tabungan' && (
- pay.status === 'lunas' || pay.status === 'approved' ? (
+ {pay.status === 'lunas' || pay.status === 'approved' ? (
  <button 
  onClick={() => handlePrintReceipt(pay)}
- className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest"
+ className="text-[10px] font-black text-green-600 hover:underline uppercase tracking-widest cursor-pointer"
  >
  Cetak Bukti
  </button>
  ) : (
  <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
- <Clock size={10} /> Pending
+ <Clock size={10} /> Menunggu Validasi
  </span>
- )
  )}
  </div>
  </td>
@@ -3377,11 +3389,10 @@ export default function DashboardSiswa() {
  Bukti
  </button>
  )}
- {pay.type !== 'tabungan' && (
- pay.status === 'lunas' || pay.status === 'approved' ? (
+ {pay.status === 'lunas' || pay.status === 'approved' ? (
  <button 
  onClick={() => handlePrintReceipt(pay)}
- className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors"
+ className="flex items-center gap-1 text-[9px] font-black text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-md uppercase tracking-widest transition-colors cursor-pointer"
  >
  <Printer size={12} /> Cetak
  </button>
@@ -3389,7 +3400,6 @@ export default function DashboardSiswa() {
  <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-md uppercase tracking-widest flex items-center gap-1">
  <Clock size={12} /> Pending Validasi
  </span>
- )
  )}
  </div>
  </div>
@@ -4106,6 +4116,13 @@ export default function DashboardSiswa() {
           schoolSettings={settings}
         />
       )}
+
+      {/* Nabung Online Modal */}
+      <NabungOnlineModal
+        isOpen={showNabungModal}
+        onClose={() => setShowNabungModal(false)}
+        studentUser={userData || user}
+      />
 
  {/* Drive Juknis Modal */}
  <DriveJuknisModal isOpen={showDriveJuknisModal || showJuknisDriveModal} onClose={() => { setShowDriveJuknisModal(false); setShowJuknisDriveModal(false); }} />

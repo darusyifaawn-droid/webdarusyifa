@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, setDoc, limit } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
-import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, MessageCircle } from 'lucide-react';
+import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, MessageCircle, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import { compressImage } from '../lib/imageUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
+import NabungOnlineModal from './NabungOnlineModal';
 
 export default function DashboardOrangTua() {
   const { user: authUser, userData: authUserData } = useAuth();
@@ -21,6 +22,7 @@ export default function DashboardOrangTua() {
   const [loading, setLoading] = useState(!authUserData);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showNabungModal, setShowNabungModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -239,11 +241,30 @@ export default function DashboardOrangTua() {
  </div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
- <div className="bg-emerald-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+ {/* Card Saldo Tabungan Santri */}
+ <div className="bg-gradient-to-br from-teal-600 to-emerald-700 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col justify-between group">
+ <Wallet className="absolute -right-4 -bottom-4 w-32 h-32 opacity-15 rotate-12 group-hover:scale-110 transition-transform" />
+ <div className="relative z-10">
+ <p className="text-[10px] font-black uppercase tracking-widest text-teal-100 opacity-90 mb-2">Saldo Tabungan Ananda</p>
+ <h3 className="text-3xl sm:text-4xl font-black tracking-tight">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</h3>
+ <p className="text-[11px] text-teal-100/80 mt-2 leading-relaxed">Setor online via QRIS atau Transfer BRI bebas biaya</p>
+ </div>
+ <button 
+ onClick={() => setShowNabungModal(true)} 
+ className="mt-6 px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-fit relative z-10"
+ >
+ <Wallet size={15} /> + Setor Tabungan Online
+ </button>
+ </div>
+
+ {/* Card Tunggakan Iuran */}
+ <div className="bg-rose-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group flex flex-col justify-between">
  <CreditCard className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12 group-hover:scale-110 transition-transform" />
- <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-2">Total Tunggakan Iuran</p>
- <h3 className="text-4xl font-black tracking-tight">Rp {(userData?.arrears || 0).toLocaleString('id-ID')}</h3>
- <button onClick={() => setActiveTab('administration')} className="mt-6 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all">Rincian Pembayaran</button>
+ <div>
+ <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Tunggakan Iuran</p>
+ <h3 className="text-3xl sm:text-4xl font-black tracking-tight">Rp {(userData?.arrears || 0).toLocaleString('id-ID')}</h3>
+ </div>
+ <button onClick={() => setActiveTab('administration')} className="mt-6 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all w-fit cursor-pointer">Rincian Pembayaran</button>
  </div>
  
  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -285,6 +306,25 @@ export default function DashboardOrangTua() {
  <p className="text-slate-500 font-medium">Pantau kewajiban iuran dan riwayat pembayaran ananda</p>
  </div>
  <CreditCard className="text-emerald-600 opacity-20" size={48} />
+ </div>
+
+ {/* Banner Tabungan Santri */}
+ <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-[2rem] shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+ <div>
+ <div className="flex items-center gap-2 mb-1">
+ <Wallet size={18} className="text-yellow-300" />
+ <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Saldo Tabungan Santri</span>
+ </div>
+ <p className="text-2xl sm:text-3xl font-black">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</p>
+ <p className="text-[11px] text-emerald-100/80 mt-0.5">Dapat disetor online kapan saja via QRIS atau Transfer Bank</p>
+ </div>
+ <button
+ type="button"
+ onClick={() => setShowNabungModal(true)}
+ className="px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-fit shrink-0"
+ >
+ <Wallet size={15} /> + Setor Tabungan Online
+ </button>
  </div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -496,6 +536,13 @@ export default function DashboardOrangTua() {
  )}
  </div>
  </main>
+
+ {/* Nabung Online Modal */}
+ <NabungOnlineModal
+ isOpen={showNabungModal}
+ onClose={() => setShowNabungModal(false)}
+ studentUser={userData || user}
+ />
  </div>
  );
 }

@@ -12,6 +12,7 @@ export interface CashDeposit {
   source: string; // e.g. "Kelas Umar", "Kelas Utsman", "Sumber Lain", "Pendaftaran"
   amount: number;
   description: string;
+  categoryKey?: string;
 
   // Treasurer (Disetor & Diverifikasi Oleh)
   treasurerId?: string;

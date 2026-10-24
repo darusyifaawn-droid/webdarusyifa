@@ -1837,9 +1837,15 @@ export default function DashboardAdmin() {
  }
  };
 
- const handleApprovePayment = async (pay: any) => {
- if (!window.confirm(`Verifikasi pembayaran ${pay.method} ini? Tindakan ini akan mengupdate status menjadi lunas dan mengurangi tunggakan siswa.`)) return;
- try {
+  const handleApprovePayment = async (pay: any) => {
+    const isSavingsDeposit = pay.type === 'tabungan' || pay.isSavingsDeposit === true || pay.category === 'Setoran Tabungan Online' || (pay.description && pay.description.toLowerCase().includes('setoran tabungan'));
+    
+    if (isSavingsDeposit) {
+      if (!window.confirm(`Validasi setoran tabungan online (${pay.transferChannel || pay.method || 'Transfer'}) sebesar Rp ${(pay.amount || 0).toLocaleString('id-ID')} untuk ${pay.studentName || 'siswa'}?\n\nTindakan ini akan mengesahkan setoran dan MENAMBAH saldo tabungan siswa secara otomatis.`)) return;
+    } else {
+      if (!window.confirm(`Verifikasi pembayaran ${pay.method} ini? Tindakan ini akan mengupdate status menjadi lunas dan mengurangi tunggakan siswa.`)) return;
+    }
+    try {
  const studentId = pay.studentId;
  const amountPaid = pay.amount;
  const arrearDetailId = pay.arrearDetailId;
@@ -1848,9 +1854,10 @@ export default function DashboardAdmin() {
  const student = allUsers.find(u => u.id === studentId);
  if (student) {
  const updates: any = {};
- 
- // Handle Arrears (Full or Partial)
- if (arrearDetailId) {
+
+ if (isSavingsDeposit) {
+ updates.savings = (Number(student.savings) || 0) + Number(amountPaid);
+ } else if (arrearDetailId) {
  const currentArrears = student.arrears || 0;
  const currentDetails = student.arrears_details || [];
  const targetDetail = currentDetails.find((d: any) => d.id === arrearDetailId);
@@ -1902,7 +1909,11 @@ export default function DashboardAdmin() {
  updatedAt: serverTimestamp()
  });
 
+ if (isSavingsDeposit) {
+ alert(`Alhamdulillah! Setoran tabungan Rp ${Number(amountPaid).toLocaleString('id-ID')} berhasil divalidasi dan saldo tabungan ${student?.name || 'siswa'} telah bertambah.`);
+ } else {
  alert('Pembayaran berhasil divalidasi!');
+ }
  } catch (error) {
  console.error("Error approving payment:", error);
  alert('Terjadi kesalahan saat memvalidasi pembayaran.');

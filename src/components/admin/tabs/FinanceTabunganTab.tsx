@@ -11,6 +11,7 @@ import { db } from '../../../lib/firebase';
 import { doc, updateDoc, collection, addDoc, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
 import { formatRupiah } from '../../../lib/salaryUtils';
 import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../../../lib/printUtils';
+import TabunganMonthlyMatrixModal from './TabunganMonthlyMatrixModal';
 
 interface FinanceTabunganTabProps {
   payments: any[];
@@ -107,6 +108,9 @@ export default function FinanceTabunganTab({
   const [editTxNotes, setEditTxNotes] = useState<string>('');
   const [editTxType, setEditTxType] = useState<'tabungan' | 'tabungan_keluar'>('tabungan');
   const [editTxSaving, setEditTxSaving] = useState<boolean>(false);
+
+  // Modal 3: Rekap Matriks Tabungan Bulanan (Tgl 1 - 30/31)
+  const [showMonthlyMatrixModal, setShowMonthlyMatrixModal] = useState<boolean>(false);
 
   // Global saving notification toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -1226,19 +1230,30 @@ export default function FinanceTabunganTab({
                 </button>
               </div>
 
-              {/* Right side: Riwayat Transaksi */}
-              <button
-                type="button"
-                onClick={() => setActiveTabMethod(activeTabMethod === 'history' ? 'manual' : 'history')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                  activeTabMethod === 'history'
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                <History size={14} className={activeTabMethod === 'history' ? 'text-white' : 'text-slate-500'} />
-                <span>Riwayat Transaksi & Revisi</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMonthlyMatrixModal(true)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <FileSpreadsheet size={14} />
+                  <span>Tarik Rekap Bulanan (Tgl 1-30)</span>
+                </button>
+
+                {/* Right side: Riwayat Transaksi */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTabMethod(activeTabMethod === 'history' ? 'manual' : 'history')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    activeTabMethod === 'history'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <History size={14} className={activeTabMethod === 'history' ? 'text-white' : 'text-slate-500'} />
+                  <span>Riwayat Transaksi & Revisi</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1703,14 +1718,23 @@ export default function FinanceTabunganTab({
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowMonthlyMatrixModal(true)}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    title="Tarik Rekap Excel Format Tgl 1-30 per Bulan"
+                  >
+                    <FileSpreadsheet size={14} />
+                    <span>Tarik Rekap Bulanan (Tgl 1-30)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleExportExcelRinci}
                     className="px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Download size={14} />
-                    <span>Export Excel</span>
+                    <span>Export Log Mutasi</span>
                   </button>
                   <button
                     type="button"
@@ -1770,7 +1794,12 @@ export default function FinanceTabunganTab({
                           {formatRupiah(tx.currentSaving)}
                         </td>
                         <td className="py-3 px-4 text-slate-500">
-                          {tx.description || '-'}
+                          <div>{tx.description || '-'}</div>
+                          {tx.status === 'pending' && (
+                            <span className="inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200 mt-0.5">
+                              Menunggu Validasi
+                            </span>
+                          )}
                           {tx.revisedBy && (
                             <span className="block text-[9px] text-amber-600 font-bold mt-0.5">
                               (Direvisi oleh {tx.revisedBy})
@@ -2547,6 +2576,15 @@ export default function FinanceTabunganTab({
           </div>
         </div>
       )}
+
+      {/* Modal 3: Rekap Matriks Tabungan Bulanan (Tgl 1 - 30/31) */}
+      <TabunganMonthlyMatrixModal
+        isOpen={showMonthlyMatrixModal}
+        onClose={() => setShowMonthlyMatrixModal(false)}
+        activeStudents={activeStudents}
+        allSavingsPayments={allSavingsPayments}
+        schoolClasses={schoolClasses?.map(c => typeof c === 'string' ? c : c?.name || '')}
+      />
 
     </div>
   );
