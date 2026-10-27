@@ -246,7 +246,10 @@ export default function DashboardAdmin() {
  const [filterLogStatus, setFilterLogStatus] = useState<'semua' | 'pending' | 'lunas' | 'ditolak'>('semua');
  const [filterLogMethod, setFilterLogMethod] = useState<'semua' | 'Tunai' | 'Transfer' | 'Tabungan'>('semua');
  const [filterLogStartDate, setFilterLogStartDate] = useState('');
- const [filterLogEndDate, setFilterLogEndDate] = useState('');
+  const [filterLogEndDate, setFilterLogEndDate] = useState('');
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [newPaymentMethod, setNewPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
 
  // Achievement Filters
  const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
@@ -2281,6 +2284,89 @@ export default function DashboardAdmin() {
     } catch (e: any) {
       console.error(e);
       alert('Gagal memproses pembayaran: ' + (e?.message || 'Terjadi kesalahan'));
+    }
+  };
+
+  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan') => {
+    if (payment.method === newMethod) {
+      setShowRevisionModal(false);
+      return;
+    }
+
+    const student = allUsers.find(u => u.id === payment.studentId);
+    if (!student) {
+      alert('Siswa tidak ditemukan!');
+      return;
+    }
+
+    const amount = Number(payment.amount || 0);
+    const currentSavings = student.savings || 0;
+
+    // Logic for savings balance adjustment
+    let savingsAdjustment = 0;
+
+    // If changing FROM Tabungan, we refund the amount to savings
+    if (payment.method === 'Tabungan') {
+      savingsAdjustment += amount;
+    }
+
+    // If changing TO Tabungan, we deduct the amount from savings
+    if (newMethod === 'Tabungan') {
+      let tempSavings = currentSavings;
+      if (payment.method === 'Tabungan') {
+        // This case is handled by payment.method === newMethod check above
+      } else {
+        // If it wasn't Tabungan, we check if current savings (plus possible refund if changing FROM Tabungan - handled by currentSavings + savingsAdjustment) is enough
+        if (currentSavings + savingsAdjustment < amount) {
+          alert(`Saldo tabungan tidak mencukupi!\nSaldo Tersedia: Rp ${(currentSavings + savingsAdjustment).toLocaleString('id-ID')}\nKebutuhan: Rp ${amount.toLocaleString('id-ID')}`);
+          return;
+        }
+      }
+      savingsAdjustment -= amount;
+    }
+
+    if (!window.confirm(`Konfirmasi Revisi Metode Pembayaran:\n\n` +
+      `• Transaksi: ${payment.description}\n` +
+      `• Dari: ${payment.method}\n` +
+      `• Ke: ${newMethod}\n\n` +
+      `Apakah Anda yakin ingin melakukan revisi ini?`)) return;
+
+    try {
+      const { writeBatch } = await import('firebase/firestore');
+      const batch = writeBatch(db);
+      
+      // Update payment record
+      const payRef = doc(db, 'payments', payment.id);
+      
+      // Clean up description if it contains method specific text
+      let newDesc = payment.description;
+      if (payment.method === 'Tabungan') {
+        newDesc = newDesc.replace('Potong Saldo Tabungan', `${newMethod} Admin`);
+      } else if (newMethod === 'Tabungan') {
+        newDesc = newDesc.replace(`${payment.method} Admin`, 'Potong Saldo Tabungan');
+      } else {
+        newDesc = newDesc.replace(`${payment.method} Admin`, `${newMethod} Admin`);
+      }
+
+      batch.update(payRef, { 
+        method: newMethod,
+        description: newDesc,
+        updatedAt: serverTimestamp()
+      });
+
+      // Update student savings if needed
+      if (savingsAdjustment !== 0) {
+        const studentRef = doc(db, 'users', student.id);
+        batch.update(studentRef, { savings: currentSavings + savingsAdjustment });
+      }
+
+      await batch.commit();
+      alert('Metode pembayaran berhasil diperbarui!');
+      setShowRevisionModal(false);
+      setEditingPayment(null);
+    } catch (error) {
+      console.error(error);
+      alert('Gagal memperbarui metode pembayaran.');
     }
   };
 
@@ -5440,7 +5526,14 @@ export default function DashboardAdmin() {
                   </div>
                 </div>
 
-                {/* Sub Tab: Setoran Cash Bendahara ke Kepsek / Yayasan */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={financeSubTab}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
                 {financeSubTab === 'setoran_cash' && (
                   <FinanceSetoranCashTab
                     payments={payments}
@@ -5540,6 +5633,9 @@ export default function DashboardAdmin() {
                     allUsers={allUsers}
                     setSelectedPhoto={setSelectedPhoto}
                     handlePrintReceipt={handlePrintReceipt}
+                    setEditingPayment={setEditingPayment}
+                    setShowRevisionModal={setShowRevisionModal}
+                    setNewPaymentMethod={setNewPaymentMethod}
                   />
                 )}
 
@@ -5591,6 +5687,8 @@ export default function DashboardAdmin() {
                     displayTotalPaid={displayTotalPaid}
                   />
                 )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -6890,7 +6988,20 @@ export default function DashboardAdmin() {
                               <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{formatDateForUI(p.createdAt || p.timestamp || p.date)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
                             </div>
                           </div>
-                          <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
+                          <div className="flex items-center gap-3">
+                            <button 
+                              onClick={() => {
+                                setEditingPayment(p);
+                                setNewPaymentMethod(p.method as any);
+                                setShowRevisionModal(true);
+                              }}
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+                              title="Revisi Metode Bayar"
+                            >
+                              <Edit size={12} />
+                            </button>
+                            <span className="font-black text-slate-700 text-[10px]">Rp {Number(p.amount).toLocaleString('id-ID')}</span>
+                          </div>
                         </div>
                       ))
                     )}
@@ -7501,6 +7612,99 @@ export default function DashboardAdmin() {
  </div>
  </div>
  )}
+
+  {/* Revision Payment Method Modal */}
+  <AnimatePresence>
+    {showRevisionModal && editingPayment && (
+      <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => { setShowRevisionModal(false); setEditingPayment(null); }}
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+        />
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0, y: 30 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 30 }}
+          className="relative w-full max-w-md bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 p-10"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                <RefreshCw size={24} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Revisi Pembayaran</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Koreksi Metode Pembayaran</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => { setShowRevisionModal(false); setEditingPayment(null); }}
+              className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-slate-600 bg-slate-50 rounded-xl transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 mb-8 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Siswa</span>
+              <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{allUsers.find(u => u.id === editingPayment.studentId)?.name || 'Unknown'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal</span>
+              <span className="text-sm font-black text-indigo-600">Rp {(editingPayment.amount || 0).toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Lama</span>
+              <span className="px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest">{editingPayment.method}</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 text-left">Pilih Metode Baru</label>
+            <div className="grid grid-cols-1 gap-3">
+              {['Tunai', 'Transfer', 'Tabungan'].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setNewPaymentMethod(m as any)}
+                  className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all group ${
+                    newPaymentMethod === m 
+                      ? 'border-indigo-600 bg-indigo-50/50 shadow-inner' 
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      newPaymentMethod === m ? 'bg-indigo-600 text-white rotate-6' : 'bg-white text-slate-300'
+                    }`}>
+                      {m === 'Tunai' ? <Banknote size={20} /> : m === 'Transfer' ? <CreditCard size={20} /> : <Wallet size={20} />}
+                    </div>
+                    <span className={`text-xs font-black uppercase tracking-widest ${newPaymentMethod === m ? 'text-indigo-900' : 'text-slate-500'}`}>{m}</span>
+                  </div>
+                  {newPaymentMethod === m && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                      <CheckCircle size={20} className="text-indigo-600" />
+                    </motion.div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => handleUpdatePaymentMethod(editingPayment, newPaymentMethod)}
+              className="w-full mt-8 py-5 bg-indigo-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group hover:scale-[1.02] active:scale-95"
+            >
+              <Save size={18} className="group-hover:-rotate-12 transition-transform" />
+              Simpan Perubahan
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
 
  </div>
  );

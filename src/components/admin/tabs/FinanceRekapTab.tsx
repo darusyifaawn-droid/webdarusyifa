@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Search, Download, User, Wallet, History, AlertCircle, CreditCard, CheckCircle, Users, BarChart as BarChartIcon, Printer, Edit, Trash2, FileText, TrendingUp, RefreshCw } from 'lucide-react';
 import { BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -103,7 +104,11 @@ export default function FinanceRekapTab({
   }).length;
 
   return (
-    <div className="space-y-8 text-left">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8 text-left"
+    >
       {/* 1. Filter Panel */}
       <div className="bg-white border border-gray-100 p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm transition-colors">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
@@ -296,7 +301,10 @@ export default function FinanceRekapTab({
 
       {/* 2. Real-Time Summary Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm relative overflow-hidden group">
+        <motion.div 
+          whileHover={{ y: -5, scale: 1.01 }}
+          className="glass-3d p-6 rounded-[2.5rem] relative overflow-hidden group"
+        >
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-indigo-600">
             <CreditCard size={64} />
           </div>
@@ -306,9 +314,12 @@ export default function FinanceRekapTab({
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Tagihan (Real-time)</p>
           <h4 className="text-2xl font-black text-gray-800 tracking-tight mt-1">Rp {totalTagihanValue.toLocaleString('id-ID')}</h4>
           <p className="text-[11px] font-semibold text-slate-400 mt-1">Total kewajiban {filteredUsersForFinance.length} siswa</p>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm relative overflow-hidden group">
+        <motion.div 
+          whileHover={{ y: -5, scale: 1.01 }}
+          className="glass-3d p-6 rounded-[2.5rem] relative overflow-hidden group"
+        >
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-emerald-600">
             <CheckCircle size={64} />
           </div>
@@ -324,9 +335,12 @@ export default function FinanceRekapTab({
               <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded">💳 Tabungan: Rp {totalDibayarTabungan.toLocaleString('id-ID')}</span>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm relative overflow-hidden group text-left">
+        <motion.div 
+          whileHover={{ y: -5, scale: 1.01 }}
+          className="glass-3d p-6 rounded-[2.5rem] relative overflow-hidden group text-left"
+        >
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-red-500">
             <AlertCircle size={64} />
           </div>
@@ -336,9 +350,12 @@ export default function FinanceRekapTab({
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sisa Tunggakan</p>
           <h4 className="text-2xl font-black text-red-600 tracking-tight mt-1 text-left">Rp {totalSisaTunggakanValue.toLocaleString('id-ID')}</h4>
           <p className="text-[11px] font-semibold text-red-500 mt-1">{countMenunggak} Siswa Belum Lunas</p>
-        </div>
+        </motion.div>
 
-        <div className="bg-slate-900 border border-slate-800 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden group text-left">
+        <motion.div 
+          whileHover={{ y: -5, scale: 1.01 }}
+          className="bg-slate-900 border border-slate-800 text-white p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group text-left"
+        >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform text-indigo-400">
             <Users size={64} />
           </div>
@@ -359,7 +376,7 @@ export default function FinanceRekapTab({
               ? `${countMenunggak} siswa perlu tindak lanjut`
               : 'Data iuran termonitor'}
           </p>
-        </div>
+        </motion.div>
       </div>
 
       {/* 3. DataTable Section */}
@@ -524,6 +541,6 @@ export default function FinanceRekapTab({
           </ResponsiveContainer>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

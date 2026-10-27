@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Users, Trash2, CheckCircle, X, Clock, Image as ImageIcon, RefreshCw, Printer } from 'lucide-react';
+import { Search, Users, Trash2, CheckCircle, X, Clock, Image as ImageIcon, RefreshCw, Printer, Edit } from 'lucide-react';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
@@ -20,6 +20,9 @@ interface FinanceRiwayatTabProps {
  allUsers: any[];
  setSelectedPhoto: (val: string | null) => void;
  handlePrintReceipt: (pay: any) => void;
+ setEditingPayment: (pay: any) => void;
+ setShowRevisionModal: (val: boolean) => void;
+ setNewPaymentMethod: (val: any) => void;
 }
 
 export default function FinanceRiwayatTab({
@@ -36,7 +39,10 @@ export default function FinanceRiwayatTab({
  payments,
  allUsers,
  setSelectedPhoto,
- handlePrintReceipt
+ handlePrintReceipt,
+ setEditingPayment,
+ setShowRevisionModal,
+ setNewPaymentMethod
 }: FinanceRiwayatTabProps) {
  const filteredLogPayments = payments.filter(pay => {
  const student = allUsers.find(u => u.id === pay.studentId);
@@ -211,9 +217,20 @@ export default function FinanceRiwayatTab({
  </span>
  </td>
  <td className="px-8 py-5 text-center">
- <div className="flex items-center justify-center gap-2">
- <button 
- onClick={() => handlePrintReceipt(pay)}
+  <div className="flex items-center justify-center gap-2">
+  <button 
+  onClick={() => {
+  setEditingPayment(pay);
+  setNewPaymentMethod(pay.method);
+  setShowRevisionModal(true);
+  }}
+  className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+  title="Edit Metode Bayar"
+  >
+  <Edit size={15} />
+  </button>
+  <button 
+  onClick={() => handlePrintReceipt(pay)}
  className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100 "
  title="Cetak Kuitansi"
  >
@@ -299,6 +316,16 @@ export default function FinanceRiwayatTab({
  </div>
 
  <div className="flex items-center justify-end gap-3 pt-1">
+ <button 
+ onClick={() => {
+ setEditingPayment(pay);
+ setNewPaymentMethod(pay.method);
+ setShowRevisionModal(true);
+ }}
+ className="px-4 py-2.5 bg-white border border-slate-100 text-amber-500 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
+ >
+ <Edit size={14} /> Edit
+ </button>
  <button 
  onClick={() => handlePrintReceipt(pay)}
  className="px-4 py-2.5 bg-white border border-slate-100 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"

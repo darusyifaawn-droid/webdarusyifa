@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { motion } from 'motion/react';
 import { 
   CreditCard, 
   Download, 
@@ -197,10 +198,14 @@ export default function FinanceDashboardOverview({
   const totalTransactionsCount = payments.filter(p => p.type !== 'tagihan').length || 57;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans notranslate" translate="no">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8 text-left font-sans notranslate" translate="no"
+    >
       
       {/* 1. Header Banner */}
-      <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
             <CreditCard size={28} />
@@ -234,7 +239,10 @@ export default function FinanceDashboardOverview({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         
         {/* TOTAL TABUNGAN */}
-        <div className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all">
+        <motion.div 
+          whileHover={{ scale: 1.02, y: -5 }}
+          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
               <Receipt size={22} />
@@ -262,10 +270,13 @@ export default function FinanceDashboardOverview({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* TOTAL TUNGGAKAN */}
-        <div className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all">
+        <motion.div 
+          whileHover={{ scale: 1.02, y: -5 }}
+          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
               <AlertCircle size={22} />
@@ -293,10 +304,13 @@ export default function FinanceDashboardOverview({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* TERBAYAR (ONLINE) */}
-        <div className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all">
+        <motion.div 
+          whileHover={{ scale: 1.02, y: -5 }}
+          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
               <TrendingUp size={22} />
@@ -321,10 +335,13 @@ export default function FinanceDashboardOverview({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* SISWA MENUNGGAK */}
-        <div className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-all">
+        <motion.div 
+          whileHover={{ scale: 1.02, y: -5 }}
+          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
               <Users size={22} />
@@ -343,7 +360,7 @@ export default function FinanceDashboardOverview({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
       </div>
 
@@ -356,9 +373,10 @@ export default function FinanceDashboardOverview({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Card 1: Transaksi & Pembayaran */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('grup')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -376,12 +394,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card: Setoran Cash Bendahara ke Kepsek */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('setoran_cash')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -399,12 +418,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 2: Tabungan Siswa */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('tabungan')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -422,12 +442,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card: Slip Gaji Guru */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('slip_gaji')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -445,12 +466,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 3: Penagihan Iuran */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('penetapan')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -468,12 +490,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 4: Validasi Pembayaran */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('validasi')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-purple-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -491,12 +514,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 5: Arsip Transaksi */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('riwayat')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -514,15 +538,16 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 6: Laporan Keuangan */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => {
               if (setActiveTab) setActiveTab('finance-arus');
               else setFinanceSubTab('laporan');
             }}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -540,12 +565,13 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 7: Pengaturan Administrasi */}
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('setelan')}
-            className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-5 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-pointer flex flex-col justify-between group"
           >
             <div>
               <div className="w-11 h-11 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -563,10 +589,10 @@ export default function FinanceDashboardOverview({
                 <ArrowRight size={14} />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Card 8: Ringkasan Metode Pembayaran (Donut Chart) */}
-          <div className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between">
             <h4 className="font-bold text-xs text-slate-700 mb-2">
               Ringkasan Metode Pembayaran
             </h4>
@@ -788,7 +814,7 @@ export default function FinanceDashboardOverview({
       </div>
 
       {/* 5. Bottom Summary Banner */}
-      <div className="bg-slate-50/90 border border-slate-100 p-5 md:p-6 rounded-[2rem] shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
+      <div className="bg-slate-50/90 border border-slate-100 p-5 md:p-6 rounded-[2.5rem] shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
         
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 flex-1">
           {/* Total Tagihan Bulan Ini */}
@@ -868,6 +894,6 @@ export default function FinanceDashboardOverview({
 
       </div>
 
-    </div>
+    </motion.div>
   );
 }
