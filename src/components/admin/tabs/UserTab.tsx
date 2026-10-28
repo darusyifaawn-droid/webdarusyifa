@@ -154,20 +154,20 @@ export default function UserTab({
     switch (role) {
       case 'admin':
         return (
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="text-[10px] font-black uppercase tracking-wider text-purple-600">
             ADMIN
           </span>
         );
       case 'guru':
         return (
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="text-[10px] font-black uppercase tracking-wider text-blue-600">
             GURU
           </span>
         );
       case 'siswa':
       default:
         return (
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">
             SISWA
           </span>
         );

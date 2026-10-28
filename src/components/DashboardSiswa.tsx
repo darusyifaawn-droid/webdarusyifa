@@ -1814,7 +1814,6 @@ export default function DashboardSiswa() {
                     { id: 'hafalan', label: 'Hafalan', icon: BookOpen, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', action: () => setActiveTab('hafalan') },
                     { id: 'progress', label: 'Rapor', icon: FileText, color: 'bg-amber-50 text-amber-600 border-amber-100', action: () => setActiveTab('progress') },
                     { id: 'administration', label: 'Pembayaran', icon: Wallet, color: 'bg-purple-50 text-purple-600 border-purple-100', action: () => setActiveTab('administration') },
-                    { id: 'tabungan', label: 'Tabungan', icon: Coins, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', action: () => { setActiveTab('administration'); setShowNabungModal(true); } },
                     { id: 'exams', label: 'Kartu Ujian', icon: FileCheck, color: 'bg-rose-50 text-rose-600 border-rose-100', action: () => setActiveTab('exams') },
                     { id: 'kaldik', label: 'Kaldik', icon: Calendar, color: 'bg-teal-50 text-teal-600 border-teal-100', action: () => setActiveTab('kaldik') },
                     { id: 'announcements', label: 'Pengumuman', icon: Megaphone, color: 'bg-orange-50 text-orange-600 border-orange-100', action: () => setActiveTab('announcements') },
@@ -3159,16 +3158,6 @@ export default function DashboardSiswa() {
  <p className="text-3xl md:text-4xl font-bold">Rp {(userData?.savings || 0).toLocaleString()}</p>
  <p className="text-[10px] md:text-xs text-green-100/60 mt-3 md:mt-4 leading-relaxed italic">Gunakan tabungan untuk keperluan sekolah yang terencana.</p>
  </div>
- <div className="mt-6 pt-4 border-t border-white/20 relative z-10">
- <button
- type="button"
- onClick={() => setShowNabungModal(true)}
- className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-green-800 hover:bg-green-50 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
- >
- <Wallet size={16} className="text-green-700" />
- Setor Tabungan Online (Transfer / QRIS)
- </button>
- </div>
  </div>
  <div className="p-8 md:p-10 bg-red-500 rounded-[24px] md:rounded-[32px] text-white shadow-xl shadow-red-100 relative overflow-hidden">
  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
@@ -4110,12 +4099,13 @@ export default function DashboardSiswa() {
         />
       )}
 
-      {/* Nabung Online Modal */}
+      {/* Nabung Online Modal - Hidden as requested
       <NabungOnlineModal
         isOpen={showNabungModal}
         onClose={() => setShowNabungModal(false)}
         studentUser={userData || user}
       />
+      */}
 
  {/* Drive Juknis Modal */}
  <DriveJuknisModal isOpen={showDriveJuknisModal || showJuknisDriveModal} onClose={() => { setShowDriveJuknisModal(false); setShowJuknisDriveModal(false); }} />

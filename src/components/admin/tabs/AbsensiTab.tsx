@@ -286,30 +286,33 @@ export default function AbsensiTab({
     const s = (status || '').toLowerCase();
     if (s === 'hadir') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-          <Check size={11} className="stroke-[3]" />
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
           HADIR
-        </span>
+        </div>
       );
     }
     if (s === 'sakit') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-blue-600">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
           SAKIT
-        </span>
+        </div>
       );
     }
     if (s === 'izin') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600">
+          <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
           IZIN
-        </span>
+        </div>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600">
+        <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
         ALPHA
-      </span>
+      </div>
     );
   };
 

@@ -8,11 +8,40 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-arab: "Amiri", serif;
 
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+
+  --color-sage-50: #f7f9f8;
+  --color-sage-100: #eef2f1;
+  --color-sage-200: #dae5e1;
+  --color-sage-300: #bccfca;
+  --color-sage-400: #97b3ac;
+  --color-sage-500: #7a9790;
+  --color-sage-600: #627b75;
+  --color-sage-700: #506460;
+  --color-sage-800: #42524f;
+  --color-sage-900: #3a4543;
+  --color-sage-950: #212827;
+
   --animate-bounce-slow: bounce-slow 4s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
 
   @keyframes bounce-slow {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
   }
 }
 
@@ -21,7 +50,7 @@ html {
 }
 
 body {
-  @apply bg-slate-50/50 text-slate-900 antialiased;
+  @apply bg-[#f1f5f3] text-slate-900 antialiased font-sans selection:bg-emerald-100 selection:text-emerald-900;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -30,75 +59,62 @@ body {
   .font-display {
     font-family: var(--font-display);
   }
-  .markdown-body {
-    @apply text-slate-600 leading-relaxed text-sm md:text-base;
+  
+  /* Modern Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  .markdown-body p {
-    @apply mb-4 last:mb-0;
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
   }
-  .markdown-body h1 {
-    @apply text-2xl font-bold mb-4 text-slate-800;
-  }
-  .markdown-body h2 {
-    @apply text-xl font-bold mb-3 text-slate-800;
-  }
-  .markdown-body h3 {
-    @apply text-lg font-bold mb-2 text-slate-800;
-  }
-  .markdown-body ul {
-    @apply list-disc pl-5 mb-4 space-y-1;
-  }
-  .markdown-body ol {
-    @apply list-decimal pl-5 mb-4 space-y-1;
-  }
-  .markdown-body li {
-    @apply pl-1;
-  }
-  .markdown-body strong {
-    @apply font-bold text-slate-800;
-  }
-  .markdown-body blockquote {
-    @apply border-l-4 border-slate-200 pl-4 italic my-4 text-slate-700;
-  }
-  .markdown-body code {
-    @apply bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-sm font-mono;
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
   }
 
-  /* 3D Visual System */
+  /* Premium UI System */
   .glass-3d {
-    @apply bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.05)] text-slate-900;
+    @apply bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-slate-900;
   }
 
-  .card-3d {
-    @apply bg-white border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] transition-all duration-500 ease-out text-slate-900;
+  .card-premium {
+    @apply bg-white border border-white/60 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] rounded-[2rem] transition-all duration-500 ease-out;
   }
 
-  .card-3d:hover {
-    @apply shadow-[0_30px_60px_-12px_rgba(0,0,0,0.12)] -translate-y-2;
+  .card-premium:hover {
+    @apply shadow-[0_30px_60px_-12px_rgba(0,0,0,0.08)] -translate-y-1.5;
   }
 
-  .button-3d {
-    @apply relative transition-all duration-200 active:translate-y-1 active:shadow-none shadow-[0_6px_0_0_rgba(0,0,0,0.1)] hover:shadow-[0_4px_0_0_rgba(0,0,0,0.1)] hover:translate-y-0.5;
+  .btn-primary {
+    @apply px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2;
   }
 
-  .floating-3d {
-    @apply shadow-[0_25px_70px_-15px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.02] animate-bounce-slow;
+  .btn-secondary {
+    @apply px-5 py-2.5 bg-white text-slate-700 border border-slate-100 rounded-xl font-semibold shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2;
   }
 
-  .preserve-3d {
-    transform-style: preserve-3d;
+  .input-premium {
+    @apply w-full px-4 py-3 bg-white border border-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 placeholder:text-slate-400;
   }
 
-  .backface-hidden {
-    backface-visibility: hidden;
+  .sidebar-icon {
+    @apply p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center relative;
   }
 
-  .neobrutal-3d {
-    @apply border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+  .sidebar-icon-active {
+    @apply bg-emerald-600 text-white shadow-lg shadow-emerald-600/30;
   }
 
-  .inner-3d {
-    @apply shadow-[inset_0_2px_8px_0_rgba(0,0,0,0.08)];
+  .sidebar-icon-inactive {
+    @apply text-slate-400 hover:text-emerald-600 hover:bg-emerald-50;
+  }
+
+  .nav-tab-active {
+    @apply bg-emerald-600 text-white shadow-lg shadow-emerald-600/20;
+  }
+
+  .nav-tab-inactive {
+    @apply text-slate-500 hover:text-emerald-600 hover:bg-emerald-50;
   }
 
   /* Safari Fixes */
@@ -106,17 +122,11 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
-  .backdrop-blur-sm { -webkit-backdrop-filter: blur(4px); }
-  .backdrop-blur-md { -webkit-backdrop-filter: blur(12px); }
-  .backdrop-blur-lg { -webkit-backdrop-filter: blur(16px); }
-  .backdrop-blur-xl { -webkit-backdrop-filter: blur(24px); }
-  .backdrop-blur-2xl { -webkit-backdrop-filter: blur(40px); }
-  .backdrop-blur-3xl { -webkit-backdrop-filter: blur(64px); }
-
   .min-h-screen-safe {
     min-height: 100vh;
     min-height: 100svh;
   }
+
 
   /* Quill Editor Customization */
   .quill-editor .ql-toolbar {
@@ -247,3 +257,5 @@ body {
     word-break: break-all !important;
   }
 }
+
+

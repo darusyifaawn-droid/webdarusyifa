@@ -241,33 +241,30 @@ export default function FinanceDashboardOverview({
         {/* TOTAL TABUNGAN */}
         <motion.div 
           whileHover={{ scale: 1.02, y: -5 }}
-          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
         >
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <Receipt size={22} />
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-sm">
+              <Banknote size={22} />
             </div>
-            {/* Sparkline curve */}
-            <div className="w-20 h-9 opacity-80">
+            <div className="w-20 h-9 opacity-40">
               <svg viewBox="0 0 100 40" className="w-full h-full text-emerald-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,32 Q25,35 45,22 T80,15 T100,5" />
               </svg>
             </div>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
-              TOTAL TABUNGAN
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
+              Total Tabungan
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
               Rp {(displayTotalTabungan || 10010000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            <div className="flex items-center gap-1.5 mt-3">
+              <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
                 ↑ 12.5%
               </span>
-              <span className="text-[11px] text-slate-500 font-medium truncate">
-                Dibanding bulan lalu
-              </span>
+              <span className="text-[11px] text-slate-400 font-medium">vs bulan lalu</span>
             </div>
           </div>
         </motion.div>
@@ -275,33 +272,30 @@ export default function FinanceDashboardOverview({
         {/* TOTAL TUNGGAKAN */}
         <motion.div 
           whileHover={{ scale: 1.02, y: -5 }}
-          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
         >
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100 shadow-sm">
               <AlertCircle size={22} />
             </div>
-            {/* Sparkline curve */}
-            <div className="w-20 h-9 opacity-80">
+            <div className="w-20 h-9 opacity-40">
               <svg viewBox="0 0 100 40" className="w-full h-full text-rose-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,28 Q30,32 50,18 T85,12 T100,2" />
               </svg>
             </div>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block mb-1">
-              TOTAL TUNGGAKAN
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
+              Total Tunggakan
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
               Rp {(displayTotalTunggakan || 12425000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[10px] font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+            <div className="flex items-center gap-1.5 mt-3">
+              <span className="text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
                 ↑ 8.3%
               </span>
-              <span className="text-[11px] text-slate-500 font-medium truncate">
-                Dibanding bulan lalu
-              </span>
+              <span className="text-[11px] text-slate-400 font-medium">perlu ditindak</span>
             </div>
           </div>
         </motion.div>
@@ -309,30 +303,30 @@ export default function FinanceDashboardOverview({
         {/* TERBAYAR (ONLINE) */}
         <motion.div 
           whileHover={{ scale: 1.02, y: -5 }}
-          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
         >
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100 shadow-sm">
               <TrendingUp size={22} />
             </div>
-            {/* Sparkline curve */}
-            <div className="w-20 h-9 opacity-80">
+            <div className="w-20 h-9 opacity-40">
               <svg viewBox="0 0 100 40" className="w-full h-full text-indigo-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,35 Q20,20 40,28 T75,10 T100,4" />
               </svg>
             </div>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block mb-1">
-              TERBAYAR (ONLINE)
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
+              Terbayar (Online)
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
               Rp {(displayTotalPaidOnline || 1519000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="text-[11px] text-slate-500 font-medium truncate">
-                Per {todayFormatted}
+            <div className="flex items-center gap-1.5 mt-3">
+              <span className="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                Live Data
               </span>
+              <span className="text-[11px] text-slate-400 font-medium">terverifikasi</span>
             </div>
           </div>
         </motion.div>
@@ -340,24 +334,25 @@ export default function FinanceDashboardOverview({
         {/* SISWA MENUNGGAK */}
         <motion.div 
           whileHover={{ scale: 1.02, y: -5 }}
-          className="glass-3d p-5 md:p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between"
+          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
         >
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100 shadow-sm">
               <Users size={22} />
             </div>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block mb-1">
-              SISWA MENUNGGAK
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
+              Siswa Menunggak
             </span>
-            <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
               {studentsWithArrears.length || 23}
             </h3>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="text-[11px] text-slate-500 font-medium">
-                Total siswa
+            <div className="flex items-center gap-1.5 mt-3">
+              <span className="text-[11px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                {totalStudentsCount} Total
               </span>
+              <span className="text-[11px] text-slate-400 font-medium">siswa terdaftar</span>
             </div>
           </div>
         </motion.div>

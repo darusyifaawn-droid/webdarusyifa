@@ -3578,524 +3578,228 @@ export default function DashboardAdmin() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
 
- const NavItems = () => {
+  const NavItems = () => {
     const pendingCount = payments.filter(p => p.status === 'pending').length;
-    const isFinanceActive = activeTab === 'finance';
+    
+    const items = [
+      { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'users', label: 'Users', icon: Users },
+      { id: 'academic', label: 'Akademik', icon: BookOpen },
+      { id: 'hafalan', label: 'Hafalan', icon: Star },
+      { id: 'competitions', label: 'Lomba', icon: Award },
+      { id: 'finance', label: 'Keuangan', icon: CreditCard, count: pendingCount },
+      { id: 'finance-arus', label: 'Arus Kas', icon: TrendingUp },
+      { id: 'attendance', label: 'Absensi', icon: CheckCircle },
+      { id: 'calendar', label: 'Kaldik', icon: Calendar },
+      { id: 'achievements', label: 'Prestasi', icon: Trophy },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ];
 
     return (
-      <nav className="space-y-4 flex-1 text-slate-600">
-        {/* Primary Dashboard item */}
-        <div className="space-y-1.5">
-          <button
-            onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
-              activeTab === 'overview'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Home size={18} className={activeTab === 'overview' ? 'text-white' : 'text-slate-400'} />
-            <span className="tracking-tight text-xs">Dashboard</span>
-          </button>
-        </div>
-
-        {/* Group: Data & Informasi */}
-        <div className="space-y-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
-            Data & Informasi
-          </p>
-
-          {[
-            { id: 'users', label: 'User Management', icon: Users },
-            { id: 'academic', label: 'Akademik & Rapor', icon: BookOpen },
-            { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
-            { id: 'competitions', label: 'Hasil Lomba & Piagam', icon: Award },
-            { id: 'finance', label: 'Administrasi', icon: CreditCard, hasSub: true },
-            { id: 'finance-arus', label: 'Arus Keuangan', icon: TrendingUp },
-            { id: 'attendance', label: 'Absensi', icon: CheckCircle },
-            { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
-            { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
-          ].map((item) => {
-            if (item.id === 'finance') {
-              return (
-                <div key={item.id} className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setActiveTab('finance');
-                      setFinanceSubTab('dashboard');
-                      setIsSidebarOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl transition-all font-bold text-xs group ${
-                      isFinanceActive
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <item.icon size={18} className={isFinanceActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
-                      <span className="tracking-tight text-xs">{item.label}</span>
-                    </div>
-                    <ChevronDown size={14} className={`transition-transform duration-200 ${isFinanceActive ? 'rotate-180 text-white' : 'text-slate-400'}`} />
-                  </button>
-
-                  {isFinanceActive && (
-                    <div className="pl-4 pr-1 py-1 space-y-1 animate-in fade-in duration-200">
-                      {[
-                        { id: 'dashboard', label: 'Dashboard Administrasi', isDot: true },
-                        { id: 'tabungan', label: 'Laporan Tabungan Rinci' },
-                        { id: 'slip_gaji', label: 'Slip Gaji Guru' },
-                        { id: 'grup', label: 'Transaksi & Pembayaran' },
-                        { id: 'penetapan', label: 'Penagihan Iuran' },
-                        { id: 'validasi', label: 'Validasi Pembayaran', count: pendingCount },
-                        { id: 'riwayat', label: 'Arsip Transaksi' },
-                        { id: 'laporan', label: 'Laporan Keuangan' },
-                        { id: 'setelan', label: 'Pengaturan Administrasi' },
-                      ].map((sub) => {
-                        const isSubActive = financeSubTab === sub.id;
-                        return (
-                          <button
-                            key={sub.id}
-                            onClick={() => {
-                              setFinanceSubTab(sub.id as any);
-                              setIsSidebarOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-all ${
-                              isSubActive
-                                ? 'bg-emerald-50 text-emerald-800 font-bold shadow-xs'
-                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              {sub.isDot ? (
-                                <span className={`w-2 h-2 rounded-full ${financeSubTab === 'dashboard' ? 'bg-emerald-500' : 'bg-transparent'} shrink-0`} />
-                              ) : (
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                              )}
-                              <span className="truncate">{sub.label}</span>
-                            </div>
-                            {sub.count && sub.count > 0 ? (
-                              <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full leading-none">
-                                {sub.count}
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            const isActive = activeTab === item.id;
-            return (
+      <div className="flex flex-col items-center gap-3 w-full">
+        {items.map((item) => {
+          const isActive = activeTab === item.id || (item.id === 'finance' && activeTab === 'finance');
+          return (
+            <div key={item.id} className="relative group">
               <button
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl transition-all font-bold text-xs group ${
-                  isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                onClick={() => { 
+                  setActiveTab(item.id); 
+                  if (item.id === 'finance') setFinanceSubTab('dashboard');
+                  setIsSidebarOpen(false); 
+                }}
+                className={`sidebar-icon ${isActive ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
               >
-                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
-                <span className="tracking-tight text-xs">{item.label}</span>
+                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                {item.count ? (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                    {item.count}
+                  </span>
+                ) : null}
               </button>
-            );
-          })}
-        </div>
-
-        {/* Group: Lainnya */}
-        <div className="space-y-1 pt-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
-            Lainnya
-          </p>
-
-          {[
-            { id: 'announcements', label: 'Pengumuman', icon: Megaphone },
-            { id: 'profile', label: 'Profil Admin', icon: User },
-            { id: 'settings', label: 'Pengaturan', icon: Settings },
-          ].map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl transition-all font-bold text-xs group ${
-                  isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
-                <span className="tracking-tight text-xs">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+              
+              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
+                {item.label}
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     );
   };
 
   
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
-      {/* Sidebar (Desktop) */}
-      <aside className="w-64 bg-white border-r border-slate-100 p-5 hidden md:flex flex-col shadow-xs z-30 transition-colors duration-300">
+    <div className="flex h-screen bg-[#f1f5f3] overflow-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      {/* Premium Slim Sidebar (Desktop) */}
+      <aside className="w-20 bg-white border-r border-slate-100 hidden md:flex flex-col items-center py-8 gap-10 z-50 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3 mb-6 px-1">
-          <div className="w-10 h-10 overflow-hidden rounded-2xl border border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center shrink-0">
-            <img 
-              src="/logo_ra.jpeg" 
-              alt="Logo Resmi RA Darusyifa" 
-              className="w-full h-full object-contain" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
-          <div>
-            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight text-sm">RA Darusyifa</h1>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 leading-none">ARJAWINANGUN</p>
-          </div>
+        <div 
+          onClick={() => setActiveTab('overview')}
+          className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+        >
+          <img 
+            src="/logo_ra.jpeg" 
+            alt="Logo RA" 
+            className="w-8 h-8 rounded-lg object-contain brightness-0 invert" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-white font-black text-xl">RA</span>';
+            }}
+          />
         </div>
 
         {/* Scrollable Nav Items */}
-        <div className="flex-1 overflow-y-auto pr-1 -mr-2 custom-scrollbar">
+        <div className="flex-1 flex flex-col items-center gap-4 w-full px-2 overflow-y-auto custom-scrollbar no-scrollbar">
           <NavItems />
         </div>
 
-        {/* Active Account Profile Footer */}
-        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-          <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-slate-400 font-bold tracking-wider">AKUN AKTIF</span>
-          </div>
-
-          <div 
+        {/* Footer Actions */}
+        <div className="flex flex-col items-center gap-4 mt-auto">
+          <button 
             onClick={() => setActiveTab('profile')}
-            className="p-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-100 flex items-center justify-between cursor-pointer transition-all group"
+            className={`sidebar-icon ${activeTab === 'profile' ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
+            title="Profil"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold shrink-0">
-                {userData?.photoURL ? (
-                  <img src={userData.photoURL} alt="Admin" className="w-full h-full object-cover" />
-                ) : (
-                  <img src="/logo_ra.jpeg" alt="Admin" className="w-full h-full object-cover" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors truncate">
-                  Admin RA
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium truncate">
-                  {user?.email || 'darusyifa.awn@gmail.com'}
-                </p>
-              </div>
-            </div>
-            <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-          </div>
+            <User size={20} />
+          </button>
+          <button 
+            onClick={() => auth.signOut()}
+            className="sidebar-icon sidebar-icon-inactive text-rose-400 hover:text-rose-600 hover:bg-rose-50"
+            title="Keluar"
+          >
+            <LogOut size={20} />
+          </button>
         </div>
       </aside>
 
-      {/* Bottom Navigation Bar (Mobile) - 5 tabs with Menu (Garis Tiga) */}
-      <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-8px_25px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-3 z-50"
-        style={{ WebkitBackdropFilter: 'blur(16px)' }}
-      >
-        {/* Beranda */}
-        <button
-          onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            activeTab === 'overview' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Home size={20} className={activeTab === 'overview' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
-          <span className="text-[10px] tracking-tight">Beranda</span>
-        </button>
-
-        {/* Transaksi */}
-        <button
-          onClick={() => { setActiveTab('finance'); setFinanceSubTab('grup'); setIsSidebarOpen(false); }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            activeTab === 'finance' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <CreditCard size={20} className={activeTab === 'finance' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
-          <span className="text-[10px] tracking-tight">Transaksi</span>
-        </button>
-
-        {/* Center Elevated Scan/QR button */}
-        <div className="flex-1 flex justify-center -mt-6">
-          <button
-            onClick={() => { setShowTabunganModal(true); }}
-            className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30 border-4 border-white active:scale-95 transition-transform"
-            title="Scan / Tabungan"
-          >
-            <QrCode size={22} />
-          </button>
-        </div>
-
-        {/* Notifikasi */}
-        <button
-          onClick={() => { setActiveTab('announcements'); setIsSidebarOpen(false); }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all relative ${
-            activeTab === 'announcements' && !isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <div className="relative">
-            <Bell size={20} className={activeTab === 'announcements' && !isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
-            {payments.filter(p => p.status === 'pending').length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
-            )}
-          </div>
-          <span className="text-[10px] tracking-tight">Notifikasi</span>
-        </button>
-
-        {/* Menu (Garis Tiga) */}
-        <button
-          onClick={() => { setIsSidebarOpen(true); }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all ${
-            isSidebarOpen ? 'text-emerald-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Menu size={20} className={isSidebarOpen ? 'text-emerald-600' : 'text-slate-400'} />
-          <span className="text-[10px] tracking-tight">Menu</span>
-        </button>
-      </div>
-
-      {/* Mobile Bottom Sheet Menu */}
+      {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
-          <>
+          <div className="fixed inset-0 z-[100] md:hidden overflow-hidden">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[90] md:hidden"
               onClick={() => setIsSidebarOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] shadow-2xl p-6 z-[100] md:hidden max-h-[85vh] flex flex-col border-t border-slate-100"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 left-0 bottom-0 w-4/5 max-w-sm bg-white shadow-2xl flex flex-col"
             >
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-              <div className="flex items-center justify-between mb-6">
+              <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center">
-                    <img 
-                      src="/logo_ra.jpeg" 
-                      alt="Logo Resmi" 
-                      className="w-full h-full object-contain" 
-                    />
+                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
+                    <img src="/logo_ra.jpeg" className="w-6 h-6 rounded-lg brightness-0 invert" alt="Logo" />
                   </div>
-                  <div>
-                    <h2 className="font-display font-black text-slate-800 text-sm">RA Darusyifa</h2>
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">ARJAWINANGUN</p>
-                  </div>
+                  <span className="font-display font-black text-slate-800 tracking-tight">RA Darusyifa</span>
                 </div>
-                <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-1 hover:bg-slate-50 rounded-lg">
-                  <X size={24} />
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:text-slate-600 transition-all"
+                >
+                  <X size={20} />
                 </button>
               </div>
-
-              <div className="flex-1 overflow-y-auto pb-8 custom-scrollbar">
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  {[
-                    { id: 'overview', label: 'Dashboard', icon: Home },
-                    { id: 'users', label: 'User Management', icon: Users },
-                    { id: 'academic', label: 'Akademik & Rapor', icon: BookOpen },
-                    { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
-                    { id: 'competitions', label: 'Hasil Lomba & Piagam', icon: Award },
-                    { id: 'finance', label: 'Administrasi', icon: CreditCard },
-                    { id: 'finance-arus', label: 'Arus Keuangan', icon: TrendingUp },
-                    { id: 'attendance', label: 'Absensi', icon: CheckCircle },
-                    { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
-                    { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
-                    { id: 'announcements', label: 'Pengumuman', icon: Megaphone },
-                    { id: 'profile', label: 'Profil Admin', icon: User },
-                    { id: 'settings', label: 'Pengaturan', icon: Settings },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id as any);
-                        setIsSidebarOpen(false);
-                      }}
-                      className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all ${
-                        activeTab === item.id
-                          ? 'bg-emerald-50 border-emerald-100 text-emerald-600 font-bold shadow-xs'
-                          : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <item.icon size={20} className={activeTab === item.id ? 'text-emerald-600' : 'text-slate-400'} />
-                      <span className="text-xs font-bold tracking-tight leading-tight">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
+                <NavItems />
               </div>
-
-              <div className="border-t border-slate-100 pt-4 mt-auto">
+              <div className="p-8 border-t border-slate-50 bg-slate-50/50 mt-auto">
                 <button 
-                  onClick={async () => {
-                    await auth.signOut();
-                    navigate('/login');
-                  }}
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 transition-all text-sm"
+                  onClick={() => auth.signOut()}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest"
                 >
-                  <LogOut size={18} />
-                  <span>Keluar Sesi</span>
+                  <LogOut size={18} /> Keluar Sistem
                 </button>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
-      </AnimatePresence>{/* Main Content */}
-  <main className="flex-1 min-h-screen relative overflow-y-auto scrolling-touch flex flex-col bg-[#f8fafc]">
-        {/* Desktop & Tablet Top Header Bar */}
-        <header className="bg-white border-b border-slate-100 px-6 lg:px-10 py-3.5 hidden md:flex items-center justify-between sticky top-0 z-20 shadow-xs">
-          {/* Search Bar */}
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text"
-              placeholder="Cari siswa, NISN, atau transaksi..."
-              value={globalSearchQuery}
-              onChange={(e) => {
-                const val = e.target.value;
-                setGlobalSearchQuery(val);
-                setFilterFinanceStudentName(val);
-                setFilterName(val);
-              }}
-              className="w-full pl-11 pr-4 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-            />
+      </AnimatePresence>
+
+      {/* Main Workspace */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f1f5f3]">
+        {/* Premium Header */}
+        <header className="h-20 bg-white border-b border-slate-100 px-6 md:px-10 flex items-center justify-between shrink-0 z-40">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+            >
+              <Menu size={24} />
+            </button>
+            <div className="flex flex-col">
+              <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'users' && 'User Management'}
+                {activeTab === 'academic' && 'Akademik & Rapor'}
+                {activeTab === 'hafalan' && 'Modul Hafalan'}
+                {activeTab === 'finance' && 'Administrasi Keuangan'}
+                {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
+                {activeTab === 'attendance' && 'Absensi Harian'}
+                {activeTab === 'calendar' && 'Kalender Pendidikan'}
+                {activeTab === 'achievements' && 'Siswa Berprestasi'}
+                {activeTab === 'settings' && 'Sistem & Pengaturan'}
+                {activeTab === 'profile' && 'Profil Administrator'}
+                {activeTab === 'competitions' && 'Hasil Lomba'}
+              </h1>
+              <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
+                Portal RA Darusyifa Arjawinangun
+              </p>
+            </div>
           </div>
 
-          {/* Right Controls: Date, Bell, Profile */}
-          <div className="flex items-center gap-6">
-            {/* Date Display */}
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <Calendar size={15} className="text-slate-400" />
-              <span>
-                {(() => {
-                  try {
-                    return new Intl.DateTimeFormat('id-ID', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    }).format(new Date());
-                  } catch (e) {
-                    return 'Selasa, 18 Agustus 2026';
-                  }
-                })()}
-              </span>
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:bg-white transition-all">
+              <Search size={16} />
+              <input 
+                type="text" 
+                placeholder="Cari data..." 
+                value={globalSearchQuery}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setGlobalSearchQuery(val);
+                  setFilterFinanceStudentName(val);
+                  setFilterName(val);
+                }}
+                className="bg-transparent border-none outline-none text-sm w-48 text-slate-700 placeholder:text-slate-300 font-medium"
+              />
             </div>
 
-            {/* Notification Bell */}
-            <button 
-              onClick={() => {
-                if (payments.filter(p => p.status === 'pending').length > 0) {
-                  setActiveTab('finance');
-                  setFinanceSubTab('validasi');
-                } else {
-                  setActiveTab('announcements');
-                }
-              }}
-              className="relative p-2.5 text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer"
-              title="Notifikasi"
-            >
-              <Bell size={19} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
-            </button>
-
-            {/* Profile Chip & Desktop Logout */}
-            <div 
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-3 pl-4 border-l border-slate-100 cursor-pointer group"
-              title="Buka Pengaturan Profil Admin"
-            >
-              <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-600 font-bold shrink-0">
+            <div className="flex items-center gap-3 pl-4 md:pl-8 border-l border-slate-100">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-900 leading-none">Administrator</p>
+                <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">Full Access</p>
+              </div>
+              <div 
+                onClick={() => setActiveTab('profile')}
+                className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform overflow-hidden shadow-sm shadow-emerald-600/5"
+              >
                 {userData?.photoURL ? (
                   <img src={userData.photoURL} alt="Admin" className="w-full h-full object-cover" />
                 ) : (
-                  <img src="/logo_ra.jpeg" alt="Admin" className="w-full h-full object-cover" />
+                  <Users size={20} className="text-emerald-600" />
                 )}
               </div>
-              <div className="text-left">
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                  {userData?.name || 'Admin RA'}
-                </h4>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  SUPER ADMIN
-                </p>
-              </div>
             </div>
-
-            <button
-              onClick={async () => {
-                await auth.signOut();
-                navigate('/login');
-              }}
-              className="hidden md:flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all active:scale-95 border border-rose-100 cursor-pointer shadow-2xs ml-1"
-              title="Keluar Sesi Akun Admin"
-            >
-              <LogOut size={14} />
-              <span>Keluar</span>
-            </button>
           </div>
         </header>
 
-        {/* Mobile Header Bar - Matching Screenshot Style without Top Hamburger */}
-        <div className="md:hidden bg-white/95 border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-xs backdrop-blur-md" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-emerald-50/40 shadow-xs flex items-center justify-center">
-              <img 
-                src="/logo_ra.jpeg" 
-                alt="Logo RA Darusyifa" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <div>
-              <h2 className="font-display font-black text-slate-900 text-[15px] leading-tight">Portal Admin</h2>
-              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">RA DARUSYIFA ARJAWINANGUN</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Notification Bell */}
-            <button 
-              onClick={() => setActiveTab('announcements')}
-              className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 hover:text-emerald-600 transition-all relative active:scale-95 shadow-xs"
-              title="Notifikasi"
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-7xl mx-auto min-h-full"
             >
-              <Bell size={18} />
-              {payments.filter(p => p.status === 'pending').length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                  {payments.filter(p => p.status === 'pending').length > 9 ? '9+' : payments.filter(p => p.status === 'pending').length}
-                </span>
-              )}
-            </button>
-
-            {/* Profile Avatar with Chevron */}
-            <button
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors active:scale-95"
-            >
-              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs text-xs font-bold text-slate-700">
-                {userData?.photoURL ? (
-                  <img src={userData.photoURL} alt="Foto Profil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <img src="/logo_ra.jpeg" alt="Admin" className="w-full h-full object-cover" />
-                )}
-              </div>
-              <ChevronDown size={14} className="text-slate-400" />
-            </button>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 pb-32 md:pb-12 flex-1 w-full">
           {activeTab === 'overview' && (
             <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-300">
               {/* 1. Welcome Hero Banner */}
@@ -5687,12 +5391,12 @@ export default function DashboardAdmin() {
                     displayTotalPaid={displayTotalPaid}
                   />
                 )}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      )}
 
         {activeTab === 'finance-arus' && (
  <FinanceArusTab 
@@ -7482,7 +7186,9 @@ export default function DashboardAdmin() {
  </div>
  </div>
  )}
- </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
  </main>
 
  {/* Modal Add Kaldik */}
