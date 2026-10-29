@@ -147,7 +147,7 @@ export default function DashboardOrangTua() {
  <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-sm' : 'text-slate-400 '}`}>
  <item.icon size={20} />
  </div>
- <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
+              <span className={`text-[11px] tracking-tight mt-0.5 ${activeTab === item.id ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>{item.label}</span>
  </button>
  ))}
  </div>

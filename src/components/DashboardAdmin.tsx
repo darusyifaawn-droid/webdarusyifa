@@ -3578,7 +3578,7 @@ export default function DashboardAdmin() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
 
-  const NavItems = () => {
+  const NavItems = ({ isMobile = false }: { isMobile?: boolean }) => {
     const pendingCount = payments.filter(p => p.status === 'pending').length;
     
     const items = [
@@ -3596,31 +3596,38 @@ export default function DashboardAdmin() {
     ];
 
     return (
-      <div className="flex flex-col items-center gap-3 w-full">
+      <div className={`flex ${isMobile ? 'flex-col items-start px-4' : 'flex-col items-center'} gap-3 w-full`}>
         {items.map((item) => {
           const isActive = activeTab === item.id || (item.id === 'finance' && activeTab === 'finance');
           return (
-            <div key={item.id} className="relative group">
+            <div key={item.id} className="relative group w-full">
               <button
                 onClick={() => { 
                   setActiveTab(item.id); 
                   if (item.id === 'finance') setFinanceSubTab('dashboard');
                   setIsSidebarOpen(false); 
                 }}
-                className={`sidebar-icon ${isActive ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
+                className={`flex items-center ${isMobile ? 'w-full gap-4 p-4 rounded-2xl' : 'sidebar-icon'} transition-all ${
+                  isActive 
+                    ? (isMobile ? 'bg-emerald-600 text-white shadow-lg' : 'sidebar-icon-active') 
+                    : (isMobile ? 'text-slate-500 hover:bg-slate-50' : 'sidebar-icon-inactive')
+                }`}
               >
-                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <item.icon size={isMobile ? 20 : 22} strokeWidth={isActive ? 2.5 : 2} />
+                {isMobile && <span className="text-sm font-black tracking-tight">{item.label}</span>}
                 {item.count ? (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                  <span className={`absolute ${isMobile ? 'top-4 right-4' : '-top-1 -right-1'} w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white`}>
                     {item.count}
                   </span>
                 ) : null}
               </button>
               
-              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
-                {item.label}
-                <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
-              </div>
+              {!isMobile && (
+                <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
+                  {item.label}
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -3636,22 +3643,22 @@ export default function DashboardAdmin() {
         {/* Brand Logo */}
         <div 
           onClick={() => setActiveTab('overview')}
-          className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+          className="w-14 h-14 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all overflow-hidden p-1.5"
         >
           <img 
-            src="/logo_ra.jpeg" 
+            src={settings?.logoUrl || "/logo_ra.jpeg"} 
             alt="Logo RA" 
-            className="w-8 h-8 rounded-lg object-contain brightness-0 invert" 
+            className="w-full h-full object-contain" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-white font-black text-xl">RA</span>';
+              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-emerald-600 font-black text-xl">RA</span>';
             }}
           />
         </div>
 
         {/* Scrollable Nav Items */}
         <div className="flex-1 flex flex-col items-center gap-4 w-full px-2 overflow-y-auto custom-scrollbar no-scrollbar">
-          <NavItems />
+          <NavItems isMobile={false} />
         </div>
 
         {/* Footer Actions */}
@@ -3693,8 +3700,8 @@ export default function DashboardAdmin() {
             >
               <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                    <img src="/logo_ra.jpeg" className="w-6 h-6 rounded-lg brightness-0 invert" alt="Logo" />
+                  <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1 overflow-hidden">
+                    <img src={settings?.logoUrl || "/logo_ra.jpeg"} className="w-full h-full object-contain" alt="Logo" />
                   </div>
                   <span className="font-display font-black text-slate-800 tracking-tight">RA Darusyifa</span>
                 </div>
@@ -3706,7 +3713,7 @@ export default function DashboardAdmin() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
-                <NavItems />
+                <NavItems isMobile={true} />
               </div>
               <div className="p-8 border-t border-slate-50 bg-slate-50/50 mt-auto">
                 <button 
@@ -3721,6 +3728,38 @@ export default function DashboardAdmin() {
         )}
       </AnimatePresence>
 
+      {/* Mobile Bottom Navigation - Added as requested */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] flex justify-around items-center py-2 px-1 z-50" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
+        {[
+          { id: 'overview', label: 'Beranda', icon: LayoutDashboard },
+          { id: 'users', label: 'Users', icon: Users },
+          { id: 'finance', label: 'Keuangan', icon: CreditCard },
+          { id: 'settings', label: 'Sistem', icon: Settings },
+          { id: 'menu', label: 'Menu', icon: Menu, isMenu: true },
+        ].map((item) => {
+          const isActive = item.isMenu ? isSidebarOpen : activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.isMenu) {
+                  setIsSidebarOpen(true);
+                } else {
+                  setActiveTab(item.id as any);
+                  setIsSidebarOpen(false);
+                }
+              }}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 relative ${isActive ? 'text-emerald-600 font-black' : 'text-slate-400 font-medium'}`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
+                <item.icon size={20} />
+              </div>
+              <span className={`text-[11px] tracking-tight mt-0.5 ${isActive ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f1f5f3]">
         {/* Premium Header */}
@@ -3732,24 +3771,33 @@ export default function DashboardAdmin() {
             >
               <Menu size={24} />
             </button>
-            <div className="flex flex-col">
-              <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
-                {activeTab === 'overview' && 'Dashboard Overview'}
-                {activeTab === 'users' && 'User Management'}
-                {activeTab === 'academic' && 'Akademik & Rapor'}
-                {activeTab === 'hafalan' && 'Modul Hafalan'}
-                {activeTab === 'finance' && 'Administrasi Keuangan'}
-                {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
-                {activeTab === 'attendance' && 'Absensi Harian'}
-                {activeTab === 'calendar' && 'Kalender Pendidikan'}
-                {activeTab === 'achievements' && 'Siswa Berprestasi'}
-                {activeTab === 'settings' && 'Sistem & Pengaturan'}
-                {activeTab === 'profile' && 'Profil Administrator'}
-                {activeTab === 'competitions' && 'Hasil Lomba'}
-              </h1>
-              <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
-                Portal RA Darusyifa Arjawinangun
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm p-1.5 flex items-center justify-center overflow-hidden shrink-0 hidden sm:flex">
+                <img 
+                  src={settings?.logoUrl || "/logo_ra.jpeg"} 
+                  className="w-full h-full object-contain" 
+                  alt="School Logo" 
+                />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
+                  {activeTab === 'overview' && 'Dashboard Overview'}
+                  {activeTab === 'users' && 'User Management'}
+                  {activeTab === 'academic' && 'Akademik & Rapor'}
+                  {activeTab === 'hafalan' && 'Modul Hafalan'}
+                  {activeTab === 'finance' && 'Administrasi Keuangan'}
+                  {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
+                  {activeTab === 'attendance' && 'Absensi Harian'}
+                  {activeTab === 'calendar' && 'Kalender Pendidikan'}
+                  {activeTab === 'achievements' && 'Siswa Berprestasi'}
+                  {activeTab === 'settings' && 'Sistem & Pengaturan'}
+                  {activeTab === 'profile' && 'Profil Administrator'}
+                  {activeTab === 'competitions' && 'Hasil Lomba'}
+                </h1>
+                <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
+                  Portal RA Darusyifa Arjawinangun
+                </p>
+              </div>
             </div>
           </div>
 

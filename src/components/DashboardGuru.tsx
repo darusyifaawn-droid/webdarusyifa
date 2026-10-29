@@ -1220,7 +1220,7 @@ export default function DashboardGuru() {
               <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
                 <item.icon size={20} />
               </div>
-              <span className={`text-[10.5px] tracking-tight ${isActive ? 'font-black text-emerald-600' : 'font-semibold text-slate-500'}`}>
+              <span className={`text-[11px] tracking-tight mt-0.5 ${isActive ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>
                 {item.label}
               </span>
             </button>

@@ -1313,7 +1313,7 @@ export default function DashboardSiswa() {
                   </span>
                 )}
               </div>
-              <span className={`text-[10.5px] tracking-tight ${isActive ? 'font-black text-blue-600' : 'font-semibold text-slate-500'}`}>{item.label}</span>
+              <span className={`text-[11px] tracking-tight mt-0.5 ${isActive ? 'font-black text-blue-600' : 'font-bold text-slate-500'}`}>{item.label}</span>
             </button>
           );
         })}
