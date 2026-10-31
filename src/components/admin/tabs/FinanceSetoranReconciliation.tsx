@@ -108,10 +108,11 @@ export default function FinanceSetoranReconciliation({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'belum_disetor' | 'sudah_disetor' | 'ada_tunggakan'>('all');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
 
-  // Tabungan Date Filter State (Contoh user: 1 Juli 2026 - 30 September 2026)
-  const [tabunganStartDate, setTabunganStartDate] = useState('2026-07-01');
-  const [tabunganEndDate, setTabunganEndDate] = useState('2026-09-30');
-  const [isTabunganDateFiltered, setIsTabunganDateFiltered] = useState(true);
+  // Tabungan Date Filter State - Default to current year for better coverage
+  const currentYear = new Date().getFullYear();
+  const [tabunganStartDate, setTabunganStartDate] = useState(`${currentYear}-01-01`);
+  const [tabunganEndDate, setTabunganEndDate] = useState(`${currentYear}-12-31`);
+  const [isTabunganDateFiltered, setIsTabunganDateFiltered] = useState(false);
 
   // Modal Rincian Siswa
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -247,7 +248,7 @@ export default function FinanceSetoranReconciliation({
 
   // Helper matching deposit setoran cash bendahara dengan kategori iuran
   const matchesDepositCategory = (catName: string, deposit: CashDeposit): boolean => {
-    // 1. Direct categoryKey match jika disetor via tombol cepat
+    // 1. Direct categoryKey match jika disetor via tombol cepat (Prioritas Utama)
     if (deposit.categoryKey) {
       const ck = deposit.categoryKey.toLowerCase().replace(/[^a-z0-9]/g, '');
       const cn = catName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -262,53 +263,44 @@ export default function FinanceSetoranReconciliation({
     if (cName.includes('tabung')) {
       return dType.includes('tabung') || dDesc.includes('tabung');
     }
+    
+    // Jika deposit adalah Tabungan, jangan cocokkan dengan kategori iuran lainnya
     if (dType.includes('tabung') || dDesc.includes('tabung')) {
       return false;
     }
 
-    // Kesamaan langsung
-    if (dType === cName || dDesc.includes(cName)) return true;
+    // Kesamaan langsung atau deskripsi mengandung nama kategori
+    if (dType === cName || dDesc.includes(cName) || cName.includes(dType)) return true;
 
-    // Manasik
-    if (cName.includes('manasik')) {
-      return dType.includes('manasik') || dDesc.includes('manasik');
-    }
+    // Pencocokan Kata Kunci Spesifik (Fuzzy)
+    const checkFuzzy = (keywords: string[]) => {
+      const matchesType = keywords.some(k => dType.includes(k));
+      const matchesDesc = keywords.some(k => dDesc.includes(k));
+      const isTarget = keywords.some(k => cName.includes(k));
+      return isTarget && (matchesType || matchesDesc);
+    };
 
-    // Maulid
-    if (cName.includes('maulid')) {
-      return dType.includes('maulid') || dDesc.includes('maulid');
-    }
-
-    // HUT RI 17 Agustus
-    if (cName.includes('hut ri') || cName.includes('17 agustus')) {
-      return dType.includes('hut ri') || dDesc.includes('hut ri') || dType.includes('17 agustus') || dDesc.includes('17 agustus');
-    }
-
-    // Buku Lanjutan
-    if (cName.includes('buku')) {
-      return dType.includes('buku') || dDesc.includes('buku');
-    }
-
-    // PPDB
-    if (cName.includes('ppdb') || cName.includes('daftar')) {
-      return dType.includes('ppdb') || dDesc.includes('ppdb') || dType.includes('daftar') || dDesc.includes('daftar');
-    }
-
-    // PTS Ganjil
-    if (cName.includes('pts') || cName.includes('uts')) {
-      return dType.includes('pts') || dDesc.includes('pts') || dType.includes('uts') || dDesc.includes('uts');
-    }
+    if (checkFuzzy(['manasik', 'outing'])) return true;
+    if (checkFuzzy(['maulid'])) return true;
+    if (checkFuzzy(['hut ri', '17 agustus', 'kemerdekaan'])) return true;
+    if (checkFuzzy(['buku'])) return true;
+    if (checkFuzzy(['ppdb', 'daftar', 'formulir'])) return true;
+    if (checkFuzzy(['pts', 'uts', 'semester'])) return true;
+    if (checkFuzzy(['dsp', 'gedung', 'sarana'])) return true;
+    if (checkFuzzy(['infaq', 'shodaqoh', 'sedekah'])) return true;
 
     // SPP Bulanan
     if (cName.includes('spp') || cName.includes('bulanan')) {
       const months = ['juli', 'agustus', 'september', 'oktober', 'november', 'desember', 'januari', 'februari', 'maret', 'april', 'mei', 'juni'];
       for (const m of months) {
         if (cName.includes(m)) {
-          return (dType.includes(m) || dDesc.includes(m)) && 
-                 (dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp') || dDesc.includes('bulanan') || dType === 'iuran bulanan');
+          const matchesMonth = dType.includes(m) || dDesc.includes(m);
+          const isSPPType = dType.includes('spp') || dType.includes('bulanan') || dType === 'iuran bulanan';
+          const isSPPDesc = dDesc.includes('spp') || dDesc.includes('bulanan');
+          return matchesMonth && (isSPPType || isSPPDesc);
         }
       }
-      return dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp');
+      return (dType.includes('spp') || dType.includes('bulanan')) && (cName.includes(dType) || dType.includes(cName));
     }
 
     return false;
@@ -329,11 +321,10 @@ export default function FinanceSetoranReconciliation({
       return pType === 'tabungan' || pType === 'tabungan_masuk' || pCat.includes('tabung');
     });
 
-    const tabunganCashPayments = tabunganPayments.filter(p => {
+    const totalTabunganCashIn = tabunganPayments.reduce((s, p) => {
       const parsed = parsePaymentMethod(p);
-      return parsed.cash > 0;
-    });
-    const totalTabunganCashIn = tabunganCashPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      return s + (Number(parsed.cash) || 0);
+    }, 0);
 
     // Penarikan tabungan tunai
     const tabunganCashOut = payments
@@ -341,7 +332,11 @@ export default function FinanceSetoranReconciliation({
       .reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     const netTabunganCashIn = Math.max(0, totalTabunganCashIn - tabunganCashOut);
-    const totalTabunganMasukSemua = Math.max(totalSavingsBalanceAllStudents, netTabunganCashIn);
+    
+    // Gunakan totalTabunganCashIn riil dari riwayat pembayaran untuk target rekonsiliasi kas di bendahara
+    // Bukan sekadar saldo akhir siswa (karena saldo akhir bisa hasil edit manual tanpa transaksi cash)
+    const totalTargetReconciliation = netTabunganCashIn;
+    const totalTabunganMasukSemua = totalTargetReconciliation;
 
     // Setoran cash Tabungan yang telah disahkan bendahara
     const tabunganDeposits = deposits.filter(d => {
