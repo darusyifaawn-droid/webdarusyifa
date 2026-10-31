@@ -1684,6 +1684,27 @@ export default function FinanceSetoranCashTab({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    handleEditDeposit(selectedDeposit);
+                  }}
+                  className="p-2 text-white/70 hover:text-amber-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  title="Edit Data"
+                >
+                  <Edit size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteDeposit(selectedDeposit);
+                  }}
+                  className="p-2 text-white/70 hover:text-rose-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  title="Hapus Data"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <button
+                  type="button"
                   onClick={() => handlePrintBukti(selectedDeposit)}
                   className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
