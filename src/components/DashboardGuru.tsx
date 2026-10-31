@@ -12,7 +12,7 @@ import {
   GraduationCap, Calendar, Search, Filter, Image as ImageIcon, 
   FileText, Download, ExternalLink, RefreshCw, ChevronDown, 
   ChevronRight, HelpCircle, ShieldCheck, Sparkles, Award, Wallet, FileCheck,
-  Eye, EyeOff
+  Eye, EyeOff, Home
 } from 'lucide-react';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
@@ -1104,17 +1104,17 @@ export default function DashboardGuru() {
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900">
       {/* Desktop Sidebar */}
       <aside className="w-72 bg-white border-r border-slate-200/80 p-6 hidden md:flex flex-col shadow-xs z-30 shrink-0">
-        <div className="flex items-center gap-3.5 mb-8">
-          <div className="w-11 h-11 overflow-hidden rounded-2xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center shrink-0">
-            <img src="/logo_ra.jpeg" alt="Logo RA Darusyifa" className="w-full h-full object-contain" />
+        <div className="flex items-center gap-4 mb-14">
+          <div className="w-12 h-12 overflow-hidden rounded-2xl border border-emerald-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
+            <img 
+              src="/assets/aistudio/image_24fdf8ff.png" 
+              alt="Logo" 
+              className="w-full h-full object-contain" 
+            />
           </div>
-          <div className="min-w-0">
-            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight text-base truncate">
-              Portal Guru
-            </h1>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
-              RA Darusyifa
-            </p>
+          <div>
+            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Guru</h1>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">RA Darusyifa</p>
           </div>
         </div>
 
@@ -1189,18 +1189,15 @@ export default function DashboardGuru() {
         </div>
       </aside>
 
-      {/* Bottom Navigation Bar (Mobile) - 5 tabs with Menu (Garis Tiga) */}
-      <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] flex justify-around items-center py-2 px-3 z-50" 
-        style={{ WebkitBackdropFilter: 'blur(16px)' }}
-      >
+      {/* Mobile Navigation - Icons + Labels */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-1 py-3 flex items-center justify-around z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         {[
-          { id: 'overview', label: 'Beranda', icon: BarChartIcon },
+          { id: 'overview', label: 'Beranda', icon: Home },
           { id: 'students', label: 'Santri', icon: Users },
-          { id: 'penilaian-kelas', label: 'Penilaian', icon: Edit },
+          { id: 'penilaian-kelas', label: 'Nilai', icon: Edit },
           { id: 'hafalan', label: 'Hafalan', icon: Star },
           { id: 'menu', label: 'Menu', icon: Menu, isMenu: true },
-        ].map((item) => {
+        ].map((item: any) => {
           const isActive = item.isMenu ? isSidebarOpen : activeTab === item.id;
           return (
             <button
@@ -1213,20 +1210,16 @@ export default function DashboardGuru() {
                   setIsSidebarOpen(false);
                 }
               }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 relative ${
-                isActive ? 'text-emerald-600 font-black' : 'text-slate-400 hover:text-slate-600 font-medium'
-              }`}
+              className={`flex flex-col items-center gap-1.5 flex-1 transition-all ${isActive ? 'text-slate-900' : 'text-slate-400'}`}
             >
-              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
-                <item.icon size={20} />
+              <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-slate-100 scale-110' : ''}`}>
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               </div>
-              <span className={`text-[11px] tracking-tight mt-0.5 ${isActive ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>
-                {item.label}
-              </span>
+              <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'opacity-100' : 'opacity-80'}`}>{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Mobile Bottom Sheet Menu (Guru) */}
       <AnimatePresence>
@@ -1255,7 +1248,7 @@ export default function DashboardGuru() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center">
                     <img 
-                      src="/logo_ra.jpeg" 
+                      src="/assets/aistudio/image_24fdf8ff.png" 
                       alt="Logo" 
                       className="w-full h-full object-contain" 
                     />
@@ -1377,12 +1370,16 @@ export default function DashboardGuru() {
         {/* Mobile Header Bar - Matching Screenshot Style without Top Hamburger */}
         <div className="md:hidden bg-white/95 border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-xs backdrop-blur-md" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-emerald-50/40 shadow-xs flex items-center justify-center">
-              <img src="/logo_ra.jpeg" alt="Logo RA Darusyifa" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-white shadow-xs flex items-center justify-center">
+              <img 
+                src={settings?.logoUrl || "/assets/aistudio/image_24fdf8ff.png"} 
+                alt="Logo School" 
+                className="w-full h-full object-contain" 
+              />
             </div>
             <div>
               <h2 className="font-display font-black text-slate-900 text-[15px] leading-tight">Portal Guru</h2>
-              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">RA DARUSYIFA ARJAWINANGUN</p>
+              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">{settings?.schoolName || 'RA DARUSYIFA ARJAWINANGUN'}</p>
             </div>
           </div>
 
@@ -1404,8 +1401,12 @@ export default function DashboardGuru() {
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors active:scale-95"
             >
-              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs text-xs font-bold text-slate-700">
-                {editPhoto ? <img src={editPhoto} alt="Foto Guru" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : editName?.charAt(0) || 'G'}
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs">
+                {userData?.photoURL ? (
+                  <img src={userData.photoURL} alt="Foto Profil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <User size={18} className="text-slate-500" />
+                )}
               </div>
               <ChevronDown size={14} className="text-slate-400" />
             </button>

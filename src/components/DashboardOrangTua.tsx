@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, orderBy, getDocs, setDoc, limit } from 'firebase/firestore';
-import { updatePassword } from 'firebase/auth';
-import { Camera, CheckCircle, Clock, Calendar, User, LogOut, Bell, CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, AlertCircle, Image as ImageIcon, FileText, Download, ExternalLink, RefreshCw, Home, MessageCircle, Wallet } from 'lucide-react';
+import { 
+  collection, query, where, onSnapshot, addDoc, serverTimestamp, 
+  doc, orderBy, limit 
+} from 'firebase/firestore';
+import { 
+  CheckCircle, Clock, Calendar, User, LogOut, Bell, 
+  CreditCard, BookOpen, Save, X, Menu, Star, Megaphone, 
+  AlertCircle, Image as ImageIcon, FileText, Download, 
+  ExternalLink, RefreshCw, Home, MessageCircle, Wallet, 
+  ChevronRight, ArrowRight, ShieldAlert, Sparkles 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-import { compressImage } from '../lib/imageUtils';
-import { getPrintHeaderHTML, getPrintStyles, getPrintSignatureHTML } from '../lib/printUtils';
-import NabungOnlineModal from './NabungOnlineModal';
 
 export default function DashboardOrangTua() {
   const { user: authUser, userData: authUserData } = useAuth();
@@ -20,9 +25,7 @@ export default function DashboardOrangTua() {
   const [payments, setPayments] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(!authUserData);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [showNabungModal, setShowNabungModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,516 +36,330 @@ export default function DashboardOrangTua() {
     }
   }, [authUser, authUserData]);
 
- useEffect(() => {
- if (!user) return;
+  useEffect(() => {
+    if (!user) return;
 
     const unsubAttendance = onSnapshot(
-      query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc'), limit(100)),
-      (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
-      (error) => handleFirestoreError(error, OperationType.LIST, 'attendance')
+      query(collection(db, 'attendance'), where('studentId', '==', user.uid), orderBy('timestamp', 'desc'), limit(50)),
+      (snapshot) => setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     );
 
- const unsubAnnounce = onSnapshot(
- query(collection(db, 'announcements'), orderBy('createdAt', 'desc')),
- (snapshot) => setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
- );
+    const unsubAnnounce = onSnapshot(
+      query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(10)),
+      (snapshot) => setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
 
- const unsubPayments = onSnapshot(
- query(collection(db, 'payments'), where('studentId', '==', user.uid), orderBy('date', 'desc')),
- (snapshot) => {
- setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
- setLoading(false);
- }
- );
+    const unsubPayments = onSnapshot(
+      query(collection(db, 'payments'), where('studentId', '==', user.uid), orderBy('date', 'desc')),
+      (snapshot) => setPayments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
 
- const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
- if (snap.exists()) setSettings(snap.data());
- });
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
+      if (snap.exists()) setSettings(snap.data());
+    });
 
- return () => {
- unsubAttendance();
- unsubAnnounce();
- unsubPayments();
- unsubSettings();
- };
- }, [user]);
+    return () => {
+      unsubAttendance();
+      unsubAnnounce();
+      unsubPayments();
+      unsubSettings();
+    };
+  }, [user]);
 
- const handleLogout = async () => {
- try {
- await auth.signOut();
- navigate('/login');
- } catch (error) {
- console.error("Logout error:", error);
- }
- };
+  const handleLogout = async () => {
+    await auth.signOut();
+    navigate('/login');
+  };
 
- const NavItems = () => (
- <nav className="space-y-2 flex-1">
- {[
- { id: 'overview', label: 'Dashboard', icon: Home },
- { id: 'administration', label: 'Keuangan & Iuran', icon: CreditCard },
- { id: 'attendance', label: 'Kehadiran Anak', icon: CheckCircle },
- { id: 'announcements', label: 'Informasi Sekolah', icon: Bell },
- { id: 'profile', label: 'Pengaturan Akun', icon: User },
- ].map((item) => (
- <button 
- key={item.id}
- onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
- className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all font-bold ${activeTab === item.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900 '}`}
- >
- <item.icon size={20} />
- <span className="text-sm tracking-tight">{item.label}</span>
- </button>
- ))}
- </nav>
- );
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-10 h-10 border-4 border-slate-200 border-t-slate-900 rounded-full" />
+    </div>
+  );
 
- if (loading && !userData) return <div className="min-h-screen flex items-center justify-center bg-emerald-50 text-slate-700 ">Memuat data portal wali...</div>;
-
- return (
- <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 font-sans text-slate-900 relative transition-colors duration-300">
- {/* Sidebar (Desktop) */}
- <aside className="w-72 bg-white border-r border-slate-100 p-8 hidden md:flex flex-col shadow-sm transition-colors duration-300">
- <div className="flex items-center gap-4 mb-14">
- <div className="w-12 h-12 overflow-hidden rounded-2xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
- <img 
- src="/logo_ra.jpeg" 
- alt="Logo Resmi" 
- className="w-10 h-10 object-contain" 
- />
- </div>
- <div>
- <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Wali</h1>
- <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">Darusyifa</p>
- </div>
- </div>
- 
- <NavItems />
-
- <div className="mt-8 pt-8 border-t border-slate-50 ">
- <button 
- onClick={handleLogout}
- className="w-full flex items-center gap-4 p-4 rounded-2xl text-rose-500 hover:bg-rose-50 font-bold transition-all"
- >
- <LogOut size={20} />
- <span className="text-sm tracking-tight">Keluar Sesi</span>
- </button>
- </div>
- </aside>
-
- {/* Bottom Navigation Bar (Mobile) */}
- <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-around items-center py-2 px-2 z-[100]" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
- {[
- { id: 'overview', label: 'Beranda', icon: Home },
- { id: 'administration', label: 'Keuangan', icon: CreditCard },
- { id: 'attendance', label: 'Absensi', icon: CheckCircle },
- { id: 'announcements', label: 'Informasi', icon: Bell },
- { id: 'profile', label: 'Profil', icon: User },
- ].map((item) => (
- <button
- key={item.id}
- onClick={() => setActiveTab(item.id)}
- className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 ${activeTab === item.id ? 'text-emerald-600 ' : 'text-slate-400 hover:text-slate-600 '}`}
- >
- <div className={`p-1.5 rounded-xl transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-sm' : 'text-slate-400 '}`}>
- <item.icon size={20} />
- </div>
-              <span className={`text-[11px] tracking-tight mt-0.5 ${activeTab === item.id ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>{item.label}</span>
- </button>
- ))}
- </div>
-
- {/* Main Content */}
- <main className="flex-1 overflow-y-auto">
- {/* Top Bar / Mobile Header - Consistent with screenshot */}
- <div className="md:hidden flex items-center justify-between p-4 bg-white/90 backdrop-blur-md border-b border-slate-100 sticky top-0 z-[100] shadow-sm">
- <div className="flex items-center gap-3">
- <div className="w-10 h-10 overflow-hidden rounded-xl border-2 border-emerald-600/10 p-1 bg-white shadow-sm flex items-center justify-center">
- <img 
- src="/logo_ra.jpeg" 
- alt="Logo" 
- className="w-full h-full object-contain" 
- />
- </div>
- <h2 className="font-display font-black text-slate-900 tracking-tight text-sm">Portal Wali</h2>
- </div>
- <button 
- onClick={handleLogout}
- className="p-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1.5 px-3 py-1.5 shadow-sm"
- title="Keluar Sesi"
- >
- <LogOut size={16} />
- <span className="text-[11px] font-bold">Keluar</span>
- </button>
- </div>
-
- <div className="p-4 md:p-12 max-w-6xl mx-auto space-y-8">
- {activeTab === 'overview' && (
- <div className="space-y-6 pb-24 md:pb-0 animate-in fade-in duration-500">
- {/* Mobile Profile Header - Sakinah Style */}
- <div className="md:hidden -mx-4 -mt-4 mb-6 bg-blue-600 bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-b-[40px] text-white relative shadow-2xl overflow-hidden">
- <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
- <div className="flex justify-between items-center mb-6 relative z-10 pt-4">
- <div className="text-center flex-1">
- <h1 className="text-3xl font-black tracking-tighter text-yellow-300 drop-shadow-md flex items-center justify-center gap-1.5">
- SAKINAH
- </h1>
- <p className="text-[7.5px] font-black tracking-[0.15em] opacity-80 uppercase -mt-1 leading-tight mb-0.5">Sistem Akademik Kehadiran & Administrasi</p>
- <div className="inline-flex items-center justify-center px-2 py-0.5 bg-white/20 rounded-full border border-white/20">
- <span className="text-[9px] font-bold text-white uppercase tracking-wider">RA Digital</span>
- </div>
- </div>
- <button 
- onClick={() => setActiveTab('announcements')}
- className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm border border-white/30 shadow-lg relative active:scale-95 transition-all text-white"
- style={{ WebkitBackdropFilter: 'blur(8px)' }}
- >
- <Bell size={20} />
- <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full scale-in"></span>
- </button>
- </div>
- 
- <div className="flex items-center gap-5 bg-white/10 p-6 rounded-[3rem] backdrop-blur-md border border-white/20 relative z-10 shadow-xl overflow-hidden" style={{ WebkitBackdropFilter: 'blur(12px)' }}>
- <div className="w-20 h-20 rounded-full border-4 border-white/40 overflow-hidden bg-white/95 flex items-center justify-center shadow-xl shrink-0">
- {userData?.photoURL ? (
- <img src={userData.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
- ) : (
- <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-600">
- <User size={32} />
- </div>
- )}
- </div>
- <div className="flex-1 min-w-0">
- <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 rounded-full mb-2">
- <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
- <p className="text-[8px] text-blue-900 font-black uppercase tracking-wider">Parent Portal</p>
- </div>
- <h2 className="text-xl font-black tracking-tight leading-tight text-white mb-1">
- {userData?.name || 'Wali Murid'}
- </h2>
- <div className="flex flex-col mt-1">
- <p className="text-[10px] opacity-90 font-black text-yellow-300 leading-tight uppercase tracking-tighter">
- Ayah/Bunda Ananda
- </p>
- <p className="text-[9px] mt-0.5 opacity-80 font-bold text-white leading-tight uppercase tracking-widest">
- {settings?.schoolName || 'RA Darusyifa Arjawinangun'}
- </p>
- </div>
- </div>
- </div>
- </div>
-
- {/* Dashboard Header - Sticky */}
- <div className="md:sticky md:top-0 z-20 bg-slate-50/80 backdrop-blur-md py-4 -mx-4 px-4 md:-mx-12 md:px-12 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-transparent transition-all">
- <div>
- <h2 className="text-3xl font-black text-slate-900 tracking-tight">Assalamu'alaikum, Bapak/Ibu {userData?.name}</h2>
- <p className="text-slate-500 font-medium mt-1">Selamat datang di Portal Digital RA Darusyifa Arjawinangun</p>
- </div>
- </div>
-
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
- {/* Card Saldo Tabungan Santri */}
- <div className="bg-gradient-to-br from-teal-600 to-emerald-700 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col justify-between group">
- <Wallet className="absolute -right-4 -bottom-4 w-32 h-32 opacity-15 rotate-12 group-hover:scale-110 transition-transform" />
- <div className="relative z-10">
- <p className="text-[10px] font-black uppercase tracking-widest text-teal-100 opacity-90 mb-2">Saldo Tabungan Ananda</p>
- <h3 className="text-3xl sm:text-4xl font-black tracking-tight">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</h3>
- <p className="text-[11px] text-teal-100/80 mt-2 leading-relaxed">Setor online via QRIS atau Transfer BRI bebas biaya</p>
- </div>
- <button 
- onClick={() => setShowNabungModal(true)} 
- className="mt-6 px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-fit relative z-10"
- >
- <Wallet size={15} /> + Setor Tabungan Online
- </button>
- </div>
-
- {/* Card Tunggakan Iuran */}
- <div className="bg-rose-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group flex flex-col justify-between">
- <CreditCard className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12 group-hover:scale-110 transition-transform" />
- <div>
- <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Tunggakan Iuran</p>
- <h3 className="text-3xl sm:text-4xl font-black tracking-tight">Rp {(userData?.arrears || 0).toLocaleString('id-ID')}</h3>
- </div>
- <button onClick={() => setActiveTab('administration')} className="mt-6 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all w-fit cursor-pointer">Rincian Pembayaran</button>
- </div>
- 
- <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col justify-between">
- <div>
- <CheckCircle className="text-emerald-500 mb-4" size={32} />
- <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Kehadiran Bulan Ini</p>
- <h3 className="text-3xl font-black text-slate-900 tracking-tight">
- {attendance.filter(a => {
- const date = new Date(a.date);
- const now = new Date();
- return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && a.status === 'Hadir';
- }).length} Hari
- </h3>
- </div>
- <button onClick={() => setActiveTab('attendance')} className="mt-6 text-xs font-black text-emerald-600 uppercase tracking-widest text-left">Lihat Kalender Kehadiran →</button>
- </div>
-
- <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] border border-slate-800 shadow-xl flex flex-col justify-between">
- <div>
- <Bell className="text-indigo-400 mb-4" size={32} />
- <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pengumuman Terbaru</p>
- <h3 className="text-xl font-black tracking-tight leading-tight">
- {announcements[0]?.title || 'Belum ada informasi terbaru'}
- </h3>
- </div>
- <button onClick={() => setActiveTab('announcements')} className="mt-6 text-xs font-black text-indigo-400 uppercase tracking-widest text-left">Buka Semua Informasi →</button>
- </div>
- </div>
- </div>
- )}
- </div>
-
- <div className="p-4 md:p-12 max-w-6xl mx-auto space-y-8">
- {activeTab === 'administration' && (
- <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 space-y-8">
- <div className="flex items-center justify-between">
- <div>
- <h3 className="text-2xl font-black text-slate-900 tracking-tight">Rincian Keuangan & Iuran</h3>
- <p className="text-slate-500 font-medium">Pantau kewajiban iuran dan riwayat pembayaran ananda</p>
- </div>
- <CreditCard className="text-emerald-600 opacity-20" size={48} />
- </div>
-
- {/* Banner Tabungan Santri */}
- <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 rounded-[2rem] shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
- <div>
- <div className="flex items-center gap-2 mb-1">
- <Wallet size={18} className="text-yellow-300" />
- <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Saldo Tabungan Santri</span>
- </div>
- <p className="text-2xl sm:text-3xl font-black">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</p>
- <p className="text-[11px] text-emerald-100/80 mt-0.5">Dapat disetor online kapan saja via QRIS atau Transfer Bank</p>
- </div>
- <button
- type="button"
- onClick={() => setShowNabungModal(true)}
- className="px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer w-fit shrink-0"
- >
- <Wallet size={15} /> + Setor Tabungan Online
- </button>
- </div>
-
- <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
- <div className="bg-rose-50 border border-rose-100 p-8 rounded-[2rem]">
- <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-   <h4 className="text-rose-900 font-black uppercase tracking-widest text-xs">Daftar Tunggakan</h4>
-   {userData?.arrears_details && userData.arrears_details.length > 0 && (
-     <a
-       href={`https://wa.me/628993358221?text=${encodeURIComponent(`Halo Tata Usaha RA Darusyifa, saya orang tua dari ${userData?.name || 'siswa'} (Kelas ${userData?.kelas || '-'}) ingin konfirmasi rincian tagihan & iuran SPP.`)}`}
-       target="_blank"
-       rel="noopener noreferrer"
-       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs transition-colors w-fit"
-     >
-       <MessageCircle size={13} /> Konfirmasi via WhatsApp
-     </a>
-   )}
- </div>
- {userData?.arrears_details && userData.arrears_details.length > 0 ? (
- <div className="space-y-4">
- {userData.arrears_details.map((item: any, idx: number) => (
- <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-rose-100/50 ">
- <div>
- <p className="font-bold text-slate-900 ">{item.name}</p>
- <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.category || 'Wajib'}</p>
- </div>
- <p className="font-black text-rose-600 ">Rp {item.amount.toLocaleString()}</p>
- </div>
- ))}
- </div>
- ) : (
- <div className="text-center py-8 text-rose-400">
- <CheckCircle className="mx-auto mb-2 opacity-50" />
- <p className="text-sm font-bold uppercase tracking-widest">Semua iuran telah lunas</p>
- </div>
- )}
- </div>
-
- <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-[2rem]">
- <h4 className="text-emerald-900 font-black uppercase tracking-widest text-xs mb-4">Riwayat Pembayaran Terakhir</h4>
- <div className="space-y-4">
- {payments.slice(0, 5).map((pay: any) => (
- <div key={pay.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-emerald-100/50 ">
- <div>
- <p className="font-bold text-slate-900 ">{pay.description}</p>
- <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{pay.date} • {pay.method}</p>
- </div>
- <div className="text-right">
- <p className="font-black text-emerald-600 ">Rp {pay.amount.toLocaleString()}</p>
- <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${pay.status === 'lunas' ? 'bg-emerald-100 text-emerald-700 ' : 'bg-amber-100 text-amber-700 '}`}>
- {pay.status}
- </span>
- </div>
- </div>
- ))}
- {payments.length === 0 && (
- <p className="text-center py-8 text-emerald-400 text-sm font-bold opacity-50 uppercase tracking-widest">Belum ada riwayat pembayaran</p>
- )}
- </div>
- </div>
- </div>
- </div>
- )}
-
- 
-        {/* Attendance Tab */}
-        {activeTab === 'attendance' && (
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Riwayat Kehadiran Anak</h3>
-                <p className="text-slate-500 font-medium">Rekap presensi dan kedisiplinan ananda di sekolah</p>
-              </div>
-              <CheckCircle className="text-emerald-600 opacity-20" size={48} />
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Total Hadir</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">
-                  {attendance.filter(a => a.status === 'Hadir').length} Hari
-                </p>
-              </div>
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl">
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-800">Izin</p>
-                <p className="text-2xl font-black text-blue-700 mt-1">
-                  {attendance.filter(a => a.status === 'Izin').length} Hari
-                </p>
-              </div>
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Sakit</p>
-                <p className="text-2xl font-black text-amber-700 mt-1">
-                  {attendance.filter(a => a.status === 'Sakit').length} Hari
-                </p>
-              </div>
-              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
-                <p className="text-[10px] font-black uppercase tracking-widest text-rose-800">Alpa</p>
-                <p className="text-2xl font-black text-rose-700 mt-1">
-                  {attendance.filter(a => a.status === 'Alpa').length} Hari
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-4">
-              <h4 className="font-black text-xs uppercase tracking-widest text-slate-400">Log Presensi Terkini</h4>
-              {attendance.slice(0, 15).map((att: any, idx: number) => (
-                <div key={att.id || idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      att.status === 'Hadir' ? 'bg-emerald-500' :
-                      att.status === 'Izin' ? 'bg-blue-500' :
-                      att.status === 'Sakit' ? 'bg-amber-500' : 'bg-rose-500'
-                    }`} />
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">{att.date}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">{att.notes || 'Presensi harian'}</p>
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                    att.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
-                    att.status === 'Izin' ? 'bg-blue-100 text-blue-800' :
-                    att.status === 'Sakit' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                  }`}>
-                    {att.status}
-                  </span>
-                </div>
-              ))}
-              {attendance.length === 0 && (
-                <p className="text-center py-8 text-slate-400 text-sm font-medium">Belum ada rekaman presensi.</p>
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] flex font-sans text-slate-900">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-24 flex-col items-center py-10 bg-white border-r border-slate-100 sticky top-0 h-screen overflow-y-auto custom-scrollbar">
+        <img src="/assets/aistudio/image_24fdf8ff.png" alt="Logo" className="w-12 h-12 object-contain mb-10" />
+        <nav className="flex-1 space-y-4">
+          {[
+            { id: 'overview', icon: Home, label: 'Home' },
+            { id: 'administration', icon: Wallet, label: 'Uang' },
+            { id: 'attendance', icon: CheckCircle, label: 'Absen' },
+            { id: 'announcements', icon: Bell, label: 'Info' },
+            { id: 'profile', icon: User, label: 'Profil' },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`sidebar-icon ${activeTab === item.id ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
+              title={item.label}
+            >
+              <item.icon size={22} />
+              {activeTab === item.id && (
+                <motion.div layoutId="active-pill-parent" className="absolute -left-1 w-1 h-8 bg-slate-900 rounded-r-full" />
               )}
+            </button>
+          ))}
+        </nav>
+        <button onClick={handleLogout} className="sidebar-icon sidebar-icon-inactive mt-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+          <LogOut size={22} />
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 min-w-0">
+        {/* Header */}
+        <header className="apple-blur-nav px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="lg:hidden w-10 h-10 rounded-xl overflow-hidden bg-white border border-slate-100 p-1">
+              <img src="/assets/aistudio/image_24fdf8ff.png" alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black uppercase tracking-widest text-slate-400 leading-none">Portal Wali Murid</h1>
+              <p className="text-lg font-display font-black text-slate-900 tracking-tight">RA Darusyifa Arjawinangun</p>
             </div>
           </div>
-        )}
-
-        {/* Announcements Tab */}
-        {activeTab === 'announcements' && (
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 md:p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Informasi &amp; Pengumuman Sekolah</h3>
-                <p className="text-slate-500 font-medium">Surat edaran, agenda kegiatan, dan berita RA Darusyifa</p>
-              </div>
-              <Bell className="text-indigo-600 opacity-20" size={48} />
+          
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block text-right">
+              <p className="text-xs font-black text-slate-900">{userData?.name}</p>
+              <p className="text-[10px] font-bold text-slate-400">Wali dari {userData?.student_name || 'Ananda'}</p>
             </div>
+            <button onClick={() => setActiveTab('profile')} className="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden bg-slate-100">
+              {userData?.photoURL ? <img src={userData.photoURL} className="w-full h-full object-cover" /> : <User className="w-full h-full p-2 text-slate-300" />}
+            </button>
+          </div>
+        </header>
 
-            <div className="space-y-4">
-              {announcements.map((ann: any, idx: number) => (
-                <div key={ann.id || idx} className="bg-white border border-slate-100 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl space-y-3.5 shadow-xs w-full max-w-full overflow-hidden">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                      {ann.target && ann.target !== 'all' ? `Khusus ${ann.target.replace('kelas_', 'Kelas ')}` : (ann.category || 'PENGUMUMAN')}
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-bold">
-                      {ann.createdAt ? new Date(ann.createdAt.seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : (ann.date || 'Terbaru')}
-                    </span>
+        <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10 pb-32">
+          {activeTab === 'overview' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {/* Hero Section */}
+              <section className="relative overflow-hidden rounded-[3rem] bg-slate-900 text-white p-10 md:p-16 shadow-2xl">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -mr-20 -mt-20" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -ml-10 -mb-10" />
+                
+                <div className="relative z-10 space-y-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-full">
+                    <Sparkles size={12} className="text-blue-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Parent Dashboard</span>
                   </div>
-                  <h4 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{ann.title}</h4>
-                  
-                  <div className="w-full max-w-full overflow-x-auto my-1">
-                    <div 
-                      className="prose prose-slate max-w-none text-slate-700 text-xs sm:text-sm leading-relaxed announcement-html-content break-words"
-                      dangerouslySetInnerHTML={{ __html: ann.content }}
-                    />
-                  </div>
+                  <h2 className="text-4xl md:text-6xl font-display font-black tracking-tight leading-tight">
+                    Selamat Datang, <br />
+                    <span className="text-blue-400">Ayah/Bunda {userData?.name?.split(' ')[0]} 🌸</span>
+                  </h2>
+                  <p className="text-slate-400 font-medium text-lg max-w-2xl leading-relaxed">
+                    Pantau perkembangan akademik, kehadiran, dan administrasi Ananda dengan mudah melalui portal digital ini.
+                  </p>
+                </div>
+              </section>
 
-                  {ann.attachments && ann.attachments.length > 0 && (
-                    <div className="mt-2 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                      {ann.attachments.map((file: any, fIdx: number) => (
-                        <div key={fIdx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600">
-                          {file.type?.includes('image') ? <ImageIcon size={13} className="text-blue-500" /> : <FileText size={13} className="text-rose-500" />}
-                          <span className="max-w-[150px] truncate">{file.name || 'Lampiran'}</span>
+              {/* Bento Grid Stats */}
+              <div className="bento-grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="bento-card bg-emerald-600 text-white group">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <Wallet size={28} />
+                  </div>
+                  <p className="text-xs font-black text-emerald-100 uppercase tracking-widest mb-1">Saldo Tabungan Ananda</p>
+                  <h3 className="text-4xl font-display font-black tabular-nums">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</h3>
+                  <div className="mt-6 p-4 bg-white/10 rounded-2xl border border-white/10">
+                    <p className="text-[10px] font-medium text-emerald-50 leading-tight italic">Setoran tabungan online belum tersedia saat ini.</p>
+                  </div>
+                </div>
+
+                <div className="bento-card bg-white group">
+                  <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <CreditCard size={28} />
+                  </div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Tunggakan Iuran</p>
+                  <h3 className="text-4xl font-display font-black text-rose-600 tabular-nums">Rp {(userData?.arrears || 0).toLocaleString('id-ID')}</h3>
+                  <button onClick={() => setActiveTab('administration')} className="mt-6 text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-1">Rincian Tagihan <ArrowRight size={14} /></button>
+                </div>
+
+                <div className="bento-card bg-white group">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <CheckCircle size={28} />
+                  </div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Kehadiran (Bulan Ini)</p>
+                  <h3 className="text-4xl font-display font-black text-slate-900 tabular-nums">
+                    {attendance.filter(a => {
+                      const d = new Date(a.date);
+                      const now = new Date();
+                      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && a.status === 'Hadir';
+                    }).length} Hari
+                  </h3>
+                  <button onClick={() => setActiveTab('attendance')} className="mt-6 text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-1">Log Absensi <ArrowRight size={14} /></button>
+                </div>
+              </div>
+
+              {/* Announcements Section */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-display font-black text-slate-900 tracking-tight">Informasi Sekolah</h3>
+                  <button onClick={() => setActiveTab('announcements')} className="text-xs font-black text-blue-600 uppercase tracking-widest">Lihat Semua</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {announcements.slice(0, 2).map((ann, idx) => (
+                    <div key={idx} className="card-premium p-8 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                          <Megaphone size={20} />
                         </div>
-                      ))}
+                        <div>
+                          <h4 className="font-black text-slate-900 truncate">{ann.title}</h4>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">{ann.date || 'Terbaru'}</p>
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-500 line-clamp-3 prose" dangerouslySetInnerHTML={{ __html: ann.content }} />
                     </div>
-                  )}
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pt-1">
-                    Oleh: {ann.author || 'RA Darusyifa'}
+          {activeTab === 'administration' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between">
+                <h3 className="text-3xl font-display font-black text-slate-900 tracking-tight">Keuangan & Iuran</h3>
+                <Wallet size={48} className="text-emerald-600 opacity-20" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="card-premium p-10 bg-slate-900 text-white">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Saldo Tabungan Santri</p>
+                  <h4 className="text-5xl font-display font-black tabular-nums mb-8">Rp {(userData?.savings || 0).toLocaleString('id-ID')}</h4>
+                  <div className="p-6 bg-white/10 rounded-[2rem] border border-white/10">
+                    <p className="text-xs font-medium text-slate-300 leading-relaxed italic">
+                      "Penyetoran tabungan dapat dilakukan secara tunai melalui Wali Kelas atau Bagian Tata Usaha sekolah."
+                    </p>
                   </div>
                 </div>
-              ))}
-              {announcements.length === 0 && (
-                <p className="text-center py-8 text-slate-400 text-sm font-medium">Belum ada pengumuman baru.</p>
-              )}
+                <div className="card-premium p-10 border-rose-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Tunggakan Iuran Terdeteksi</p>
+                  <h4 className="text-5xl font-display font-black text-rose-600 tabular-nums mb-8">Rp {(userData?.arrears || 0).toLocaleString('id-ID')}</h4>
+                  <div className="space-y-4">
+                    {userData?.arrears_details?.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <span className="font-bold text-slate-700">{item.name}</span>
+                        <span className="font-black text-rose-600">Rp {item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {(!userData?.arrears_details || userData.arrears_details.length === 0) && (
+                      <div className="text-center py-6">
+                        <CheckCircle className="mx-auto text-emerald-500 mb-2" size={32} />
+                        <p className="text-sm font-bold text-emerald-600 uppercase tracking-widest">Semua iuran telah lunas</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Profile & Settings Tab */}
- {activeTab === 'profile' && (
- <div className="space-y-8 max-w-2xl mx-auto md:mx-0">
- <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">
- <h3 className="text-2xl font-black text-slate-900 mb-6">Pengaturan Akun Orang Tua / Wali</h3>
- <div className="space-y-4">
- <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 ">
- <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nama Lengkap Wali</p>
- <p className="text-base font-black text-slate-800 mt-1">{userData?.name || '-'}</p>
- </div>
- <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 ">
- <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email Akun</p>
- <p className="text-base font-black text-slate-800 mt-1">{user?.email || '-'}</p>
- </div>
- <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 ">
- <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Siswa Terhubung</p>
- <p className="text-base font-black text-slate-800 mt-1">{userData?.student_name || 'Ananda ' + (userData?.name || '')}</p>
- </div>
- </div>
- </div>
- </div>
- )}
- </div>
- </main>
+          {activeTab === 'attendance' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <div className="flex items-center justify-between">
+                <h3 className="text-3xl font-display font-black text-slate-900 tracking-tight">Kehadiran Ananda</h3>
+                <CheckCircle size={48} className="text-emerald-600 opacity-20" />
+              </div>
+              <div className="card-premium overflow-hidden">
+                <div className="p-8 border-b border-slate-50">
+                  <h4 className="text-xl font-display font-black text-slate-900 tracking-tight">Log Presensi Terkini</h4>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {attendance.map((att, idx) => (
+                    <div key={idx} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-3 h-3 rounded-full ${att.status === 'Hadir' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                        <div>
+                          <p className="font-black text-slate-900">{att.date}</p>
+                          <p className="text-xs text-slate-400 font-bold">{att.notes || 'Presensi Harian'}</p>
+                        </div>
+                      </div>
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${att.status === 'Hadir' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                        {att.status}
+                      </span>
+                    </div>
+                  ))}
+                  {attendance.length === 0 && <p className="p-20 text-center text-slate-400 italic">Belum ada data kehadiran.</p>}
+                </div>
+              </div>
+            </div>
+          )}
 
- {/* Nabung Online Modal */}
- <NabungOnlineModal
- isOpen={showNabungModal}
- onClose={() => setShowNabungModal(false)}
- studentUser={userData || user}
- />
- </div>
- );
+          {activeTab === 'announcements' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <div className="flex items-center justify-between">
+                <h3 className="text-3xl font-display font-black text-slate-900 tracking-tight">Informasi Sekolah</h3>
+                <Bell size={48} className="text-indigo-600 opacity-20" />
+              </div>
+              <div className="grid grid-cols-1 gap-8">
+                {announcements.map((ann, idx) => (
+                  <div key={idx} className="card-premium p-10 space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-6">
+                      <h4 className="text-2xl font-display font-black text-slate-900 tracking-tight">{ann.title}</h4>
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{ann.date || 'Terbaru'}</span>
+                    </div>
+                    <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed announcement-html-content" dangerouslySetInnerHTML={{ __html: ann.content }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="max-w-2xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="text-center">
+                <div className="w-32 h-32 mx-auto rounded-[3rem] border-4 border-white shadow-xl overflow-hidden bg-slate-100 mb-6">
+                  {userData?.photoURL ? <img src={userData.photoURL} className="w-full h-full object-cover" /> : <User className="w-full h-full p-4 text-slate-300" />}
+                </div>
+                <h3 className="text-3xl font-display font-black text-slate-900 tracking-tight">{userData?.name}</h3>
+                <p className="text-slate-500 font-medium mt-1">Orang Tua/Wali dari {userData?.student_name || 'Ananda'}</p>
+              </div>
+              <div className="card-premium p-10 space-y-8">
+                <h4 className="text-xl font-display font-black text-slate-900 border-b border-slate-50 pb-4">Data Akun</h4>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</p>
+                    <p className="font-bold text-slate-900">{user?.email}</p>
+                  </div>
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Role Akses</p>
+                    <p className="font-bold text-slate-900">Wali Murid / Orang Tua</p>
+                  </div>
+                </div>
+                <button onClick={handleLogout} className="w-full py-4 bg-rose-50 text-rose-600 rounded-2xl font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex items-center justify-center gap-2">
+                  <LogOut size={18} /> Keluar Sesi
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Mobile Navigation - Icons + Labels as requested */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-2 py-3 flex items-center justify-around z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        {[
+          { id: 'overview', label: 'Beranda', icon: Home },
+          { id: 'administration', label: 'Keuangan', icon: Wallet },
+          { id: 'attendance', label: 'Absensi', icon: CheckCircle },
+          { id: 'announcements', label: 'Informasi', icon: Bell },
+          { id: 'profile', label: 'Profil', icon: User },
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center gap-1.5 flex-1 transition-all ${activeTab === item.id ? 'text-slate-900' : 'text-slate-400'}`}
+          >
+            <div className={`p-2 rounded-xl transition-all ${activeTab === item.id ? 'bg-slate-100 scale-110' : ''}`}>
+              <item.icon size={20} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+            </div>
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${activeTab === item.id ? 'opacity-100' : 'opacity-80'}`}>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
 }

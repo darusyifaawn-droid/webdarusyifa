@@ -72,52 +72,7 @@ body {
     @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
   }
 
-  /* Premium UI System */
-  .glass-3d {
-    @apply bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-slate-900;
-  }
-
-  .card-premium {
-    @apply bg-white border border-white/60 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.04)] rounded-[2rem] transition-all duration-500 ease-out;
-  }
-
-  .card-premium:hover {
-    @apply shadow-[0_30px_60px_-12px_rgba(0,0,0,0.08)] -translate-y-1.5;
-  }
-
-  .btn-primary {
-    @apply px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:shadow-emerald-700/30 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2;
-  }
-
-  .btn-secondary {
-    @apply px-5 py-2.5 bg-white text-slate-700 border border-slate-100 rounded-xl font-semibold shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2;
-  }
-
-  .input-premium {
-    @apply w-full px-4 py-3 bg-white border border-slate-100 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 placeholder:text-slate-400;
-  }
-
-  .sidebar-icon {
-    @apply p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center relative;
-  }
-
-  .sidebar-icon-active {
-    @apply bg-emerald-600 text-white shadow-lg shadow-emerald-600/30;
-  }
-
-  .sidebar-icon-inactive {
-    @apply text-slate-400 hover:text-emerald-600 hover:bg-emerald-50;
-  }
-
-  .nav-tab-active {
-    @apply bg-emerald-600 text-white shadow-lg shadow-emerald-600/20;
-  }
-
-  .nav-tab-inactive {
-    @apply text-slate-500 hover:text-emerald-600 hover:bg-emerald-50;
-  }
-
-  /* Safari Fixes */
+  /* Safari & iOS Optimizations */
   .scrolling-touch {
     -webkit-overflow-scrolling: touch;
   }
@@ -126,8 +81,57 @@ body {
     min-height: 100vh;
     min-height: 100svh;
   }
+}
 
+/* Premium UI System - Apple Style Refinement */
+@utility glass-3d {
+  @apply bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)] text-slate-900;
+}
 
+@utility card-premium {
+  @apply bg-white border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02),0_15px_40px_-20px_rgba(0,0,0,0.08)] rounded-[2.5rem] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)];
+  &:hover {
+    @apply shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] -translate-y-1;
+  }
+}
+
+@utility btn-apple-primary {
+  @apply px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-md hover:bg-black active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2;
+}
+
+@utility btn-apple-secondary {
+  @apply px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-2xl font-bold shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2;
+}
+
+@utility input-apple {
+  @apply w-full px-5 py-4 bg-slate-100/50 border border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/30 outline-none transition-all duration-300 placeholder:text-slate-400 font-medium;
+}
+
+@utility sidebar-icon {
+  @apply p-3 rounded-2xl transition-all duration-500 flex items-center justify-center relative;
+}
+
+@utility sidebar-icon-active {
+  @apply bg-slate-900 text-white shadow-xl shadow-slate-200/50;
+}
+
+@utility sidebar-icon-inactive {
+  @apply text-slate-400 hover:text-slate-900 hover:bg-slate-100/80;
+}
+
+@utility bento-grid {
+  @apply grid gap-6;
+}
+
+@utility bento-card {
+  @apply card-premium p-8 h-full flex flex-col;
+}
+
+@utility apple-blur-nav {
+  @apply sticky top-0 z-[100] bg-white/80 backdrop-blur-xl border-b border-slate-100/50;
+}
+
+@layer components {
   /* Quill Editor Customization */
   .quill-editor .ql-toolbar {
     @apply border-none bg-gray-50/50 p-3 border-b border-gray-100! flex flex-wrap gap-1;
@@ -257,5 +261,3 @@ body {
     word-break: break-all !important;
   }
 }
-
-

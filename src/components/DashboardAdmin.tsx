@@ -78,6 +78,7 @@ export default function DashboardAdmin() {
  const [paymentProof, setPaymentProof] = useState('');
  const [mixedSavingsAmount, setMixedSavingsAmount] = useState('');
  const [mixedCashAmount, setMixedCashAmount] = useState('');
+ const [mixedTransferAmount, setMixedTransferAmount] = useState('');
  const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
  const [activeStudentForPayment, setActiveStudentForPayment] = useState<any>(null);
  const paymentProofRef = useRef<HTMLInputElement>(null);
@@ -1428,13 +1429,14 @@ export default function DashboardAdmin() {
  } else if (paymentMethod === 'Campuran') {
  const savingsAmount = Number(mixedSavingsAmount) || 0;
  const cashAmount = Number(mixedCashAmount) || 0;
+ const transferAmount = Number(mixedTransferAmount) || 0;
  
  if (savingsAmount > (student.savings || 0)) {
  alert('Input nominal tabungan melebihi saldo yang ada.');
  return;
  }
 
- if (savingsAmount + cashAmount < detailToPay.amount) {
+ if (savingsAmount + cashAmount + transferAmount < detailToPay.amount) {
  if (!window.confirm('Nominal total kurang dari jumlah tagihan. Tetap proses sebagai pembayaran sebagian?')) {
  return;
  }
@@ -1448,7 +1450,7 @@ export default function DashboardAdmin() {
  }
 
  const totalPaid = paymentMethod === 'Campuran' 
- ? (Number(mixedSavingsAmount) || 0) + (Number(mixedCashAmount) || 0)
+ ? (Number(mixedSavingsAmount) || 0) + (Number(mixedCashAmount) || 0) + (Number(mixedTransferAmount) || 0)
  : detailToPay.amount;
 
  let newArrears = student.arrears || 0;
@@ -1478,7 +1480,7 @@ export default function DashboardAdmin() {
  await addDoc(collection(db, 'payments'), {
  studentId: student.id,
  amount: totalPaid,
- description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()} & Tunai/Transfer Rp ${Number(mixedCashAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
+ description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()}, Tunai Rp ${Number(mixedCashAmount).toLocaleString()}, Transfer Rp ${Number(mixedTransferAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
  type: 'iuran',
  status: totalPaid >= detailToPay.amount ? 'lunas' : 'cicilan',
  method: paymentMethod,
@@ -1487,7 +1489,8 @@ export default function DashboardAdmin() {
  createdAt: serverTimestamp(),
  mixedDetails: paymentMethod === 'Campuran' ? {
  fromSavings: Number(mixedSavingsAmount) || 0,
- fromCash: Number(mixedCashAmount) || 0
+ fromCash: Number(mixedCashAmount) || 0,
+ fromTransfer: Number(mixedTransferAmount) || 0
  } : null
  });
  
@@ -2287,7 +2290,7 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan') => {
+  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan' | 'Campuran') => {
     if (payment.method === newMethod) {
       setShowRevisionModal(false);
       return;
@@ -2325,10 +2328,25 @@ export default function DashboardAdmin() {
       savingsAdjustment -= amount;
     }
 
+    // If changing FROM Campuran, we refund the savings portion
+    if (payment.method === 'Campuran' && payment.mixedDetails) {
+      savingsAdjustment += Number(payment.mixedDetails.fromSavings || 0);
+    }
+
+    // If changing TO Campuran, we deduct the new savings portion
+    if (newMethod === 'Campuran') {
+      const newFromSavings = Number(mixedSavingsAmount) || 0;
+      if (currentSavings + savingsAdjustment < newFromSavings) {
+        alert(`Saldo tabungan tidak mencukupi!\nSaldo Tersedia: Rp ${(currentSavings + savingsAdjustment).toLocaleString('id-ID')}\nKebutuhan: Rp ${newFromSavings.toLocaleString('id-ID')}`);
+        return;
+      }
+      savingsAdjustment -= newFromSavings;
+    }
+
     if (!window.confirm(`Konfirmasi Revisi Metode Pembayaran:\n\n` +
       `• Transaksi: ${payment.description}\n` +
       `• Dari: ${payment.method}\n` +
-      `• Ke: ${newMethod}\n\n` +
+      `• Ke: ${newMethod}${newMethod === 'Campuran' ? ` (Split: Tbn Rp ${Number(mixedSavingsAmount).toLocaleString()}, Tni Rp ${Number(mixedCashAmount).toLocaleString()}, Tf Rp ${Number(mixedTransferAmount).toLocaleString()})` : ''}\n\n` +
       `Apakah Anda yakin ingin melakukan revisi ini?`)) return;
 
     try {
@@ -2340,10 +2358,20 @@ export default function DashboardAdmin() {
       
       // Clean up description if it contains method specific text
       let newDesc = payment.description;
+      
+      // Remove old split details if it was Campuran
+      if (payment.method === 'Campuran') {
+        newDesc = newDesc.replace(/\s\(Campuran:.*?\)/, '');
+      }
+
       if (payment.method === 'Tabungan') {
         newDesc = newDesc.replace('Potong Saldo Tabungan', `${newMethod} Admin`);
       } else if (newMethod === 'Tabungan') {
         newDesc = newDesc.replace(`${payment.method} Admin`, 'Potong Saldo Tabungan');
+      } else if (newMethod === 'Campuran') {
+        // If changing to Campuran, add the new split details
+        newDesc = newDesc.replace(`${payment.method} Admin`, 'Campuran Admin');
+        newDesc += ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()}, Tunai Rp ${Number(mixedCashAmount).toLocaleString()}, Transfer Rp ${Number(mixedTransferAmount).toLocaleString()})`;
       } else {
         newDesc = newDesc.replace(`${payment.method} Admin`, `${newMethod} Admin`);
       }
@@ -2351,6 +2379,11 @@ export default function DashboardAdmin() {
       batch.update(payRef, { 
         method: newMethod,
         description: newDesc,
+        mixedDetails: newMethod === 'Campuran' ? {
+          fromSavings: Number(mixedSavingsAmount) || 0,
+          fromCash: Number(mixedCashAmount) || 0,
+          fromTransfer: Number(mixedTransferAmount) || 0
+        } : null,
         updatedAt: serverTimestamp()
       });
 
@@ -2364,6 +2397,10 @@ export default function DashboardAdmin() {
       alert('Metode pembayaran berhasil diperbarui!');
       setShowRevisionModal(false);
       setEditingPayment(null);
+      setMixedSavingsAmount('');
+      setMixedCashAmount('');
+  setMixedTransferAmount('');
+      setMixedTransferAmount('');
     } catch (error) {
       console.error(error);
       alert('Gagal memperbarui metode pembayaran.');
@@ -7420,10 +7457,26 @@ export default function DashboardAdmin() {
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 text-left">Pilih Metode Baru</label>
             <div className="grid grid-cols-1 gap-3">
-              {['Tunai', 'Transfer', 'Tabungan'].map((m) => (
+              {['Tunai', 'Transfer', 'Tabungan', 'Campuran'].map((m) => (
                 <button
                   key={m}
-                  onClick={() => setNewPaymentMethod(m as any)}
+                  onClick={() => {
+                    setNewPaymentMethod(m as any);
+                    if (m === 'Campuran') {
+                      if (editingPayment.method === 'Campuran' && editingPayment.mixedDetails) {
+                        setMixedSavingsAmount(editingPayment.mixedDetails.fromSavings?.toString() || '0');
+                        setMixedCashAmount(editingPayment.mixedDetails.fromCash?.toString() || '0');
+                        setMixedTransferAmount(editingPayment.mixedDetails.fromTransfer?.toString() || '0');
+                      } else {
+                        // Default to current behavior if switching to Campuran first time
+                        const student = allUsers.find(u => u.id === editingPayment.studentId);
+                        setMixedSavingsAmount((student?.savings || 0).toString());
+                        const remaining = Math.max(0, editingPayment.amount - (student?.savings || 0));
+                        setMixedCashAmount(remaining.toString());
+                        setMixedTransferAmount('0');
+                      }
+                    }
+                  }}
                   className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all group ${
                     newPaymentMethod === m 
                       ? 'border-indigo-600 bg-indigo-50/50 shadow-inner' 
@@ -7434,7 +7487,7 @@ export default function DashboardAdmin() {
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                       newPaymentMethod === m ? 'bg-indigo-600 text-white rotate-6' : 'bg-white text-slate-300'
                     }`}>
-                      {m === 'Tunai' ? <Banknote size={20} /> : m === 'Transfer' ? <CreditCard size={20} /> : <Wallet size={20} />}
+                      {m === 'Tunai' ? <Banknote size={20} /> : m === 'Transfer' ? <CreditCard size={20} /> : m === 'Tabungan' ? <Wallet size={20} /> : <Sparkles size={20} />}
                     </div>
                     <span className={`text-xs font-black uppercase tracking-widest ${newPaymentMethod === m ? 'text-indigo-900' : 'text-slate-500'}`}>{m}</span>
                   </div>
@@ -7446,6 +7499,65 @@ export default function DashboardAdmin() {
                 </button>
               ))}
             </div>
+
+            {newPaymentMethod === 'Campuran' && (
+              <div className="space-y-4 p-6 bg-indigo-50/30 rounded-3xl border border-indigo-100/50 animate-in fade-in slide-in-from-top-2 duration-300 text-left">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Tabungan</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-300">Rp</span>
+                      <input 
+                        type="number" 
+                        value={mixedSavingsAmount}
+                        onChange={(e) => setMixedSavingsAmount(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Tunai</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-300">Rp</span>
+                        <input 
+                          type="number" 
+                          value={mixedCashAmount}
+                          onChange={(e) => setMixedCashAmount(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Transfer</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-indigo-300">Rp</span>
+                        <input 
+                          type="number" 
+                          value={mixedTransferAmount}
+                          onChange={(e) => setMixedTransferAmount(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-indigo-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center px-1 pt-2 border-t border-indigo-100/50">
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Total Terinput</span>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-sm font-black ${(Number(mixedSavingsAmount) + Number(mixedCashAmount) + Number(mixedTransferAmount)) === editingPayment.amount ? 'text-indigo-600' : 'text-rose-500'}`}>
+                      Rp {(Number(mixedSavingsAmount) + Number(mixedCashAmount) + Number(mixedTransferAmount)).toLocaleString()}
+                    </span>
+                    {(Number(mixedSavingsAmount) + Number(mixedCashAmount) + Number(mixedTransferAmount)) !== editingPayment.amount && (
+                      <span className="text-[8px] font-bold text-rose-400">Harus sama dengan Rp {editingPayment.amount.toLocaleString()}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => handleUpdatePaymentMethod(editingPayment, newPaymentMethod)}
