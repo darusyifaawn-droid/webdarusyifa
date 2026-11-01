@@ -23,7 +23,6 @@ interface FinanceRiwayatTabProps {
  setEditingPayment: (pay: any) => void;
  setShowRevisionModal: (val: boolean) => void;
  setNewPaymentMethod: (val: any) => void;
- handleOpenEditPayment?: (pay: any) => void;
 }
 
 export default function FinanceRiwayatTab({
@@ -43,8 +42,7 @@ export default function FinanceRiwayatTab({
  handlePrintReceipt,
  setEditingPayment,
  setShowRevisionModal,
- setNewPaymentMethod,
- handleOpenEditPayment
+ setNewPaymentMethod
 }: FinanceRiwayatTabProps) {
  const filteredLogPayments = payments.filter(pay => {
  const student = allUsers.find(u => u.id === pay.studentId);
@@ -222,16 +220,12 @@ export default function FinanceRiwayatTab({
   <div className="flex items-center justify-center gap-2">
   <button 
   onClick={() => {
-  if (handleOpenEditPayment) {
-    handleOpenEditPayment(pay);
-  } else {
-    setEditingPayment(pay);
-    setNewPaymentMethod(pay.method);
-    setShowRevisionModal(true);
-  }
+  setEditingPayment(pay);
+  setNewPaymentMethod(pay.method);
+  setShowRevisionModal(true);
   }}
   className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
-  title="Edit Data Transaksi Lengkap"
+  title="Edit Metode Bayar"
   >
   <Edit size={15} />
   </button>
@@ -324,13 +318,9 @@ export default function FinanceRiwayatTab({
  <div className="flex items-center justify-end gap-3 pt-1">
  <button 
  onClick={() => {
- if (handleOpenEditPayment) {
-   handleOpenEditPayment(pay);
- } else {
-   setEditingPayment(pay);
-   setNewPaymentMethod(pay.method);
-   setShowRevisionModal(true);
- }
+ setEditingPayment(pay);
+ setNewPaymentMethod(pay.method);
+ setShowRevisionModal(true);
  }}
  className="px-4 py-2.5 bg-white border border-slate-100 text-amber-500 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
  >

@@ -80,50 +80,32 @@ export default function DashboardOrangTua() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-sans text-slate-900">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-24 flex-col bg-white border-r border-slate-100 sticky top-0 h-screen overflow-y-auto custom-scrollbar">
-        <div className="p-4 py-8 flex flex-col items-center gap-6">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 p-1 flex items-center justify-center shrink-0">
-            <img src="/assets/aistudio/image_24fdf8ff.png" alt="Logo" className="w-full h-full object-contain" />
-          </div>
-        </div>
-
-        <nav className="flex-1 px-3 py-6 space-y-4">
+      <aside className="hidden lg:flex w-24 flex-col items-center py-10 bg-white border-r border-slate-100 sticky top-0 h-screen overflow-y-auto custom-scrollbar">
+        <img src="/assets/aistudio/image_24fdf8ff.png" alt="Logo" className="w-12 h-12 object-contain mb-10" />
+        <nav className="flex-1 space-y-4">
           {[
-            { id: 'overview', icon: Home, label: 'Beranda' },
-            { id: 'administration', icon: Wallet, label: 'Keuangan' },
-            { id: 'attendance', icon: CheckCircle, label: 'Absensi' },
+            { id: 'overview', icon: Home, label: 'Home' },
+            { id: 'administration', icon: Wallet, label: 'Uang' },
+            { id: 'attendance', icon: CheckCircle, label: 'Absen' },
             { id: 'announcements', icon: Bell, label: 'Info' },
             { id: 'profile', icon: User, label: 'Profil' },
           ].map(item => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all font-bold group cursor-pointer ${
-                activeTab === item.id 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-                  : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+              className={`sidebar-icon ${activeTab === item.id ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
               title={item.label}
             >
-              <item.icon size={22} className={activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
-              <span className="text-[9px] uppercase tracking-tighter text-center leading-none font-black">{item.label}</span>
+              <item.icon size={22} />
               {activeTab === item.id && (
-                <motion.div layoutId="active-pill-parent-new" className="absolute left-0 w-1 h-6 bg-blue-400 rounded-r-full" />
+                <motion.div layoutId="active-pill-parent" className="absolute -left-1 w-1 h-8 bg-slate-900 rounded-r-full" />
               )}
             </button>
           ))}
         </nav>
-
-        <div className="p-3 mt-auto border-t border-slate-50">
-          <button 
-            onClick={handleLogout} 
-            className="w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold text-[9px] cursor-pointer"
-            title="Keluar"
-          >
-            <LogOut size={22} />
-            <span className="uppercase tracking-tighter font-black">Keluar</span>
-          </button>
-        </div>
+        <button onClick={handleLogout} className="sidebar-icon sidebar-icon-inactive mt-auto text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+          <LogOut size={22} />
+        </button>
       </aside>
 
       {/* Main Content */}

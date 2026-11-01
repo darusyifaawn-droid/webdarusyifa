@@ -33,8 +33,7 @@ import {
   UserCheck, 
   Sparkles,
   RefreshCw,
-  Edit,
-  Save
+  Edit
 } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
 import { formatRupiah, terbilang } from '../../../lib/salaryUtils';
@@ -84,26 +83,11 @@ export default function FinanceSetoranCashTab({
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingDeposit, setEditingDeposit] = useState<CashDeposit | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<CashDeposit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Edit Form State
-  const [editFormData, setEditFormData] = useState({
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '08:30',
-    periodType: 'Harian' as 'Harian' | 'Mingguan' | 'Bulanan' | 'Custom',
-    depositType: 'Tabungan' as any,
-    categoryKey: '',
-    source: 'Kelas Umar',
-    description: '',
-    treasurerName: '',
-    receiverName: '',
-    status: 'disahkan' as any
-  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Active Cash View: 'rekonsiliasi' (Monitoring Sisa & Tunggakan) or 'riwayat' (Data Setoran Cash)
   const [activeCashView, setActiveCashView] = useState<'rekonsiliasi' | 'riwayat'>('rekonsiliasi');
@@ -357,6 +341,8 @@ export default function FinanceSetoranCashTab({
 
   // Open Add Modal and auto-generate deposit number
   const handleOpenAddModal = () => {
+    setIsEditing(false);
+    setEditingId(null);
     const nextNumber = generateDepositNumber(new Date().toISOString().split('T')[0], deposits.length);
     setFormData({
       depositNumber: nextNumber,
@@ -410,7 +396,32 @@ export default function FinanceSetoranCashTab({
     setShowAddModal(true);
   };
 
-  // Submit new Cash Deposit (Otomatis Disahkan & Langsung Kurangi Sisa Kas Bendahara)
+  // Open Edit Modal with Pre-Filled Data
+  const handleEditDeposit = (deposit: CashDeposit) => {
+    setEditingId(deposit.id || null);
+    setIsEditing(true);
+    setFormData({
+      depositNumber: deposit.depositNumber,
+      date: deposit.date,
+      time: deposit.time || '08:30',
+      periodType: deposit.periodType,
+      depositType: deposit.depositType,
+      categoryKey: deposit.categoryKey || '',
+      source: deposit.source,
+      amount: deposit.amount.toString(),
+      description: deposit.description || '',
+      treasurerName: deposit.treasurerName,
+      treasurerNip: deposit.treasurerNip || '',
+      treasurerTitle: deposit.treasurerTitle || '',
+      receiverName: deposit.receiverName,
+      receiverNip: deposit.receiverNip || '',
+      receiverTitle: deposit.receiverTitle || '',
+      directVerifyTreasurer: deposit.treasurerVerified || false
+    });
+    setShowAddModal(true);
+  };
+
+  // Submit new Cash Deposit
   const handleSaveDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(formData.amount);
@@ -422,113 +433,47 @@ export default function FinanceSetoranCashTab({
     setIsSubmitting(true);
     try {
       const nowStr = new Date().toLocaleString('id-ID');
+      const isDirectVerif = formData.directVerifyTreasurer;
 
-      // Setoran cash baru langsung mengurangi sisa kas dan otomatis disahkan admin
-      const newDepositPayload: Omit<CashDeposit, 'id'> = {
+      const newDepositPayload: any = {
         depositNumber: formData.depositNumber || generateDepositNumber(formData.date, deposits.length),
         date: formData.date,
-        time: formData.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':'),
+        time: formData.time || '08:30',
         periodType: formData.periodType,
         depositType: formData.depositType,
         categoryKey: formData.categoryKey || '',
         source: formData.source || 'Kelas Umar',
         amount: amt,
-        description: formData.description.trim() || 'Setoran kas tunai disahkan otomatis',
+        description: formData.description.trim(),
         treasurerId: user?.uid || 'treasurer',
         treasurerName: formData.treasurerName,
         treasurerNip: formData.treasurerNip,
         treasurerTitle: formData.treasurerTitle,
-        treasurerVerified: true,
-        treasurerVerifiedAt: nowStr,
+        treasurerVerified: isDirectVerif,
+        treasurerVerifiedAt: isDirectVerif ? nowStr : (isEditing && editingId ? (deposits.find(d => d.id === editingId)?.treasurerVerifiedAt) : undefined),
         receiverName: formData.receiverName,
         receiverNip: formData.receiverNip,
         receiverTitle: formData.receiverTitle,
-        principalVerified: true,
-        principalVerifiedAt: nowStr,
-        status: 'disahkan', // Otomatis disahkan admin & langsung mengurangi sisa kas bendahara
-        qrVerificationCode: `SC-${Date.now()}`,
-        createdAt: serverTimestamp(),
+        principalVerified: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.principalVerified || false) : false,
+        status: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.status || 'menunggu_verifikasi_bendahara') : (isDirectVerif ? 'menunggu_verifikasi_kepsek' : 'menunggu_verifikasi_bendahara'),
+        qrVerificationCode: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.qrVerificationCode || `SC-${Date.now()}`) : `SC-${Date.now()}`,
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, 'cash_deposits'), newDepositPayload);
-      setShowAddModal(false);
-      alert('Setoran cash berhasil dicatat! Sisa kas bendahara langsung terpotong dan setoran otomatis disahkan.');
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'cash_deposits');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Open Edit Modal for Cash Deposit
-  const handleOpenEditDeposit = (deposit: CashDeposit) => {
-    setEditingDeposit(deposit);
-    setEditFormData({
-      amount: deposit.amount ? deposit.amount.toString() : '',
-      date: deposit.date || new Date().toISOString().split('T')[0],
-      time: deposit.time || '08:30',
-      periodType: deposit.periodType || 'Harian',
-      depositType: deposit.depositType || 'Tabungan',
-      categoryKey: deposit.categoryKey || '',
-      source: deposit.source || 'Kelas Umar',
-      description: deposit.description || '',
-      treasurerName: deposit.treasurerName || settings?.namaBendahara || DEFAULT_TREASURER.name,
-      receiverName: deposit.receiverName || settings?.namaKepsek || DEFAULT_PRINCIPAL.name,
-      status: deposit.status || 'disahkan'
-    });
-    setShowEditModal(true);
-  };
-
-  // Submit Update for Cash Deposit (Semua data termasuk nominal, tanggal, kategori, dan keterangan)
-  const handleUpdateDeposit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingDeposit?.id) return;
-    const amt = Number(editFormData.amount);
-    if (!amt || amt <= 0) {
-      alert('Mohon masukkan nominal setoran yang valid.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await updateDoc(doc(db, 'cash_deposits', editingDeposit.id), {
-        amount: amt,
-        date: editFormData.date,
-        time: editFormData.time,
-        periodType: editFormData.periodType,
-        depositType: editFormData.depositType,
-        categoryKey: editFormData.categoryKey,
-        source: editFormData.source,
-        description: editFormData.description.trim(),
-        treasurerName: editFormData.treasurerName,
-        receiverName: editFormData.receiverName,
-        status: editFormData.status,
-        updatedAt: serverTimestamp()
-      });
-
-      if (selectedDeposit?.id === editingDeposit.id) {
-        setSelectedDeposit({
-          ...selectedDeposit,
-          amount: amt,
-          date: editFormData.date,
-          time: editFormData.time,
-          periodType: editFormData.periodType,
-          depositType: editFormData.depositType,
-          categoryKey: editFormData.categoryKey,
-          source: editFormData.source,
-          description: editFormData.description.trim(),
-          treasurerName: editFormData.treasurerName,
-          receiverName: editFormData.receiverName,
-          status: editFormData.status
-        });
+      if (!isEditing) {
+        newDepositPayload.createdAt = serverTimestamp();
+        await addDoc(collection(db, 'cash_deposits'), newDepositPayload);
+        alert('Setoran cash baru berhasil dicatat.');
+      } else if (editingId) {
+        await updateDoc(doc(db, 'cash_deposits', editingId), newDepositPayload);
+        alert('Perubahan setoran cash berhasil disimpan.');
       }
-
-      setShowEditModal(false);
-      setEditingDeposit(null);
-      alert('Data setoran cash berhasil diperbarui!');
+      
+      setShowAddModal(false);
+      setIsEditing(false);
+      setEditingId(null);
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `cash_deposits/${editingDeposit.id}`);
+      handleFirestoreError(err, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'cash_deposits');
     } finally {
       setIsSubmitting(false);
     }
@@ -1201,14 +1146,6 @@ export default function FinanceSetoranCashTab({
 
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => handleOpenEditDeposit(item)}
-                          className="px-2.5 py-1 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                          title="Edit Data Setoran"
-                        >
-                          <Edit size={13} />
-                          <span>Edit</span>
-                        </button>
-                        <button
                           onClick={() => {
                             setSelectedDeposit(item);
                             setShowDetailModal(true);
@@ -1219,20 +1156,25 @@ export default function FinanceSetoranCashTab({
                           <span>Rincian</span>
                         </button>
                         <button
+                          onClick={() => handleEditDeposit(item)}
+                          className="px-2.5 py-1 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit size={13} />
+                          <span>Edit</span>
+                        </button>
+                        <button
                           onClick={() => handlePrintBukti(item)}
                           className="px-2.5 py-1 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
                           <Printer size={13} />
                           <span>Cetak</span>
                         </button>
-                        {!isDisahkan && (
-                          <button
-                            onClick={() => handleDeleteDeposit(item)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteDeposit(item)}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1370,13 +1312,6 @@ export default function FinanceSetoranCashTab({
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => handleOpenEditDeposit(item)}
-                              title="Edit Data Setoran Cash"
-                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Edit size={15} />
-                            </button>
-                            <button
                               onClick={() => {
                                 setSelectedDeposit(item);
                                 setShowDetailModal(true);
@@ -1387,21 +1322,26 @@ export default function FinanceSetoranCashTab({
                               <Eye size={15} />
                             </button>
                             <button
+                              onClick={() => handleEditDeposit(item)}
+                              title="Edit Data Setoran"
+                              className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
                               onClick={() => handlePrintBukti(item)}
                               title="Cetak Bukti Resmi (PDF)"
                               className="p-1.5 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             >
                               <Printer size={15} />
                             </button>
-                            {!isDisahkan && (
-                              <button
-                                onClick={() => handleDeleteDeposit(item)}
-                                title="Hapus Catatan"
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleDeleteDeposit(item)}
+                              title="Hapus Catatan"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1427,7 +1367,7 @@ export default function FinanceSetoranCashTab({
                   Penyerahan Fisik Uang Tunai
                 </span>
                 <h3 className="text-base sm:text-lg font-black tracking-tight mt-0.5">
-                  Catat Setoran Cash Baru
+                  {isEditing ? 'Edit Setoran Cash' : 'Catat Setoran Cash Baru'}
                 </h3>
               </div>
               <button
@@ -1746,12 +1686,22 @@ export default function FinanceSetoranCashTab({
                   type="button"
                   onClick={() => {
                     setShowDetailModal(false);
-                    handleOpenEditDeposit(selectedDeposit);
+                    handleEditDeposit(selectedDeposit);
                   }}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="p-2 text-white/70 hover:text-amber-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  title="Edit Data"
                 >
-                  <Edit size={14} />
-                  <span className="hidden sm:inline">Edit Data</span>
+                  <Edit size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteDeposit(selectedDeposit);
+                  }}
+                  className="p-2 text-white/70 hover:text-rose-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  title="Hapus Data"
+                >
+                  <Trash2 size={18} />
                 </button>
                 <button
                   type="button"
@@ -1910,17 +1860,6 @@ export default function FinanceSetoranCashTab({
             <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2 shrink-0 z-20 shadow-md">
               <button
                 type="button"
-                onClick={() => {
-                  setShowDetailModal(false);
-                  handleOpenEditDeposit(selectedDeposit);
-                }}
-                className="px-4 py-3 sm:py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-bold hover:bg-amber-100 cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
-              >
-                <Edit size={14} />
-                <span>Edit Setoran</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowDetailModal(false)}
                 className="flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer active:scale-95 transition-all text-center"
               >
@@ -1933,214 +1872,6 @@ export default function FinanceSetoranCashTab({
               >
                 <Printer size={15} />
                 <span>Cetak Dokumen</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 8. MODAL EDIT SETORAN CASH (Semua data: nominal, tanggal, kategori, keterangan, status) */}
-      {showEditModal && editingDeposit && (
-        <div className="fixed inset-0 z-[10000] bg-slate-900/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in">
-          <div className="bg-white w-full max-w-xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border border-slate-100 flex flex-col h-[88dvh] sm:h-auto max-h-[88dvh] sm:max-h-[88vh] overflow-hidden">
-            {/* Header Sticky */}
-            <div className="p-4 sm:p-6 bg-slate-900 text-white flex items-center justify-between shrink-0 shadow-sm z-20">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <Edit size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black tracking-tight leading-tight">
-                    Edit Setoran Cash #{editingDeposit.depositNumber}
-                  </h3>
-                  <p className="text-[11px] text-amber-400 font-bold uppercase tracking-wider mt-0.5">
-                    Ubah nominal, tanggal, kategori, & keterangan
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingDeposit(null);
-                }}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <form id="editCashDepositForm" onSubmit={handleUpdateDeposit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0 overscroll-contain">
-              {/* Tanggal & Waktu */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Tanggal Setoran
-                  </label>
-                  <input
-                    type="date"
-                    value={editFormData.date}
-                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Waktu (WIB)
-                  </label>
-                  <input
-                    type="time"
-                    value={editFormData.time}
-                    onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Kategori Setoran & Sumber Dana */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Kategori Setoran
-                  </label>
-                  <select
-                    value={editFormData.depositType}
-                    onChange={(e) => setEditFormData({ ...editFormData, depositType: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-                  >
-                    {dynamicCategories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Kelas / Sumber Dana
-                  </label>
-                  <select
-                    value={editFormData.source}
-                    onChange={(e) => setEditFormData({ ...editFormData, source: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-                  >
-                    {availableClassSources.map(src => (
-                      <option key={src} value={src}>{src}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Nominal Setoran */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Nominal Setoran (Rp)
-                </label>
-                <input
-                  type="number"
-                  placeholder="Contoh: 500000"
-                  value={editFormData.amount}
-                  onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
-                  className="w-full bg-amber-50 text-amber-950 font-black text-lg p-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500"
-                  required
-                />
-                {Number(editFormData.amount) > 0 && (
-                  <p className="text-[11px] text-amber-700 font-semibold italic mt-1 leading-tight">
-                    Terbilang: "{terbilang(Number(editFormData.amount))}"
-                  </p>
-                )}
-              </div>
-
-              {/* Keterangan */}
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">
-                  Keterangan / Rincian Setoran
-                </label>
-                <textarea
-                  rows={2}
-                  value={editFormData.description}
-                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                  placeholder="Keterangan setoran..."
-                  className="w-full bg-slate-50 text-slate-900 font-medium text-sm sm:text-xs p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              {/* Status Pengesahan */}
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">
-                  Status Setoran
-                </label>
-                <select
-                  value={editFormData.status}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as any })}
-                  className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-                >
-                  <option value="disahkan">Disahkan (Sisa Kas Bendahara Terpotong)</option>
-                  <option value="menunggu_verifikasi_kepsek">Menunggu Verifikasi Kepsek</option>
-                  <option value="menunggu_verifikasi_bendahara">Menunggu Verifikasi Bendahara</option>
-                  <option value="ditolak">Ditolak</option>
-                </select>
-              </div>
-
-              {/* Petugas Bendahara & Penerima */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Penyetor (Bendahara)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.treasurerName}
-                    onChange={(e) => setEditFormData({ ...editFormData, treasurerName: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Penerima (Kepsek / Yayasan)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.receiverName}
-                    onChange={(e) => setEditFormData({ ...editFormData, receiverName: e.target.value })}
-                    className="w-full bg-slate-50 text-slate-900 font-bold text-sm sm:text-xs p-2.5 rounded-xl border border-slate-200 outline-none"
-                  />
-                </div>
-              </div>
-            </form>
-
-            {/* Fixed Footer */}
-            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2 shrink-0 z-20 shadow-md">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingDeposit(null);
-                }}
-                className="flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer active:scale-95 transition-all text-center"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                form="editCashDepositForm"
-                disabled={isSubmitting}
-                className="flex-1 sm:flex-none px-5 py-3 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-amber-200 disabled:opacity-50 active:scale-95 text-center flex items-center justify-center gap-1.5"
-              >
-                {isSubmitting ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Menyimpan...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={15} />
-                    <span>Simpan Perubahan</span>
-                  </>
-                )}
               </button>
             </div>
           </div>
