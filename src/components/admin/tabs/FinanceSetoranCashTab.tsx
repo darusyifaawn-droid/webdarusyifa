@@ -32,8 +32,7 @@ import {
   TrendingUp, 
   UserCheck, 
   Sparkles,
-  RefreshCw,
-  Edit
+  RefreshCw
 } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../../lib/firestoreUtils';
 import { formatRupiah, terbilang } from '../../../lib/salaryUtils';
@@ -86,8 +85,6 @@ export default function FinanceSetoranCashTab({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<CashDeposit | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Active Cash View: 'rekonsiliasi' (Monitoring Sisa & Tunggakan) or 'riwayat' (Data Setoran Cash)
   const [activeCashView, setActiveCashView] = useState<'rekonsiliasi' | 'riwayat'>('rekonsiliasi');
@@ -341,8 +338,6 @@ export default function FinanceSetoranCashTab({
 
   // Open Add Modal and auto-generate deposit number
   const handleOpenAddModal = () => {
-    setIsEditing(false);
-    setEditingId(null);
     const nextNumber = generateDepositNumber(new Date().toISOString().split('T')[0], deposits.length);
     setFormData({
       depositNumber: nextNumber,
@@ -396,31 +391,6 @@ export default function FinanceSetoranCashTab({
     setShowAddModal(true);
   };
 
-  // Open Edit Modal with Pre-Filled Data
-  const handleEditDeposit = (deposit: CashDeposit) => {
-    setEditingId(deposit.id || null);
-    setIsEditing(true);
-    setFormData({
-      depositNumber: deposit.depositNumber,
-      date: deposit.date,
-      time: deposit.time || '08:30',
-      periodType: deposit.periodType,
-      depositType: deposit.depositType,
-      categoryKey: deposit.categoryKey || '',
-      source: deposit.source,
-      amount: deposit.amount.toString(),
-      description: deposit.description || '',
-      treasurerName: deposit.treasurerName,
-      treasurerNip: deposit.treasurerNip || '',
-      treasurerTitle: deposit.treasurerTitle || '',
-      receiverName: deposit.receiverName,
-      receiverNip: deposit.receiverNip || '',
-      receiverTitle: deposit.receiverTitle || '',
-      directVerifyTreasurer: deposit.treasurerVerified || false
-    });
-    setShowAddModal(true);
-  };
-
   // Submit new Cash Deposit
   const handleSaveDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -435,7 +405,7 @@ export default function FinanceSetoranCashTab({
       const nowStr = new Date().toLocaleString('id-ID');
       const isDirectVerif = formData.directVerifyTreasurer;
 
-      const newDepositPayload: any = {
+      const newDepositPayload: Omit<CashDeposit, 'id'> = {
         depositNumber: formData.depositNumber || generateDepositNumber(formData.date, deposits.length),
         date: formData.date,
         time: formData.time || '08:30',
@@ -450,30 +420,21 @@ export default function FinanceSetoranCashTab({
         treasurerNip: formData.treasurerNip,
         treasurerTitle: formData.treasurerTitle,
         treasurerVerified: isDirectVerif,
-        treasurerVerifiedAt: isDirectVerif ? nowStr : (isEditing && editingId ? (deposits.find(d => d.id === editingId)?.treasurerVerifiedAt) : undefined),
+        treasurerVerifiedAt: isDirectVerif ? nowStr : undefined,
         receiverName: formData.receiverName,
         receiverNip: formData.receiverNip,
         receiverTitle: formData.receiverTitle,
-        principalVerified: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.principalVerified || false) : false,
-        status: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.status || 'menunggu_verifikasi_bendahara') : (isDirectVerif ? 'menunggu_verifikasi_kepsek' : 'menunggu_verifikasi_bendahara'),
-        qrVerificationCode: isEditing && editingId ? (deposits.find(d => d.id === editingId)?.qrVerificationCode || `SC-${Date.now()}`) : `SC-${Date.now()}`,
+        principalVerified: false,
+        status: isDirectVerif ? 'menunggu_verifikasi_kepsek' : 'menunggu_verifikasi_bendahara',
+        qrVerificationCode: `SC-${Date.now()}`,
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
-      if (!isEditing) {
-        newDepositPayload.createdAt = serverTimestamp();
-        await addDoc(collection(db, 'cash_deposits'), newDepositPayload);
-        alert('Setoran cash baru berhasil dicatat.');
-      } else if (editingId) {
-        await updateDoc(doc(db, 'cash_deposits', editingId), newDepositPayload);
-        alert('Perubahan setoran cash berhasil disimpan.');
-      }
-      
+      await addDoc(collection(db, 'cash_deposits'), newDepositPayload);
       setShowAddModal(false);
-      setIsEditing(false);
-      setEditingId(null);
     } catch (err) {
-      handleFirestoreError(err, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'cash_deposits');
+      handleFirestoreError(err, OperationType.CREATE, 'cash_deposits');
     } finally {
       setIsSubmitting(false);
     }
@@ -1156,25 +1117,20 @@ export default function FinanceSetoranCashTab({
                           <span>Rincian</span>
                         </button>
                         <button
-                          onClick={() => handleEditDeposit(item)}
-                          className="px-2.5 py-1 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Edit size={13} />
-                          <span>Edit</span>
-                        </button>
-                        <button
                           onClick={() => handlePrintBukti(item)}
                           className="px-2.5 py-1 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
                         >
                           <Printer size={13} />
                           <span>Cetak</span>
                         </button>
-                        <button
-                          onClick={() => handleDeleteDeposit(item)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {!isDisahkan && (
+                          <button
+                            onClick={() => handleDeleteDeposit(item)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1322,26 +1278,21 @@ export default function FinanceSetoranCashTab({
                               <Eye size={15} />
                             </button>
                             <button
-                              onClick={() => handleEditDeposit(item)}
-                              title="Edit Data Setoran"
-                              className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Edit size={15} />
-                            </button>
-                            <button
                               onClick={() => handlePrintBukti(item)}
                               title="Cetak Bukti Resmi (PDF)"
                               className="p-1.5 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             >
                               <Printer size={15} />
                             </button>
-                            <button
-                              onClick={() => handleDeleteDeposit(item)}
-                              title="Hapus Catatan"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            {!isDisahkan && (
+                              <button
+                                onClick={() => handleDeleteDeposit(item)}
+                                title="Hapus Catatan"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1367,7 +1318,7 @@ export default function FinanceSetoranCashTab({
                   Penyerahan Fisik Uang Tunai
                 </span>
                 <h3 className="text-base sm:text-lg font-black tracking-tight mt-0.5">
-                  {isEditing ? 'Edit Setoran Cash' : 'Catat Setoran Cash Baru'}
+                  Catat Setoran Cash Baru
                 </h3>
               </div>
               <button
@@ -1682,27 +1633,6 @@ export default function FinanceSetoranCashTab({
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    handleEditDeposit(selectedDeposit);
-                  }}
-                  className="p-2 text-white/70 hover:text-amber-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-                  title="Edit Data"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDeleteDeposit(selectedDeposit);
-                  }}
-                  className="p-2 text-white/70 hover:text-rose-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-                  title="Hapus Data"
-                >
-                  <Trash2 size={18} />
-                </button>
                 <button
                   type="button"
                   onClick={() => handlePrintBukti(selectedDeposit)}

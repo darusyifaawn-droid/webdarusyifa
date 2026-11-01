@@ -78,9 +78,6 @@ export default function DashboardAdmin() {
  const [paymentProof, setPaymentProof] = useState('');
  const [mixedSavingsAmount, setMixedSavingsAmount] = useState('');
  const [mixedCashAmount, setMixedCashAmount] = useState('');
- const [mixedTransferAmount, setMixedTransferAmount] = useState('');
- const [editTransactionAmount, setEditTransactionAmount] = useState('');
- const [editTransactionDescription, setEditTransactionDescription] = useState('');
  const [activeDetailToPay, setActiveDetailToPay] = useState<any>(null);
  const [activeStudentForPayment, setActiveStudentForPayment] = useState<any>(null);
  const paymentProofRef = useRef<HTMLInputElement>(null);
@@ -252,7 +249,7 @@ export default function DashboardAdmin() {
   const [filterLogEndDate, setFilterLogEndDate] = useState('');
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
-  const [newPaymentMethod, setNewPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan' | 'Campuran'>('Tunai');
+  const [newPaymentMethod, setNewPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
 
  // Achievement Filters
  const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
@@ -1431,14 +1428,13 @@ export default function DashboardAdmin() {
  } else if (paymentMethod === 'Campuran') {
  const savingsAmount = Number(mixedSavingsAmount) || 0;
  const cashAmount = Number(mixedCashAmount) || 0;
- const transferAmount = Number(mixedTransferAmount) || 0;
  
  if (savingsAmount > (student.savings || 0)) {
  alert('Input nominal tabungan melebihi saldo yang ada.');
  return;
  }
 
- if (savingsAmount + cashAmount + transferAmount < detailToPay.amount) {
+ if (savingsAmount + cashAmount < detailToPay.amount) {
  if (!window.confirm('Nominal total kurang dari jumlah tagihan. Tetap proses sebagai pembayaran sebagian?')) {
  return;
  }
@@ -1452,7 +1448,7 @@ export default function DashboardAdmin() {
  }
 
  const totalPaid = paymentMethod === 'Campuran' 
- ? (Number(mixedSavingsAmount) || 0) + (Number(mixedCashAmount) || 0) + (Number(mixedTransferAmount) || 0)
+ ? (Number(mixedSavingsAmount) || 0) + (Number(mixedCashAmount) || 0)
  : detailToPay.amount;
 
  let newArrears = student.arrears || 0;
@@ -1482,7 +1478,7 @@ export default function DashboardAdmin() {
  await addDoc(collection(db, 'payments'), {
  studentId: student.id,
  amount: totalPaid,
- description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()}, Tunai Rp ${Number(mixedCashAmount).toLocaleString()}, Transfer Rp ${Number(mixedTransferAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
+ description: `Pelunasan: ${detailToPay.name}${paymentMethod === 'Campuran' ? ` (Campuran: Tabungan Rp ${Number(mixedSavingsAmount).toLocaleString()} & Tunai/Transfer Rp ${Number(mixedCashAmount).toLocaleString()})` : ''}${paymentNote ? ` - ${paymentNote}` : ''}`,
  type: 'iuran',
  status: totalPaid >= detailToPay.amount ? 'lunas' : 'cicilan',
  method: paymentMethod,
@@ -1491,8 +1487,7 @@ export default function DashboardAdmin() {
  createdAt: serverTimestamp(),
  mixedDetails: paymentMethod === 'Campuran' ? {
  fromSavings: Number(mixedSavingsAmount) || 0,
- fromCash: Number(mixedCashAmount) || 0,
- fromTransfer: Number(mixedTransferAmount) || 0
+ fromCash: Number(mixedCashAmount) || 0
  } : null
  });
  
@@ -2292,99 +2287,70 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan' | 'Campuran') => {
+  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan') => {
+    if (payment.method === newMethod) {
+      setShowRevisionModal(false);
+      return;
+    }
+
     const student = allUsers.find(u => u.id === payment.studentId);
     if (!student) {
       alert('Siswa tidak ditemukan!');
       return;
     }
 
-    const oldAmount = Number(payment.amount || 0);
-    const newAmount = Number(editTransactionAmount) || oldAmount;
+    const amount = Number(payment.amount || 0);
     const currentSavings = student.savings || 0;
-
-    const newFromSavings = newMethod === 'Campuran' ? (Number(mixedSavingsAmount) || 0) : 0;
-    const newFromCash = newMethod === 'Campuran' ? (Number(mixedCashAmount) || 0) : 0;
-    const newFromTransfer = newMethod === 'Campuran' ? (Number(mixedTransferAmount) || 0) : 0;
-
-    // Validation for Campuran
-    if (newMethod === 'Campuran' && (newFromSavings + newFromCash + newFromTransfer) !== newAmount) {
-      alert(`Total split pembayaran (Rp ${(newFromSavings + newFromCash + newFromTransfer).toLocaleString()}) harus sama dengan total nominal (Rp ${newAmount.toLocaleString()})`);
-      return;
-    }
 
     // Logic for savings balance adjustment
     let savingsAdjustment = 0;
 
-    // 1. Undo old effect
-    if (payment.type === 'tabungan' || payment.type === 'tabungan_masuk') {
-      savingsAdjustment -= oldAmount;
-    } else if (payment.type === 'tabungan_keluar') {
-      savingsAdjustment += oldAmount;
-    } else if (payment.method === 'Tabungan') {
-      savingsAdjustment += oldAmount;
-    } else if (payment.method === 'Campuran' && payment.mixedDetails) {
-      savingsAdjustment += Number(payment.mixedDetails.fromSavings || 0);
+    // If changing FROM Tabungan, we refund the amount to savings
+    if (payment.method === 'Tabungan') {
+      savingsAdjustment += amount;
     }
 
-    // 2. Apply new effect
-    if (payment.type === 'tabungan' || payment.type === 'tabungan_masuk') {
-      savingsAdjustment += newAmount;
-    } else if (payment.type === 'tabungan_keluar') {
-      savingsAdjustment -= newAmount;
-    } else if (newMethod === 'Tabungan') {
-      savingsAdjustment -= newAmount;
-    } else if (newMethod === 'Campuran') {
-      savingsAdjustment -= newFromSavings;
+    // If changing TO Tabungan, we deduct the amount from savings
+    if (newMethod === 'Tabungan') {
+      let tempSavings = currentSavings;
+      if (payment.method === 'Tabungan') {
+        // This case is handled by payment.method === newMethod check above
+      } else {
+        // If it wasn't Tabungan, we check if current savings (plus possible refund if changing FROM Tabungan - handled by currentSavings + savingsAdjustment) is enough
+        if (currentSavings + savingsAdjustment < amount) {
+          alert(`Saldo tabungan tidak mencukupi!\nSaldo Tersedia: Rp ${(currentSavings + savingsAdjustment).toLocaleString('id-ID')}\nKebutuhan: Rp ${amount.toLocaleString('id-ID')}`);
+          return;
+        }
+      }
+      savingsAdjustment -= amount;
     }
 
-    // Check if enough savings after adjustment
-    if (currentSavings + savingsAdjustment < 0) {
-      alert(`Saldo tabungan tidak mencukupi untuk perubahan ini!\nSaldo Tersedia: Rp ${currentSavings.toLocaleString('id-ID')}\nSaldo Setelah Perubahan: Rp ${(currentSavings + savingsAdjustment).toLocaleString('id-ID')}`);
-      return;
-    }
-
-    if (!window.confirm(`Konfirmasi Revisi Pembayaran:\n\n` +
+    if (!window.confirm(`Konfirmasi Revisi Metode Pembayaran:\n\n` +
       `• Transaksi: ${payment.description}\n` +
-      `• Nominal: Rp ${oldAmount.toLocaleString()} → Rp ${newAmount.toLocaleString()}\n` +
-      `• Metode: ${payment.method} → ${newMethod}${newMethod === 'Campuran' ? ` (Split: Tbn Rp ${newFromSavings.toLocaleString()}, Tni Rp ${newFromCash.toLocaleString()}, Tf Rp ${newFromTransfer.toLocaleString()})` : ''}\n\n` +
+      `• Dari: ${payment.method}\n` +
+      `• Ke: ${newMethod}\n\n` +
       `Apakah Anda yakin ingin melakukan revisi ini?`)) return;
 
     try {
       const { writeBatch } = await import('firebase/firestore');
       const batch = writeBatch(db);
       
+      // Update payment record
       const payRef = doc(db, 'payments', payment.id);
       
-      let newDesc = editTransactionDescription || payment.description;
-      
-      // Update description based on method if it's a payment
-      if (payment.type !== 'tabungan' && payment.type !== 'tabungan_masuk' && payment.type !== 'tabungan_keluar') {
-        // Remove old method text and split info
-        newDesc = newDesc.replace(/\s\(Campuran:.*?\)/, '');
-        const oldMethodText = payment.method === 'Tabungan' ? 'Potong Saldo Tabungan' : `${payment.method} Admin`;
-        const newMethodText = newMethod === 'Tabungan' ? 'Potong Saldo Tabungan' : `${newMethod} Admin`;
-        
-        if (newDesc.includes(oldMethodText)) {
-          newDesc = newDesc.replace(oldMethodText, newMethodText);
-        } else if (!newDesc.includes(newMethodText)) {
-          newDesc += ` - ${newMethodText}`;
-        }
-
-        if (newMethod === 'Campuran') {
-          newDesc += ` (Campuran: Tabungan Rp ${newFromSavings.toLocaleString()}, Tunai Rp ${newFromCash.toLocaleString()}, Transfer Rp ${newFromTransfer.toLocaleString()})`;
-        }
+      // Clean up description if it contains method specific text
+      let newDesc = payment.description;
+      if (payment.method === 'Tabungan') {
+        newDesc = newDesc.replace('Potong Saldo Tabungan', `${newMethod} Admin`);
+      } else if (newMethod === 'Tabungan') {
+        newDesc = newDesc.replace(`${payment.method} Admin`, 'Potong Saldo Tabungan');
+      } else {
+        newDesc = newDesc.replace(`${payment.method} Admin`, `${newMethod} Admin`);
       }
 
       batch.update(payRef, { 
-        amount: newAmount,
         method: newMethod,
         description: newDesc,
-        mixedDetails: newMethod === 'Campuran' ? {
-          fromSavings: newFromSavings,
-          fromCash: newFromCash,
-          fromTransfer: newFromTransfer
-        } : null,
         updatedAt: serverTimestamp()
       });
 
@@ -2395,14 +2361,12 @@ export default function DashboardAdmin() {
       }
 
       await batch.commit();
-      alert('Pembayaran berhasil diperbarui!');
+      alert('Metode pembayaran berhasil diperbarui!');
       setShowRevisionModal(false);
-      setEditTransactionAmount('');
-      setEditTransactionDescription('');
       setEditingPayment(null);
-    } catch (e: any) {
-      console.error(e);
-      alert('Gagal memperbarui pembayaran: ' + (e?.message || 'Terjadi kesalahan'));
+    } catch (error) {
+      console.error(error);
+      alert('Gagal memperbarui metode pembayaran.');
     }
   };
 
@@ -3614,7 +3578,7 @@ export default function DashboardAdmin() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Memuat data...</div>;
 
-  const NavItems = ({ isMobile = false }: { isMobile?: boolean }) => {
+  const NavItems = () => {
     const pendingCount = payments.filter(p => p.status === 'pending').length;
     
     const items = [
@@ -3632,38 +3596,31 @@ export default function DashboardAdmin() {
     ];
 
     return (
-      <div className={`flex ${isMobile ? 'flex-col items-start px-4' : 'flex-col items-center'} gap-3 w-full`}>
+      <div className="flex flex-col items-center gap-3 w-full">
         {items.map((item) => {
           const isActive = activeTab === item.id || (item.id === 'finance' && activeTab === 'finance');
           return (
-            <div key={item.id} className="relative group w-full">
+            <div key={item.id} className="relative group">
               <button
                 onClick={() => { 
                   setActiveTab(item.id); 
                   if (item.id === 'finance') setFinanceSubTab('dashboard');
                   setIsSidebarOpen(false); 
                 }}
-                className={`flex items-center ${isMobile ? 'w-full gap-4 p-4 rounded-2xl' : 'sidebar-icon'} transition-all ${
-                  isActive 
-                    ? (isMobile ? 'bg-emerald-600 text-white shadow-lg' : 'sidebar-icon-active') 
-                    : (isMobile ? 'text-slate-500 hover:bg-slate-50' : 'sidebar-icon-inactive')
-                }`}
+                className={`sidebar-icon ${isActive ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
               >
-                <item.icon size={isMobile ? 20 : 22} strokeWidth={isActive ? 2.5 : 2} />
-                {isMobile && <span className="text-sm font-black tracking-tight">{item.label}</span>}
+                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                 {item.count ? (
-                  <span className={`absolute ${isMobile ? 'top-4 right-4' : '-top-1 -right-1'} w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white`}>
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
                     {item.count}
                   </span>
                 ) : null}
               </button>
               
-              {!isMobile && (
-                <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
-                  {item.label}
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
-                </div>
-              )}
+              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
+                {item.label}
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+              </div>
             </div>
           );
         })}
@@ -3679,22 +3636,22 @@ export default function DashboardAdmin() {
         {/* Brand Logo */}
         <div 
           onClick={() => setActiveTab('overview')}
-          className="w-14 h-14 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all overflow-hidden p-1.5"
+          className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20 cursor-pointer hover:scale-105 active:scale-95 transition-all"
         >
           <img 
-            src={settings?.logoUrl || "/logo_ra.jpeg"} 
+            src="/logo_ra.jpeg" 
             alt="Logo RA" 
-            className="w-full h-full object-contain" 
+            className="w-8 h-8 rounded-lg object-contain brightness-0 invert" 
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-emerald-600 font-black text-xl">RA</span>';
+              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-white font-black text-xl">RA</span>';
             }}
           />
         </div>
 
         {/* Scrollable Nav Items */}
         <div className="flex-1 flex flex-col items-center gap-4 w-full px-2 overflow-y-auto custom-scrollbar no-scrollbar">
-          <NavItems isMobile={false} />
+          <NavItems />
         </div>
 
         {/* Footer Actions */}
@@ -3736,8 +3693,8 @@ export default function DashboardAdmin() {
             >
               <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1 overflow-hidden">
-                    <img src={settings?.logoUrl || "/logo_ra.jpeg"} className="w-full h-full object-contain" alt="Logo" />
+                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
+                    <img src="/logo_ra.jpeg" className="w-6 h-6 rounded-lg brightness-0 invert" alt="Logo" />
                   </div>
                   <span className="font-display font-black text-slate-800 tracking-tight">RA Darusyifa</span>
                 </div>
@@ -3749,7 +3706,7 @@ export default function DashboardAdmin() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
-                <NavItems isMobile={true} />
+                <NavItems />
               </div>
               <div className="p-8 border-t border-slate-50 bg-slate-50/50 mt-auto">
                 <button 
@@ -3764,38 +3721,6 @@ export default function DashboardAdmin() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Navigation - Added as requested */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] flex justify-around items-center py-2 px-1 z-50" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
-        {[
-          { id: 'overview', label: 'Beranda', icon: LayoutDashboard },
-          { id: 'users', label: 'Users', icon: Users },
-          { id: 'finance', label: 'Keuangan', icon: CreditCard },
-          { id: 'settings', label: 'Sistem', icon: Settings },
-          { id: 'menu', label: 'Menu', icon: Menu, isMenu: true },
-        ].map((item) => {
-          const isActive = item.isMenu ? isSidebarOpen : activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.isMenu) {
-                  setIsSidebarOpen(true);
-                } else {
-                  setActiveTab(item.id as any);
-                  setIsSidebarOpen(false);
-                }
-              }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 relative ${isActive ? 'text-emerald-600 font-black' : 'text-slate-400 font-medium'}`}
-            >
-              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
-                <item.icon size={20} />
-              </div>
-              <span className={`text-[11px] tracking-tight mt-0.5 ${isActive ? 'font-black text-emerald-600' : 'font-bold text-slate-500'}`}>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f1f5f3]">
         {/* Premium Header */}
@@ -3807,33 +3732,24 @@ export default function DashboardAdmin() {
             >
               <Menu size={24} />
             </button>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm p-1.5 flex items-center justify-center overflow-hidden shrink-0 hidden sm:flex">
-                <img 
-                  src={settings?.logoUrl || "/logo_ra.jpeg"} 
-                  className="w-full h-full object-contain" 
-                  alt="School Logo" 
-                />
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
-                  {activeTab === 'overview' && 'Dashboard Overview'}
-                  {activeTab === 'users' && 'User Management'}
-                  {activeTab === 'academic' && 'Akademik & Rapor'}
-                  {activeTab === 'hafalan' && 'Modul Hafalan'}
-                  {activeTab === 'finance' && 'Administrasi Keuangan'}
-                  {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
-                  {activeTab === 'attendance' && 'Absensi Harian'}
-                  {activeTab === 'calendar' && 'Kalender Pendidikan'}
-                  {activeTab === 'achievements' && 'Siswa Berprestasi'}
-                  {activeTab === 'settings' && 'Sistem & Pengaturan'}
-                  {activeTab === 'profile' && 'Profil Administrator'}
-                  {activeTab === 'competitions' && 'Hasil Lomba'}
-                </h1>
-                <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
-                  Portal RA Darusyifa Arjawinangun
-                </p>
-              </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'users' && 'User Management'}
+                {activeTab === 'academic' && 'Akademik & Rapor'}
+                {activeTab === 'hafalan' && 'Modul Hafalan'}
+                {activeTab === 'finance' && 'Administrasi Keuangan'}
+                {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
+                {activeTab === 'attendance' && 'Absensi Harian'}
+                {activeTab === 'calendar' && 'Kalender Pendidikan'}
+                {activeTab === 'achievements' && 'Siswa Berprestasi'}
+                {activeTab === 'settings' && 'Sistem & Pengaturan'}
+                {activeTab === 'profile' && 'Profil Administrator'}
+                {activeTab === 'competitions' && 'Hasil Lomba'}
+              </h1>
+              <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
+                Portal RA Darusyifa Arjawinangun
+              </p>
             </div>
           </div>
 
@@ -6781,17 +6697,10 @@ export default function DashboardAdmin() {
                               onClick={() => {
                                 setEditingPayment(p);
                                 setNewPaymentMethod(p.method as any);
-                                setEditTransactionAmount(p.amount?.toString() || '0');
-                                setEditTransactionDescription(p.description || '');
-                                if (p.method === 'Campuran' && p.mixedDetails) {
-                                  setMixedSavingsAmount(p.mixedDetails.fromSavings?.toString() || '0');
-                                  setMixedCashAmount(p.mixedDetails.fromCash?.toString() || '0');
-                                  setMixedTransferAmount(p.mixedDetails.fromTransfer?.toString() || '0');
-                                }
                                 setShowRevisionModal(true);
                               }}
-                              className="p-2 bg-amber-500 text-white rounded-lg transition-colors hover:bg-amber-600 shadow-sm shadow-amber-200"
-                              title="Edit Transaksi (Nominal/Ket/Metode)"
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+                              title="Revisi Metode Bayar"
                             >
                               <Edit size={12} />
                             </button>
@@ -7425,164 +7334,76 @@ export default function DashboardAdmin() {
           initial={{ scale: 0.9, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 30 }}
-          className="relative w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 p-6 sm:p-8"
+          className="relative w-full max-w-md bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 p-10"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                <RefreshCw size={20} />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                <RefreshCw size={24} />
               </div>
               <div className="text-left">
-                <h3 className="text-lg font-black text-slate-800 tracking-tight">Revisi Pembayaran</h3>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Koreksi Data Transaksi</p>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Revisi Pembayaran</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Koreksi Metode Pembayaran</p>
               </div>
             </div>
             <button 
               onClick={() => { setShowRevisionModal(false); setEditingPayment(null); }}
-              className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-slate-600 bg-slate-50 rounded-lg transition-all"
+              className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-slate-600 bg-slate-50 rounded-xl transition-all"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
-          <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 mb-6 space-y-3.5">
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Siswa</span>
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{allUsers.find(u => u.id === editingPayment.studentId)?.name || 'Unknown'}</span>
+          <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 mb-8 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Siswa</span>
+              <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{allUsers.find(u => u.id === editingPayment.studentId)?.name || 'Unknown'}</span>
             </div>
-            
-            <div className="space-y-1">
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Nominal (Rp)</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-300">Rp</span>
-                <input 
-                  type="number" 
-                  value={editTransactionAmount}
-                  onChange={(e) => setEditTransactionAmount(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 text-sm font-black text-slate-700"
-                  placeholder="0"
-                />
-              </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal</span>
+              <span className="text-sm font-black text-indigo-600">Rp {(editingPayment.amount || 0).toLocaleString('id-ID')}</span>
             </div>
-
-            <div className="space-y-1">
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Keterangan / Catatan</label>
-              <textarea 
-                value={editTransactionDescription}
-                onChange={(e) => setEditTransactionDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-100 text-[11px] font-bold text-slate-600 min-h-[60px] leading-relaxed"
-                placeholder="Keterangan..."
-              />
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t border-slate-200/50 px-1">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Metode Saat Ini</span>
-              <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md text-[8px] font-black uppercase tracking-widest">{editingPayment.method}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Lama</span>
+              <span className="px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest">{editingPayment.method}</span>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Pilih Metode Baru</label>
-            <div className="grid grid-cols-2 gap-2.5">
-              {['Tunai', 'Transfer', 'Tabungan', 'Campuran'].map((m) => (
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 text-left">Pilih Metode Baru</label>
+            <div className="grid grid-cols-1 gap-3">
+              {['Tunai', 'Transfer', 'Tabungan'].map((m) => (
                 <button
                   key={m}
-                  onClick={() => {
-                    setNewPaymentMethod(m as any);
-                    if (m === 'Campuran') {
-                      if (editingPayment.method === 'Campuran' && editingPayment.mixedDetails) {
-                        setMixedSavingsAmount(editingPayment.mixedDetails.fromSavings?.toString() || '0');
-                        setMixedCashAmount(editingPayment.mixedDetails.fromCash?.toString() || '0');
-                        setMixedTransferAmount(editingPayment.mixedDetails.fromTransfer?.toString() || '0');
-                      } else {
-                        const student = allUsers.find(u => u.id === editingPayment.studentId);
-                        setMixedSavingsAmount((student?.savings || 0).toString());
-                        const remaining = Math.max(0, editingPayment.amount - (student?.savings || 0));
-                        setMixedCashAmount(remaining.toString());
-                        setMixedTransferAmount('0');
-                      }
-                    }
-                  }}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all relative overflow-hidden ${
+                  onClick={() => setNewPaymentMethod(m as any)}
+                  className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all group ${
                     newPaymentMethod === m 
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm' 
+                      ? 'border-indigo-600 bg-indigo-50/50 shadow-inner' 
                       : 'border-slate-100 bg-slate-50 hover:border-slate-200'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
-                    newPaymentMethod === m ? 'bg-indigo-600 text-white' : 'bg-white text-slate-300'
-                  }`}>
-                    {m === 'Tunai' ? <Banknote size={16} /> : m === 'Transfer' ? <CreditCard size={16} /> : m === 'Tabungan' ? <Wallet size={16} /> : <Sparkles size={16} />}
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      newPaymentMethod === m ? 'bg-indigo-600 text-white rotate-6' : 'bg-white text-slate-300'
+                    }`}>
+                      {m === 'Tunai' ? <Banknote size={20} /> : m === 'Transfer' ? <CreditCard size={20} /> : <Wallet size={20} />}
+                    </div>
+                    <span className={`text-xs font-black uppercase tracking-widest ${newPaymentMethod === m ? 'text-indigo-900' : 'text-slate-500'}`}>{m}</span>
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${newPaymentMethod === m ? 'text-indigo-900' : 'text-slate-500'}`}>{m}</span>
                   {newPaymentMethod === m && (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1">
-                      <CheckCircle size={12} className="text-indigo-600" />
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                      <CheckCircle size={20} className="text-indigo-600" />
                     </motion.div>
                   )}
                 </button>
               ))}
             </div>
 
-            {newPaymentMethod === 'Campuran' && (
-              <div className="mt-3 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50 animate-in fade-in slide-in-from-top-2 duration-300 text-left space-y-3">
-                <div className="space-y-1">
-                  <label className="block text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Tabungan</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-300">Rp</span>
-                    <input 
-                      type="number" 
-                      value={mixedSavingsAmount}
-                      onChange={(e) => setMixedSavingsAmount(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-white border border-indigo-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="block text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Tunai</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-300">Rp</span>
-                      <input 
-                        type="number" 
-                        value={mixedCashAmount}
-                        onChange={(e) => setMixedCashAmount(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 bg-white border border-indigo-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">Nominal Transfer</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-300">Rp</span>
-                      <input 
-                        type="number" 
-                        value={mixedTransferAmount}
-                        onChange={(e) => setMixedTransferAmount(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 bg-white border border-indigo-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-100 text-xs font-bold text-indigo-900"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-indigo-100/50 px-1">
-                  <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Total</span>
-                  <div className="flex flex-col items-end">
-                    <span className={`text-[11px] font-black ${(Number(mixedSavingsAmount) + Number(mixedCashAmount) + Number(mixedTransferAmount)) === (Number(editTransactionAmount) || editingPayment.amount) ? 'text-indigo-600' : 'text-rose-500'}`}>
-                      Rp {(Number(mixedSavingsAmount) + Number(mixedCashAmount) + Number(mixedTransferAmount)).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <button
               onClick={() => handleUpdatePaymentMethod(editingPayment, newPaymentMethod)}
-              className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group active:scale-[0.98]"
+              className="w-full mt-8 py-5 bg-indigo-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group hover:scale-[1.02] active:scale-95"
             >
-              <Save size={16} className="group-hover:-rotate-12 transition-transform" />
+              <Save size={18} className="group-hover:-rotate-12 transition-transform" />
               Simpan Perubahan
             </button>
           </div>
