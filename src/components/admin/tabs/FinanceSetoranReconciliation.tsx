@@ -362,7 +362,7 @@ export default function FinanceSetoranReconciliation({
       .filter(d => d.status !== 'disahkan' && d.status !== 'ditolak')
       .reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
-    const remainingTabunganCash = Math.max(0, totalTabunganMasukSemua - totalTabunganDepositedDisahkan);
+    const remainingTabunganCash = Math.max(0, totalTabunganMasukSemua - (totalTabunganDepositedDisahkan + totalTabunganDepositedPending));
 
     const latestTabunganDeposit = tabunganDeposits[0];
     const latestTabunganDepositDate = latestTabunganDeposit ? latestTabunganDeposit.date : null;
@@ -591,7 +591,7 @@ export default function FinanceSetoranReconciliation({
       // KUNCI UTAMA: HANYA UANG KAS FISIK (TUNAI) YANG DISETOR SECARA MANUAL OLEH BENDAHARA
       // Transfer sudah otomatis masuk rekening bank sekolah, Tabungan adalah potongan saldo internal.
       // Sisa kas tunai di bendahara yang BELUM disetorkan ke Kepala Sekolah / Yayasan:
-      const remainingCashAtTreasurer = Math.max(0, totalPaidCashForCat - totalDepositedDisahkan);
+      const remainingCashAtTreasurer = Math.max(0, totalPaidCashForCat - (totalDepositedDisahkan + totalDepositedPending));
       const totalPaidAllCat = totalPaidCashForCat + totalPaidTransferForCat + totalPaidTabunganForCat;
       const totalTargetAll = totalPaidAllCat + totalUnpaidForCat;
 
@@ -602,10 +602,11 @@ export default function FinanceSetoranReconciliation({
       let status: CategoryReconciliation['status'] = 'belum_ada_pembayaran';
       let statusLabel = 'Belum Ada Pembayaran Tunai Siswa';
       if (totalPaidCashForCat > 0) {
-        if (remainingCashAtTreasurer === 0 && totalDepositedDisahkan > 0) {
+        const totalDepositedActive = totalDepositedDisahkan + totalDepositedPending;
+        if (remainingCashAtTreasurer === 0 && totalDepositedActive > 0) {
           status = 'sudah_disetor';
           statusLabel = 'Sudah Disetor Penuh ke Kas Sekolah';
-        } else if (totalDepositedDisahkan > 0) {
+        } else if (totalDepositedActive > 0) {
           status = 'sebagian_disetor';
           statusLabel = `Disetor Sebagian (Sisa ${formatRupiah(remainingCashAtTreasurer)} di Bendahara)`;
         } else {
@@ -652,7 +653,7 @@ export default function FinanceSetoranReconciliation({
 
     reconciliations.forEach(rec => {
       grandTotalPaidCash += rec.totalPaidCash;
-      grandTotalDeposited += rec.totalDepositedDisahkan;
+      grandTotalDeposited += (rec.totalDepositedDisahkan + rec.totalDepositedPending);
       grandTotalRemainingToDeposit += rec.remainingCashAtTreasurer;
       grandTotalUnpaidStudents += rec.totalUnpaidStudentsAmount;
 
@@ -953,20 +954,20 @@ export default function FinanceSetoranReconciliation({
             ? 'bg-gradient-to-br from-amber-50 to-orange-50/70 border-amber-200 ring-2 ring-amber-300/40' 
             : 'bg-white border-slate-100'
         }`}>
+          <div className="absolute top-0 right-0 p-1">
+            <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded uppercase animate-pulse">Real-time Update</span>
+          </div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
               <Coins size={14} className="text-amber-600" />
               Sisa Kas di Bendahara
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 text-amber-900">
-              Belum Setor
             </span>
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {formatRupiah(globalSummary.grandTotalRemainingToDeposit)}
           </h3>
           <p className="text-[11px] text-slate-600 font-medium mt-1">
-            Uang fisik di bendahara yang belum disahkan ke kas sekolah ({globalSummary.countCategoriesPendingDeposit} pos).
+            Fisik uang di bendahara (sudah dikurangi setoran pending).
           </p>
         </div>
 

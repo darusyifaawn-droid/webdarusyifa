@@ -1103,8 +1103,8 @@ export default function DashboardGuru() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900">
       {/* Desktop Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200/80 p-6 hidden md:flex flex-col shadow-xs z-30 shrink-0">
-        <div className="flex items-center gap-4 mb-14">
+      <aside className="w-24 bg-white border-r border-slate-200/80 p-3 hidden md:flex flex-col shadow-xs z-30 shrink-0">
+        <div className="flex flex-col items-center gap-4 mb-10 pt-4">
           <div className="w-12 h-12 overflow-hidden rounded-2xl border border-emerald-600/10 p-0.5 bg-white shadow-sm flex items-center justify-center">
             <img 
               src="/assets/aistudio/image_24fdf8ff.png" 
@@ -1112,79 +1112,67 @@ export default function DashboardGuru() {
               className="w-full h-full object-contain" 
             />
           </div>
-          <div>
-            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight">Portal Guru</h1>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.2em] mt-1.5 leading-none">RA Darusyifa</p>
-          </div>
         </div>
 
         {/* Navigation links */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
           {navMenuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all font-bold group cursor-pointer ${
+                className={`w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all font-bold group cursor-pointer ${
                   isActive
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
                 }`}
+                title={item.label}
               >
-                <div className="flex items-center gap-3">
-                  <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
-                  <span className="text-xs tracking-tight">{item.label}</span>
+                <div className="relative">
+                  <item.icon size={22} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
+                  {item.badge && !isActive && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full border border-white" />
+                  )}
                 </div>
-                {item.badge ? (
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {item.badge}
-                  </span>
-                ) : null}
+                <span className="text-[9px] uppercase tracking-tighter text-center leading-none font-black">{item.label}</span>
+                {isActive && (
+                  <motion.div layoutId="active-pill-guru" className="absolute left-0 w-1 h-6 bg-emerald-400 rounded-r-full" />
+                )}
               </button>
             );
           })}
 
           <button
             onClick={() => navigate('/kaldik')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+            className="w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+            title="Kaldik"
           >
-            <Calendar size={18} className="text-slate-400" />
-            <span className="text-xs tracking-tight">Kaldik Fullscreen</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/juknis')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-2 cursor-pointer"
-          >
-            <BookOpen size={18} className="text-emerald-600" />
-            <span className="text-xs tracking-tight">Panduan Juknis</span>
+            <Calendar size={22} className="text-slate-400" />
+            <span className="text-[9px] uppercase tracking-tighter text-center leading-none font-black">Kaldik</span>
           </button>
         </div>
 
         {/* Sidebar Footer Profile & Logout */}
-        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
           <div 
             onClick={() => setActiveTab('profile')}
-            className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer"
+            className="flex flex-col items-center gap-1 cursor-pointer group"
+            title="Profil"
           >
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs shrink-0">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs shrink-0">
               {editPhoto ? <img src={editPhoto} alt="Guru" className="w-full h-full object-cover" /> : editName?.charAt(0) || 'G'}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 truncate leading-tight">{editName || 'Guru RA'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{userData?.assignedClass || 'Wali Kelas'}</p>
-            </div>
+            <span className="text-[8px] font-black uppercase text-slate-400 group-hover:text-emerald-600">Profil</span>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold text-xs transition-all cursor-pointer"
+            className="w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold text-[9px] cursor-pointer"
+            title="Keluar"
           >
-            <LogOut size={15} />
-            <span>Keluar Sesi</span>
+            <LogOut size={22} />
+            <span className="uppercase tracking-tighter font-black">Keluar</span>
           </button>
         </div>
       </aside>
