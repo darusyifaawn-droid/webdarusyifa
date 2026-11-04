@@ -108,10 +108,11 @@ export default function FinanceSetoranReconciliation({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'belum_disetor' | 'sudah_disetor' | 'ada_tunggakan'>('all');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
 
-  // Tabungan Date Filter State (Contoh user: 1 Juli 2026 - 30 September 2026)
-  const [tabunganStartDate, setTabunganStartDate] = useState('2026-07-01');
-  const [tabunganEndDate, setTabunganEndDate] = useState('2026-09-30');
-  const [isTabunganDateFiltered, setIsTabunganDateFiltered] = useState(true);
+  // Tabungan Date Filter State - Default to current year for better coverage
+  const currentYear = new Date().getFullYear();
+  const [tabunganStartDate, setTabunganStartDate] = useState(`${currentYear}-01-01`);
+  const [tabunganEndDate, setTabunganEndDate] = useState(`${currentYear}-12-31`);
+  const [isTabunganDateFiltered, setIsTabunganDateFiltered] = useState(false);
 
   // Modal Rincian Siswa
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -247,7 +248,7 @@ export default function FinanceSetoranReconciliation({
 
   // Helper matching deposit setoran cash bendahara dengan kategori iuran
   const matchesDepositCategory = (catName: string, deposit: CashDeposit): boolean => {
-    // 1. Direct categoryKey match jika disetor via tombol cepat
+    // 1. Direct categoryKey match jika disetor via tombol cepat (Prioritas Utama)
     if (deposit.categoryKey) {
       const ck = deposit.categoryKey.toLowerCase().replace(/[^a-z0-9]/g, '');
       const cn = catName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -262,53 +263,44 @@ export default function FinanceSetoranReconciliation({
     if (cName.includes('tabung')) {
       return dType.includes('tabung') || dDesc.includes('tabung');
     }
+    
+    // Jika deposit adalah Tabungan, jangan cocokkan dengan kategori iuran lainnya
     if (dType.includes('tabung') || dDesc.includes('tabung')) {
       return false;
     }
 
-    // Kesamaan langsung
-    if (dType === cName || dDesc.includes(cName)) return true;
+    // Kesamaan langsung atau deskripsi mengandung nama kategori
+    if (dType === cName || dDesc.includes(cName) || cName.includes(dType)) return true;
 
-    // Manasik
-    if (cName.includes('manasik')) {
-      return dType.includes('manasik') || dDesc.includes('manasik');
-    }
+    // Pencocokan Kata Kunci Spesifik (Fuzzy)
+    const checkFuzzy = (keywords: string[]) => {
+      const matchesType = keywords.some(k => dType.includes(k));
+      const matchesDesc = keywords.some(k => dDesc.includes(k));
+      const isTarget = keywords.some(k => cName.includes(k));
+      return isTarget && (matchesType || matchesDesc);
+    };
 
-    // Maulid
-    if (cName.includes('maulid')) {
-      return dType.includes('maulid') || dDesc.includes('maulid');
-    }
-
-    // HUT RI 17 Agustus
-    if (cName.includes('hut ri') || cName.includes('17 agustus')) {
-      return dType.includes('hut ri') || dDesc.includes('hut ri') || dType.includes('17 agustus') || dDesc.includes('17 agustus');
-    }
-
-    // Buku Lanjutan
-    if (cName.includes('buku')) {
-      return dType.includes('buku') || dDesc.includes('buku');
-    }
-
-    // PPDB
-    if (cName.includes('ppdb') || cName.includes('daftar')) {
-      return dType.includes('ppdb') || dDesc.includes('ppdb') || dType.includes('daftar') || dDesc.includes('daftar');
-    }
-
-    // PTS Ganjil
-    if (cName.includes('pts') || cName.includes('uts')) {
-      return dType.includes('pts') || dDesc.includes('pts') || dType.includes('uts') || dDesc.includes('uts');
-    }
+    if (checkFuzzy(['manasik', 'outing'])) return true;
+    if (checkFuzzy(['maulid'])) return true;
+    if (checkFuzzy(['hut ri', '17 agustus', 'kemerdekaan'])) return true;
+    if (checkFuzzy(['buku'])) return true;
+    if (checkFuzzy(['ppdb', 'daftar', 'formulir'])) return true;
+    if (checkFuzzy(['pts', 'uts', 'semester'])) return true;
+    if (checkFuzzy(['dsp', 'gedung', 'sarana'])) return true;
+    if (checkFuzzy(['infaq', 'shodaqoh', 'sedekah'])) return true;
 
     // SPP Bulanan
     if (cName.includes('spp') || cName.includes('bulanan')) {
       const months = ['juli', 'agustus', 'september', 'oktober', 'november', 'desember', 'januari', 'februari', 'maret', 'april', 'mei', 'juni'];
       for (const m of months) {
         if (cName.includes(m)) {
-          return (dType.includes(m) || dDesc.includes(m)) && 
-                 (dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp') || dDesc.includes('bulanan') || dType === 'iuran bulanan');
+          const matchesMonth = dType.includes(m) || dDesc.includes(m);
+          const isSPPType = dType.includes('spp') || dType.includes('bulanan') || dType === 'iuran bulanan';
+          const isSPPDesc = dDesc.includes('spp') || dDesc.includes('bulanan');
+          return matchesMonth && (isSPPType || isSPPDesc);
         }
       }
-      return dType.includes('spp') || dType.includes('bulanan') || dDesc.includes('spp');
+      return (dType.includes('spp') || dType.includes('bulanan')) && (cName.includes(dType) || dType.includes(cName));
     }
 
     return false;
@@ -329,11 +321,10 @@ export default function FinanceSetoranReconciliation({
       return pType === 'tabungan' || pType === 'tabungan_masuk' || pCat.includes('tabung');
     });
 
-    const tabunganCashPayments = tabunganPayments.filter(p => {
+    const totalTabunganCashIn = tabunganPayments.reduce((s, p) => {
       const parsed = parsePaymentMethod(p);
-      return parsed.cash > 0;
-    });
-    const totalTabunganCashIn = tabunganCashPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      return s + (Number(parsed.cash) || 0);
+    }, 0);
 
     // Penarikan tabungan tunai
     const tabunganCashOut = payments
@@ -341,7 +332,11 @@ export default function FinanceSetoranReconciliation({
       .reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     const netTabunganCashIn = Math.max(0, totalTabunganCashIn - tabunganCashOut);
-    const totalTabunganMasukSemua = Math.max(totalSavingsBalanceAllStudents, netTabunganCashIn);
+    
+    // Gunakan totalTabunganCashIn riil dari riwayat pembayaran untuk target rekonsiliasi kas di bendahara
+    // Bukan sekadar saldo akhir siswa (karena saldo akhir bisa hasil edit manual tanpa transaksi cash)
+    const totalTargetReconciliation = netTabunganCashIn;
+    const totalTabunganMasukSemua = totalTargetReconciliation;
 
     // Setoran cash Tabungan yang telah disahkan bendahara
     const tabunganDeposits = deposits.filter(d => {
@@ -367,7 +362,7 @@ export default function FinanceSetoranReconciliation({
       .filter(d => d.status !== 'disahkan' && d.status !== 'ditolak')
       .reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
-    const remainingTabunganCash = Math.max(0, totalTabunganMasukSemua - totalTabunganDepositedDisahkan);
+    const remainingTabunganCash = Math.max(0, totalTabunganMasukSemua - (totalTabunganDepositedDisahkan + totalTabunganDepositedPending));
 
     const latestTabunganDeposit = tabunganDeposits[0];
     const latestTabunganDepositDate = latestTabunganDeposit ? latestTabunganDeposit.date : null;
@@ -596,7 +591,7 @@ export default function FinanceSetoranReconciliation({
       // KUNCI UTAMA: HANYA UANG KAS FISIK (TUNAI) YANG DISETOR SECARA MANUAL OLEH BENDAHARA
       // Transfer sudah otomatis masuk rekening bank sekolah, Tabungan adalah potongan saldo internal.
       // Sisa kas tunai di bendahara yang BELUM disetorkan ke Kepala Sekolah / Yayasan:
-      const remainingCashAtTreasurer = Math.max(0, totalPaidCashForCat - totalDepositedDisahkan);
+      const remainingCashAtTreasurer = Math.max(0, totalPaidCashForCat - (totalDepositedDisahkan + totalDepositedPending));
       const totalPaidAllCat = totalPaidCashForCat + totalPaidTransferForCat + totalPaidTabunganForCat;
       const totalTargetAll = totalPaidAllCat + totalUnpaidForCat;
 
@@ -607,10 +602,11 @@ export default function FinanceSetoranReconciliation({
       let status: CategoryReconciliation['status'] = 'belum_ada_pembayaran';
       let statusLabel = 'Belum Ada Pembayaran Tunai Siswa';
       if (totalPaidCashForCat > 0) {
-        if (remainingCashAtTreasurer === 0 && totalDepositedDisahkan > 0) {
+        const totalDepositedActive = totalDepositedDisahkan + totalDepositedPending;
+        if (remainingCashAtTreasurer === 0 && totalDepositedActive > 0) {
           status = 'sudah_disetor';
           statusLabel = 'Sudah Disetor Penuh ke Kas Sekolah';
-        } else if (totalDepositedDisahkan > 0) {
+        } else if (totalDepositedActive > 0) {
           status = 'sebagian_disetor';
           statusLabel = `Disetor Sebagian (Sisa ${formatRupiah(remainingCashAtTreasurer)} di Bendahara)`;
         } else {
@@ -657,7 +653,7 @@ export default function FinanceSetoranReconciliation({
 
     reconciliations.forEach(rec => {
       grandTotalPaidCash += rec.totalPaidCash;
-      grandTotalDeposited += rec.totalDepositedDisahkan;
+      grandTotalDeposited += (rec.totalDepositedDisahkan + rec.totalDepositedPending);
       grandTotalRemainingToDeposit += rec.remainingCashAtTreasurer;
       grandTotalUnpaidStudents += rec.totalUnpaidStudentsAmount;
 
@@ -958,20 +954,20 @@ export default function FinanceSetoranReconciliation({
             ? 'bg-gradient-to-br from-amber-50 to-orange-50/70 border-amber-200 ring-2 ring-amber-300/40' 
             : 'bg-white border-slate-100'
         }`}>
+          <div className="absolute top-0 right-0 p-1">
+            <span className="bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded uppercase animate-pulse">Real-time Update</span>
+          </div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
               <Coins size={14} className="text-amber-600" />
               Sisa Kas di Bendahara
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-200 text-amber-900">
-              Belum Setor
             </span>
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {formatRupiah(globalSummary.grandTotalRemainingToDeposit)}
           </h3>
           <p className="text-[11px] text-slate-600 font-medium mt-1">
-            Uang fisik di bendahara yang belum disahkan ke kas sekolah ({globalSummary.countCategoriesPendingDeposit} pos).
+            Fisik uang di bendahara (sudah dikurangi setoran pending).
           </p>
         </div>
 

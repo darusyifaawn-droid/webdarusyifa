@@ -16,6 +16,18 @@ export interface UserData {
   lastActiveAt?: string;
   lastActiveTimestamp?: number;
   deviceType?: string;
+  nisn?: string;
+  nis?: string;
+  jenisKelamin?: string;
+  gender?: string;
+  namaAyah?: string;
+  fatherName?: string;
+  namaIbu?: string;
+  motherName?: string;
+  parentPhone?: string;
+  phone?: string;
+  alamat?: string;
+  address?: string;
   createdAt?: any;
 }
 

@@ -23,6 +23,8 @@ interface FinanceRiwayatTabProps {
  setEditingPayment: (pay: any) => void;
  setShowRevisionModal: (val: boolean) => void;
  setNewPaymentMethod: (val: any) => void;
+ handleOpenEditPayment?: (pay: any) => void;
+ handleDeletePayment?: (pay: any) => void;
 }
 
 export default function FinanceRiwayatTab({
@@ -42,14 +44,57 @@ export default function FinanceRiwayatTab({
  handlePrintReceipt,
  setEditingPayment,
  setShowRevisionModal,
- setNewPaymentMethod
+ setNewPaymentMethod,
+ handleOpenEditPayment,
+ handleDeletePayment
 }: FinanceRiwayatTabProps) {
+ const getPayDateStr = (pay: any): string => {
+ if (pay.date && typeof pay.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(pay.date)) {
+ return pay.date.slice(0, 10);
+ }
+ if (pay.createdAt) {
+ try {
+ const dObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+ if (!isNaN(dObj.getTime())) {
+ const y = dObj.getFullYear();
+ const m = String(dObj.getMonth() + 1).padStart(2, '0');
+ const d = String(dObj.getDate()).padStart(2, '0');
+ return `${y}-${m}-${d}`;
+ }
+ } catch {
+ // ignore
+ }
+ }
+ return '';
+ };
+
+ const formatPayDateTime = (pay: any): string => {
+ const createdStr = pay.createdAt
+ ? (pay.createdAt.toDate ? pay.createdAt.toDate().toLocaleString('id-ID') : new Date(pay.createdAt).toLocaleString('id-ID'))
+ : '';
+ if (pay.date && typeof pay.date === 'string') {
+ return createdStr ? `${pay.date} • ${createdStr.split(',')[1]?.trim() || createdStr}` : pay.date;
+ }
+ return createdStr || '-';
+ };
+
+ const getPayCategoryLabel = (pay: any): string => {
+ return pay.iuranCategory || pay.category || pay.categoryName || pay.iuranName || (
+ pay.type === 'tabungan_keluar' ? 'Tarik Tabungan' :
+ (pay.type === 'tabungan' || pay.type === 'tabungan_masuk') ? 'Tabungan Masuk' : 'Iuran Sekolah'
+ );
+ };
+
  const filteredLogPayments = payments.filter(pay => {
  const student = allUsers.find(u => u.id === pay.studentId);
  const studentName = student?.name || '';
  const desc = pay.description || '';
+ const catLabel = getPayCategoryLabel(pay);
  const searchLower = searchTransactionText.toLowerCase();
- const matchesSearch = studentName.toLowerCase().includes(searchLower) || desc.toLowerCase().includes(searchLower);
+ const matchesSearch =
+ studentName.toLowerCase().includes(searchLower) ||
+ desc.toLowerCase().includes(searchLower) ||
+ catLabel.toLowerCase().includes(searchLower);
  
  // 1. Filter Status
  const matchesStatus = filterLogStatus === 'semua' || pay.status === filterLogStatus;
@@ -59,25 +104,16 @@ export default function FinanceRiwayatTab({
  
  // 3. Filter Waktu (Date range)
  let matchesDate = true;
- if (pay.createdAt) {
- try {
- const dObj = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
- const y = dObj.getFullYear();
- const m = String(dObj.getMonth() + 1).padStart(2, '0');
- const d = String(dObj.getDate()).padStart(2, '0');
- const payDateStr = `${y}-${m}-${d}`;
- 
+ const payDateStr = getPayDateStr(pay);
+ if (payDateStr) {
  if (filterLogStartDate && payDateStr < filterLogStartDate) matchesDate = false;
  if (filterLogEndDate && payDateStr > filterLogEndDate) matchesDate = false;
- } catch (e) {
- // ignore
- }
  }
  
  return matchesSearch && matchesStatus && matchesMethod && matchesDate;
  }).sort((a, b) => {
- const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
- const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+ const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.date || a.createdAt || 0);
+ const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.date || b.createdAt || 0);
  return dateB.getTime() - dateA.getTime();
  });
 
@@ -189,7 +225,12 @@ export default function FinanceRiwayatTab({
  <tr key={pay.id} className="hover:bg-slate-50/50 transition-colors group">
  <td className="px-8 py-5">
  <div className="flex flex-col gap-1">
- <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{pay.createdAt ? (pay.createdAt.toDate ? pay.createdAt.toDate().toLocaleString() : new Date(pay.createdAt).toLocaleString()) : '-'}</p>
+ <div className="flex items-center gap-2 flex-wrap">
+ <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{formatPayDateTime(pay)}</p>
+ <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-[9px] font-black uppercase tracking-wider">
+ {getPayCategoryLabel(pay)}
+ </span>
+ </div>
  <p className="font-bold text-slate-800 text-sm">{pay.description}</p>
  </div>
  </td>
@@ -220,12 +261,16 @@ export default function FinanceRiwayatTab({
   <div className="flex items-center justify-center gap-2">
   <button 
   onClick={() => {
-  setEditingPayment(pay);
-  setNewPaymentMethod(pay.method);
-  setShowRevisionModal(true);
+  if (handleOpenEditPayment) {
+    handleOpenEditPayment(pay);
+  } else {
+    setEditingPayment(pay);
+    setNewPaymentMethod(pay.method);
+    setShowRevisionModal(true);
+  }
   }}
   className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
-  title="Edit Metode Bayar"
+  title="Edit Data Transaksi Lengkap"
   >
   <Edit size={15} />
   </button>
@@ -247,7 +292,9 @@ export default function FinanceRiwayatTab({
  )}
  <button 
  onClick={async () => {
- if(window.confirm('Hapus log transaksi ini permanen?')) {
+ if (handleDeletePayment) {
+ await handleDeletePayment(pay);
+ } else if(window.confirm('Hapus log transaksi ini permanen?')) {
  try {
  await deleteDoc(doc(db, 'payments', pay.id));
  } catch (error) {
@@ -288,7 +335,7 @@ export default function FinanceRiwayatTab({
  </div>
  <div>
  <p className="font-black text-gray-800 text-[11px] uppercase tracking-tight">{student?.name || 'Unknown'}</p>
- <p className="text-[9px] text-gray-400 font-medium">{pay.createdAt ? (pay.createdAt.toDate ? pay.createdAt.toDate().toLocaleDateString() : new Date(pay.createdAt).toLocaleDateString()) : '-'}</p>
+ <p className="text-[9px] text-gray-400 font-medium">{formatPayDateTime(pay)}</p>
  </div>
  </div>
  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
@@ -301,6 +348,10 @@ export default function FinanceRiwayatTab({
  </div>
 
  <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+ <div className="flex justify-between items-center">
+ <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategori</span>
+ <span className="text-[10px] font-black text-indigo-600 uppercase">{getPayCategoryLabel(pay)}</span>
+ </div>
  <div className="flex justify-between items-center">
  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaksi</span>
  <span className="text-[10px] font-bold text-gray-700 truncate max-w-[200px]">{pay.description}</span>
@@ -318,9 +369,13 @@ export default function FinanceRiwayatTab({
  <div className="flex items-center justify-end gap-3 pt-1">
  <button 
  onClick={() => {
- setEditingPayment(pay);
- setNewPaymentMethod(pay.method);
- setShowRevisionModal(true);
+ if (handleOpenEditPayment) {
+   handleOpenEditPayment(pay);
+ } else {
+   setEditingPayment(pay);
+   setNewPaymentMethod(pay.method);
+   setShowRevisionModal(true);
+ }
  }}
  className="px-4 py-2.5 bg-white border border-slate-100 text-amber-500 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
  >
@@ -342,7 +397,9 @@ export default function FinanceRiwayatTab({
  )}
  <button 
  onClick={async () => {
- if(window.confirm('Hapus log transaksi ini permanen?')) {
+ if (handleDeletePayment) {
+ await handleDeletePayment(pay);
+ } else if(window.confirm('Hapus log transaksi ini permanen?')) {
  try {
  await deleteDoc(doc(db, 'payments', pay.id));
  } catch (error) {

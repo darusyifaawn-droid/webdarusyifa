@@ -12,7 +12,7 @@ import {
   GraduationCap, Calendar, Search, Filter, Image as ImageIcon, 
   FileText, Download, ExternalLink, RefreshCw, ChevronDown, 
   ChevronRight, HelpCircle, ShieldCheck, Sparkles, Award, Wallet, FileCheck,
-  Eye, EyeOff
+  Eye, EyeOff, Home
 } from 'lucide-react';
 import { staticHafalanMaterials as initialHafalanMaterials, StudentHafalanProgress, HafalanStatus, getNextMaterialId } from '../data/hafalanData';
 import { useNavigate } from 'react-router-dom';
@@ -1102,105 +1102,152 @@ export default function DashboardGuru() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row pb-20 md:pb-0 relative font-sans text-slate-900">
-      {/* Desktop Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200/80 p-6 hidden md:flex flex-col shadow-xs z-30 shrink-0">
-        <div className="flex items-center gap-3.5 mb-8">
-          <div className="w-11 h-11 overflow-hidden rounded-2xl border-2 border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center shrink-0">
-            <img src="/logo_ra.jpeg" alt="Logo RA Darusyifa" className="w-full h-full object-contain" />
+      {/* Desktop Sidebar (Wide with Text Labels matching Admin & Student Portals) */}
+      <aside className="w-64 bg-white border-r border-slate-100 p-4 hidden md:flex flex-col z-30 shrink-0 sticky top-0 h-screen">
+        {/* School Logo & Name */}
+        <div className="flex items-center gap-3 px-2 pt-2 pb-5">
+          <div className="w-10 h-10 overflow-hidden rounded-full border border-emerald-500/30 p-0.5 bg-white shadow-xs flex items-center justify-center shrink-0">
+            <img 
+              src="/logo_ra.jpeg" 
+              alt="Logo RA Darusyifa" 
+              className="w-full h-full object-contain rounded-full" 
+            />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display font-black text-slate-900 leading-none tracking-tight text-base truncate">
-              Portal Guru
-            </h1>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
-              RA Darusyifa
-            </p>
+            <h1 className="text-sm font-black text-slate-900 leading-tight truncate">Portal Guru</h1>
+            <p className="text-[9px] font-black text-[#059669] uppercase tracking-[0.15em]">RA DARUSYIFA</p>
           </div>
         </div>
 
-        {/* Navigation links */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
-          {navMenuItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all font-bold group cursor-pointer ${
-                  isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600 transition-colors'} />
-                  <span className="text-xs tracking-tight">{item.label}</span>
-                </div>
-                {item.badge ? (
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {item.badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-
+        {/* Top Highlighted Beranda Button */}
+        <div className="mb-5">
           <button
-            onClick={() => navigate('/kaldik')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+            onClick={() => setActiveTab('overview')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-bold text-xs cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-[#059669] text-white shadow-md shadow-emerald-600/20'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
           >
-            <Calendar size={18} className="text-slate-400" />
-            <span className="text-xs tracking-tight">Kaldik Fullscreen</span>
+            <Home size={18} className={activeTab === 'overview' ? 'text-white' : 'text-slate-400'} />
+            <span>Beranda Guru</span>
           </button>
+        </div>
 
-          <button
-            onClick={() => navigate('/juknis')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 mt-2 cursor-pointer"
-          >
-            <BookOpen size={18} className="text-emerald-600" />
-            <span className="text-xs tracking-tight">Panduan Juknis</span>
-          </button>
+        {/* Navigation links with clear text labels */}
+        <div className="flex-1 overflow-y-auto space-y-5 pr-1 custom-scrollbar">
+          <div>
+            <p className="px-3 mb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              AKADEMIK & KELAS
+            </p>
+            <div className="space-y-1">
+              {navMenuItems
+                .filter((item) => !['overview', 'announcements', 'profile', 'slip-gaji'].includes(item.id))
+                .map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-xs font-bold group cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-[#059669]'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <item.icon
+                          size={17}
+                          className={
+                            isActive
+                              ? 'text-[#059669] shrink-0'
+                              : 'text-slate-400 group-hover:text-slate-600 transition-colors shrink-0'
+                          }
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div>
+            <p className="px-3 mb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              ADMINISTRASI & AKUN
+            </p>
+            <div className="space-y-1">
+              {navMenuItems
+                .filter((item) => ['slip-gaji', 'announcements', 'profile'].includes(item.id))
+                .map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-xs font-bold group cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-[#059669]'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <item.icon
+                          size={17}
+                          className={
+                            isActive
+                              ? 'text-[#059669] shrink-0'
+                              : 'text-slate-400 group-hover:text-slate-600 transition-colors shrink-0'
+                          }
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {item.badge ? (
+                        <span className="px-2 py-0.5 text-[10px] font-black bg-rose-500 text-white rounded-full">
+                          {item.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Footer Profile & Logout */}
         <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
           <div 
             onClick={() => setActiveTab('profile')}
-            className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-all"
           >
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs shrink-0">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-[#059669] text-xs shrink-0">
               {editPhoto ? <img src={editPhoto} alt="Guru" className="w-full h-full object-cover" /> : editName?.charAt(0) || 'G'}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 truncate leading-tight">{editName || 'Guru RA'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{userData?.assignedClass || 'Wali Kelas'}</p>
+              <p className="text-xs font-black text-slate-800 truncate">{editName || 'Guru RA'}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">Wali Kelas {userData?.assignedClass || userData?.kelas || 'RA'}</p>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold text-xs transition-all cursor-pointer"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-500 hover:bg-rose-50 transition-all font-bold text-xs cursor-pointer"
           >
-            <LogOut size={15} />
-            <span>Keluar Sesi</span>
+            <LogOut size={17} />
+            <span>Keluar Sistem</span>
           </button>
         </div>
       </aside>
 
-      {/* Bottom Navigation Bar (Mobile) - 5 tabs with Menu (Garis Tiga) */}
-      <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] flex justify-around items-center py-2 px-3 z-50" 
-        style={{ WebkitBackdropFilter: 'blur(16px)' }}
-      >
+      {/* Mobile Navigation - Icons + Labels */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 px-1 py-3 flex items-center justify-around z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         {[
-          { id: 'overview', label: 'Beranda', icon: BarChartIcon },
+          { id: 'overview', label: 'Beranda', icon: Home },
           { id: 'students', label: 'Santri', icon: Users },
-          { id: 'penilaian-kelas', label: 'Penilaian', icon: Edit },
+          { id: 'penilaian-kelas', label: 'Nilai', icon: Edit },
           { id: 'hafalan', label: 'Hafalan', icon: Star },
           { id: 'menu', label: 'Menu', icon: Menu, isMenu: true },
-        ].map((item) => {
+        ].map((item: any) => {
           const isActive = item.isMenu ? isSidebarOpen : activeTab === item.id;
           return (
             <button
@@ -1213,20 +1260,16 @@ export default function DashboardGuru() {
                   setIsSidebarOpen(false);
                 }
               }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all py-1 relative ${
-                isActive ? 'text-emerald-600 font-black' : 'text-slate-400 hover:text-slate-600 font-medium'
-              }`}
+              className={`flex flex-col items-center gap-1.5 flex-1 transition-all ${isActive ? 'text-slate-900' : 'text-slate-400'}`}
             >
-              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-emerald-50 text-emerald-600 scale-110 shadow-xs' : 'text-slate-400'}`}>
-                <item.icon size={20} />
+              <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-slate-100 scale-110' : ''}`}>
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               </div>
-              <span className={`text-[10.5px] tracking-tight ${isActive ? 'font-black text-emerald-600' : 'font-semibold text-slate-500'}`}>
-                {item.label}
-              </span>
+              <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'opacity-100' : 'opacity-80'}`}>{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Mobile Bottom Sheet Menu (Guru) */}
       <AnimatePresence>
@@ -1256,8 +1299,8 @@ export default function DashboardGuru() {
                   <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-600/10 p-0.5 bg-white shadow-xs flex items-center justify-center">
                     <img 
                       src="/logo_ra.jpeg" 
-                      alt="Logo" 
-                      className="w-full h-full object-contain" 
+                      alt="Logo RA Darusyifa" 
+                      className="w-full h-full object-contain rounded-full" 
                     />
                   </div>
                   <div>
@@ -1377,12 +1420,16 @@ export default function DashboardGuru() {
         {/* Mobile Header Bar - Matching Screenshot Style without Top Hamburger */}
         <div className="md:hidden bg-white/95 border-b border-slate-100 px-4 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-xs backdrop-blur-md" style={{ WebkitBackdropFilter: 'blur(16px)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-emerald-50/40 shadow-xs flex items-center justify-center">
-              <img src="/logo_ra.jpeg" alt="Logo RA Darusyifa" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 overflow-hidden rounded-xl border border-emerald-500/20 p-1 bg-white shadow-xs flex items-center justify-center">
+              <img 
+                src={settings?.logoUrl || "/assets/aistudio/image_24fdf8ff.png"} 
+                alt="Logo School" 
+                className="w-full h-full object-contain" 
+              />
             </div>
             <div>
               <h2 className="font-display font-black text-slate-900 text-[15px] leading-tight">Portal Guru</h2>
-              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">RA DARUSYIFA ARJAWINANGUN</p>
+              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 mt-0.5">{settings?.schoolName || 'RA DARUSYIFA ARJAWINANGUN'}</p>
             </div>
           </div>
 
@@ -1404,8 +1451,12 @@ export default function DashboardGuru() {
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors active:scale-95"
             >
-              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs text-xs font-bold text-slate-700">
-                {editPhoto ? <img src={editPhoto} alt="Foto Guru" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : editName?.charAt(0) || 'G'}
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-emerald-500/40 bg-slate-100 flex items-center justify-center shadow-xs">
+                {userData?.photoURL ? (
+                  <img src={userData.photoURL} alt="Foto Profil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <User size={18} className="text-slate-500" />
+                )}
               </div>
               <ChevronDown size={14} className="text-slate-400" />
             </button>

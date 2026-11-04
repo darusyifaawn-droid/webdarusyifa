@@ -251,6 +251,70 @@ export default function DashboardAdmin() {
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [newPaymentMethod, setNewPaymentMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
 
+  // Full Student Payment Edit States
+  const [editPayAmount, setEditPayAmount] = useState('');
+  const [editPayDate, setEditPayDate] = useState('');
+  const [editPayCategory, setEditPayCategory] = useState('');
+  const [editPayMethod, setEditPayMethod] = useState<'Tunai' | 'Transfer' | 'Tabungan'>('Tunai');
+  const [editPayStatus, setEditPayStatus] = useState<'lunas' | 'pending' | 'ditolak'>('lunas');
+  const [editPayDescription, setEditPayDescription] = useState('');
+  const [showQuickScanModal, setShowQuickScanModal] = useState(false);
+
+  // Auto-populate edit fields whenever editingPayment changes
+  useEffect(() => {
+    if (editingPayment) {
+      setEditPayAmount(String(editingPayment.amount || ''));
+      let formattedDate = editingPayment.date && /^\d{4}-\d{2}-\d{2}/.test(String(editingPayment.date))
+        ? String(editingPayment.date).slice(0, 10)
+        : '';
+      if (!formattedDate && editingPayment.createdAt) {
+        try {
+          const d = editingPayment.createdAt.toDate ? editingPayment.createdAt.toDate() : new Date(editingPayment.createdAt);
+          if (!isNaN(d.getTime())) formattedDate = d.toISOString().split('T')[0];
+        } catch (e) {}
+      }
+      setEditPayDate(formattedDate || new Date().toISOString().split('T')[0]);
+      setEditPayCategory(
+        editingPayment.iuranCategory ||
+        editingPayment.category ||
+        editingPayment.categoryName ||
+        editingPayment.iuranName ||
+        (editingPayment.type === 'tabungan_keluar' ? 'Tarik Tabungan' : (editingPayment.type === 'tabungan' || editingPayment.type === 'tabungan_masuk') ? 'Tabungan' : 'SPP Bulanan')
+      );
+      setEditPayMethod(editingPayment.method || 'Tunai');
+      setEditPayStatus(editingPayment.status === 'cicilan' ? 'lunas' : (editingPayment.status || 'lunas'));
+      setEditPayDescription(editingPayment.description || '');
+      setNewPaymentMethod(editingPayment.method || 'Tunai');
+    }
+  }, [editingPayment]);
+
+  const handleOpenEditPayment = (pay: any) => {
+    setEditingPayment(pay);
+    setEditPayAmount(String(pay.amount || ''));
+    let formattedDate = pay.date && /^\d{4}-\d{2}-\d{2}/.test(String(pay.date))
+      ? String(pay.date).slice(0, 10)
+      : '';
+    if (!formattedDate && pay.createdAt) {
+      try {
+        const d = pay.createdAt.toDate ? pay.createdAt.toDate() : new Date(pay.createdAt);
+        if (!isNaN(d.getTime())) formattedDate = d.toISOString().split('T')[0];
+      } catch (e) {}
+    }
+    setEditPayDate(formattedDate || new Date().toISOString().split('T')[0]);
+    setEditPayCategory(
+      pay.iuranCategory ||
+      pay.category ||
+      pay.categoryName ||
+      pay.iuranName ||
+      (pay.type === 'tabungan_keluar' ? 'Tarik Tabungan' : (pay.type === 'tabungan' || pay.type === 'tabungan_masuk') ? 'Tabungan' : 'SPP Bulanan')
+    );
+    setEditPayMethod(pay.method || 'Tunai');
+    setEditPayStatus(pay.status === 'cicilan' ? 'lunas' : (pay.status || 'lunas'));
+    setEditPayDescription(pay.description || '');
+    setNewPaymentMethod(pay.method || 'Tunai');
+    setShowRevisionModal(true);
+  };
+
  // Achievement Filters
  const [filterAchievementKelas, setFilterAchievementKelas] = useState('Semua');
  const [filterAchievementCategory, setFilterAchievementCategory] = useState('Semua');
@@ -1985,39 +2049,81 @@ export default function DashboardAdmin() {
  }
  };
 
- const handleDeletePayment = async (pay: any) => {
- if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Perhatian: Menghapus riwayat tabungan akan otomatis mengupdate total saldo.')) return;
- try {
- if (pay.type === 'tabungan' || pay.type === 'tabungan_keluar') {
- const student = allUsers.find(u => u.id === pay.studentId);
- if (student) {
- let newSavings = student.savings || 0;
- if (pay.type === 'tabungan') {
- newSavings -= pay.amount; // Removing an "add" reverses the addition
- } else if (pay.type === 'tabungan_keluar') {
- newSavings += pay.amount; // Removing a "tarik" reverses the deduction
- }
- 
- await updateDoc(doc(db, 'users', pay.studentId), {
- savings: newSavings
- });
- 
- if (selectedStudentForFinance?.id === pay.studentId) {
- setSelectedStudentForFinance((prev: any) => ({
- ...prev,
- savings: newSavings
- }));
- }
- }
- }
- 
- await deleteDoc(doc(db, 'payments', pay.id));
- alert('Riwayat transaksi berhasil dihapus.');
- } catch (error) {
- console.error("Error deleting payment:", error);
- alert('Gagal menghapus riwayat transaksi.');
- }
- };
+  const handleDeletePayment = async (pay: any) => {
+    if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Saldo tabungan dan tunggakan siswa terkait akan disesuaikan otomatis.')) return;
+    try {
+      const student = allUsers.find(u => u.id === pay.studentId);
+      const payAmount = Number(pay.amount) || 0;
+      const isApproved = pay.status === 'lunas' || pay.status === 'cicilan';
+
+      if (student && isApproved && payAmount > 0) {
+        let newSavings = Number(student.savings) || 0;
+        let updatedDetails = Array.isArray(student.arrears_details)
+          ? student.arrears_details.map((d: any) => ({ ...d }))
+          : [];
+        let newArrears = Number(student.arrears) || 0;
+        const userUpdates: Record<string, any> = {};
+
+        if (pay.type === 'tabungan' || pay.type === 'tabungan_masuk') {
+          newSavings = Math.max(0, newSavings - payAmount);
+          userUpdates.savings = newSavings;
+        } else if (pay.type === 'tabungan_keluar') {
+          newSavings += payAmount;
+          userUpdates.savings = newSavings;
+        } else {
+          // Pembayaran iuran sekolah
+          const deductedFromSavings = pay.method === 'Tabungan'
+            ? (Number(pay.amountFromSavings) || payAmount)
+            : (Number(pay.amountFromSavings) || 0);
+          if (deductedFromSavings > 0) {
+            newSavings += deductedFromSavings;
+            userUpdates.savings = newSavings;
+          }
+
+          // Kembalikan nominal yang sebelumnya telah dibayar ke tunggakan siswa
+          const targetCat = pay.iuranCategory || pay.category || pay.categoryName || 'Umum';
+          const targetName = pay.iuranName || targetCat || 'Tagihan Iuran';
+          const matchIdx = updatedDetails.findIndex((d: any) =>
+            isFinanceCategoryMatch(d.category, d.name, '', targetCat) ||
+            String(d.name || '').toLowerCase() === String(targetName).toLowerCase()
+          );
+
+          if (matchIdx >= 0) {
+            updatedDetails[matchIdx].amount = (Number(updatedDetails[matchIdx].amount) || 0) + payAmount;
+          } else {
+            updatedDetails.push({
+              id: `restored-${pay.id}-${Date.now()}`,
+              name: targetName,
+              category: targetCat,
+              amount: payAmount,
+              date: pay.date || new Date().toISOString().split('T')[0]
+            });
+          }
+
+          newArrears = updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+          userUpdates.arrears_details = updatedDetails;
+          userUpdates.arrears = newArrears;
+        }
+
+        if (Object.keys(userUpdates).length > 0) {
+          await updateDoc(doc(db, 'users', pay.studentId), userUpdates);
+          if (selectedStudentForFinance?.id === pay.studentId) {
+            setSelectedStudentForFinance((prev: any) => ({
+              ...prev,
+              ...userUpdates
+            }));
+          }
+          setAllUsers((prev: any[]) => prev.map(u => u.id === pay.studentId ? { ...u, ...userUpdates } : u));
+        }
+      }
+
+      await deleteDoc(doc(db, 'payments', pay.id));
+      alert('Riwayat transaksi berhasil dihapus dan saldo/tunggakan siswa telah disesuaikan.');
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      alert('Gagal menghapus riwayat transaksi.');
+    }
+  };
 
  const handleDeleteIuranCategory = async (id: string) => {
  if (!window.confirm('Hapus kategori iuran ini? Seluruh tagihan siswa dan riwayat pembayaran terkait kategori ini akan dihapus permanen. Lanjutkan?')) return;
@@ -2287,87 +2393,218 @@ export default function DashboardAdmin() {
     }
   };
 
-  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan') => {
-    if (payment.method === newMethod) {
-      setShowRevisionModal(false);
+  const handleSaveFullEditPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayment?.id) return;
+    const numAmount = Number(editPayAmount);
+    if (isNaN(numAmount) || numAmount < 0) {
+      alert('Nominal harus berupa angka valid');
       return;
     }
-
-    const student = allUsers.find(u => u.id === payment.studentId);
-    if (!student) {
-      alert('Siswa tidak ditemukan!');
-      return;
-    }
-
-    const amount = Number(payment.amount || 0);
-    const currentSavings = student.savings || 0;
-
-    // Logic for savings balance adjustment
-    let savingsAdjustment = 0;
-
-    // If changing FROM Tabungan, we refund the amount to savings
-    if (payment.method === 'Tabungan') {
-      savingsAdjustment += amount;
-    }
-
-    // If changing TO Tabungan, we deduct the amount from savings
-    if (newMethod === 'Tabungan') {
-      let tempSavings = currentSavings;
-      if (payment.method === 'Tabungan') {
-        // This case is handled by payment.method === newMethod check above
-      } else {
-        // If it wasn't Tabungan, we check if current savings (plus possible refund if changing FROM Tabungan - handled by currentSavings + savingsAdjustment) is enough
-        if (currentSavings + savingsAdjustment < amount) {
-          alert(`Saldo tabungan tidak mencukupi!\nSaldo Tersedia: Rp ${(currentSavings + savingsAdjustment).toLocaleString('id-ID')}\nKebutuhan: Rp ${amount.toLocaleString('id-ID')}`);
-          return;
-        }
-      }
-      savingsAdjustment -= amount;
-    }
-
-    if (!window.confirm(`Konfirmasi Revisi Metode Pembayaran:\n\n` +
-      `• Transaksi: ${payment.description}\n` +
-      `• Dari: ${payment.method}\n` +
-      `• Ke: ${newMethod}\n\n` +
-      `Apakah Anda yakin ingin melakukan revisi ini?`)) return;
 
     try {
+      const student = allUsers.find(u => u.id === editingPayment.studentId);
+      const oldAmount = Number(editingPayment.amount) || 0;
+      const oldMethod = editingPayment.method || 'Tunai';
+      const oldStatus = editingPayment.status || 'lunas';
+      const txType = editingPayment.type || 'pembayaran';
+      const isSavingsDeposit = txType === 'tabungan' || txType === 'tabungan_masuk';
+      const isSavingsWithdrawal = txType === 'tabungan_keluar';
+      const isSavingsTx = isSavingsDeposit || isSavingsWithdrawal;
+
       const { writeBatch } = await import('firebase/firestore');
       const batch = writeBatch(db);
-      
-      // Update payment record
-      const payRef = doc(db, 'payments', payment.id);
-      
-      // Clean up description if it contains method specific text
-      let newDesc = payment.description;
-      if (payment.method === 'Tabungan') {
-        newDesc = newDesc.replace('Potong Saldo Tabungan', `${newMethod} Admin`);
-      } else if (newMethod === 'Tabungan') {
-        newDesc = newDesc.replace(`${payment.method} Admin`, 'Potong Saldo Tabungan');
-      } else {
-        newDesc = newDesc.replace(`${payment.method} Admin`, `${newMethod} Admin`);
+      const payRef = doc(db, 'payments', editingPayment.id);
+
+      const userUpdates: Record<string, any> = {};
+
+      if (student) {
+        const currentSavings = Number(student.savings) || 0;
+        const wasApproved = oldStatus === 'lunas' || oldStatus === 'cicilan';
+        const willBeApproved = editPayStatus === 'lunas';
+
+        // 1. Hitung selisih Saldo Tabungan (savingsDelta)
+        let oldSavingsContribution = 0;
+        let newSavingsContribution = 0;
+
+        if (isSavingsDeposit) {
+          oldSavingsContribution = wasApproved ? oldAmount : 0;
+          newSavingsContribution = willBeApproved ? numAmount : 0;
+        } else if (isSavingsWithdrawal) {
+          oldSavingsContribution = wasApproved ? -oldAmount : 0;
+          newSavingsContribution = willBeApproved ? -numAmount : 0;
+        } else {
+          // Transaksi Pembayaran Iuran Siswa
+          const oldDeducted = wasApproved
+            ? (oldMethod === 'Tabungan' ? (Number(editingPayment.amountFromSavings) || oldAmount) : (Number(editingPayment.amountFromSavings) || 0))
+            : 0;
+          const newDeducted = (willBeApproved && editPayMethod === 'Tabungan') ? numAmount : 0;
+          oldSavingsContribution = -oldDeducted;
+          newSavingsContribution = -newDeducted;
+        }
+
+        const savingsDelta = newSavingsContribution - oldSavingsContribution;
+
+        if (savingsDelta < 0 && currentSavings + savingsDelta < 0) {
+          alert(
+            `Saldo tabungan siswa tidak mencukupi untuk penyesuaian ini!\n` +
+            `Saldo saat ini: Rp ${currentSavings.toLocaleString('id-ID')}\n` +
+            `Kekurangan: Rp ${Math.abs(currentSavings + savingsDelta).toLocaleString('id-ID')}`
+          );
+          return;
+        }
+
+        if (savingsDelta !== 0) {
+          userUpdates.savings = Math.max(0, currentSavings + savingsDelta);
+        }
+
+        // 2. Hitung penyesuaian Tunggakan Siswa otomatis (untuk pembayaran iuran)
+        if (!isSavingsTx) {
+          const oldEffectivePaid = wasApproved ? oldAmount : 0;
+          const newEffectivePaid = willBeApproved ? numAmount : 0;
+          const paidDelta = newEffectivePaid - oldEffectivePaid;
+
+          const oldCat = editingPayment.iuranCategory || editingPayment.category || editingPayment.categoryName || 'Umum';
+          const newCat = editPayCategory.trim() || oldCat;
+          const categoryChanged = oldCat.toLowerCase() !== newCat.toLowerCase();
+
+          let updatedDetails: any[] = Array.isArray(student.arrears_details)
+            ? student.arrears_details.map((d: any) => ({ ...d }))
+            : [];
+
+          // Helper: kurangi tagihan pada kategori tertentu sebesar `deductAmt`
+          const deductArrearsForCategory = (catName: string, deductAmt: number) => {
+            let remainingToDeduct = deductAmt;
+            updatedDetails = updatedDetails.map((item: any) => {
+              if (remainingToDeduct <= 0) return item;
+              const isMatch =
+                isFinanceCategoryMatch(item.category, item.name, '', catName) ||
+                String(item.name || '').toLowerCase().includes(catName.toLowerCase());
+              if (isMatch) {
+                const itemAmt = Number(item.amount) || 0;
+                if (itemAmt <= remainingToDeduct) {
+                  remainingToDeduct -= itemAmt;
+                  return { ...item, amount: 0 };
+                } else {
+                  const newAmt = itemAmt - remainingToDeduct;
+                  remainingToDeduct = 0;
+                  return { ...item, amount: newAmt };
+                }
+              }
+              return item;
+            }).filter((item: any) => (Number(item.amount) || 0) > 0);
+
+            // Jika masih ada sisa pengurangan dan belum mengenai item spesifik, kurangi dari item tunggakan yang ada
+            if (remainingToDeduct > 0 && updatedDetails.length > 0) {
+              updatedDetails = updatedDetails.map((item: any) => {
+                if (remainingToDeduct <= 0) return item;
+                const itemAmt = Number(item.amount) || 0;
+                if (itemAmt <= remainingToDeduct) {
+                  remainingToDeduct -= itemAmt;
+                  return { ...item, amount: 0 };
+                } else {
+                  const newAmt = itemAmt - remainingToDeduct;
+                  remainingToDeduct = 0;
+                  return { ...item, amount: newAmt };
+                }
+              }).filter((item: any) => (Number(item.amount) || 0) > 0);
+            }
+          };
+
+          // Helper: tambahkan / kembalikan tagihan pada kategori tertentu sebesar `addAmt`
+          const restoreArrearsForCategory = (catName: string, itemName: string, addAmt: number) => {
+            if (addAmt <= 0) return;
+            const matchIdx = updatedDetails.findIndex((item: any) =>
+              isFinanceCategoryMatch(item.category, item.name, '', catName) ||
+              String(item.name || '').toLowerCase() === itemName.toLowerCase()
+            );
+            if (matchIdx >= 0) {
+              updatedDetails[matchIdx].amount = (Number(updatedDetails[matchIdx].amount) || 0) + addAmt;
+            } else {
+              updatedDetails.push({
+                id: `adj-${editingPayment.id}-${Date.now()}`,
+                name: itemName || catName || 'Tagihan Iuran',
+                category: catName || 'Umum',
+                amount: addAmt,
+                date: editPayDate || new Date().toISOString().split('T')[0]
+              });
+            }
+          };
+
+          if (categoryChanged && (oldEffectivePaid > 0 || newEffectivePaid > 0)) {
+            if (oldEffectivePaid > 0) {
+              restoreArrearsForCategory(oldCat, editingPayment.iuranName || oldCat, oldEffectivePaid);
+            }
+            if (newEffectivePaid > 0) {
+              deductArrearsForCategory(newCat, newEffectivePaid);
+            }
+            const recalculatedArrears = updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+            userUpdates.arrears_details = updatedDetails;
+            userUpdates.arrears = recalculatedArrears;
+          } else if (paidDelta !== 0) {
+            if (paidDelta > 0) {
+              deductArrearsForCategory(newCat, paidDelta);
+              const recalculatedArrears = updatedDetails.length > 0
+                ? updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0)
+                : Math.max(0, (Number(student.arrears) || 0) - paidDelta);
+              userUpdates.arrears_details = updatedDetails;
+              userUpdates.arrears = recalculatedArrears;
+            } else {
+              const arrearsToAdd = Math.abs(paidDelta);
+              restoreArrearsForCategory(newCat, editingPayment.iuranName || newCat, arrearsToAdd);
+              const recalculatedArrears = updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+              userUpdates.arrears_details = updatedDetails;
+              userUpdates.arrears = recalculatedArrears;
+            }
+          }
+        }
+
+        if (Object.keys(userUpdates).length > 0) {
+          const studentRef = doc(db, 'users', student.id);
+          batch.update(studentRef, userUpdates);
+        }
       }
 
-      batch.update(payRef, { 
-        method: newMethod,
-        description: newDesc,
+      const finalCategory = editPayCategory.trim() || 'Umum';
+      const updatedPaymentFields: Record<string, any> = {
+        amount: numAmount,
+        date: editPayDate,
+        category: finalCategory,
+        categoryName: finalCategory,
+        iuranCategory: finalCategory,
+        iuranName: finalCategory,
+        description: editPayDescription.trim() || finalCategory,
+        method: editPayMethod,
+        status: editPayStatus,
+        amountFromSavings: (editPayStatus === 'lunas' && editPayMethod === 'Tabungan' && !isSavingsTx) ? numAmount : 0,
         updatedAt: serverTimestamp()
-      });
+      };
 
-      // Update student savings if needed
-      if (savingsAdjustment !== 0) {
-        const studentRef = doc(db, 'users', student.id);
-        batch.update(studentRef, { savings: currentSavings + savingsAdjustment });
+      batch.update(payRef, updatedPaymentFields);
+      await batch.commit();
+
+      if (student && Object.keys(userUpdates).length > 0) {
+        if (selectedStudentForFinance?.id === student.id) {
+          setSelectedStudentForFinance((prev: any) => ({
+            ...prev,
+            ...userUpdates
+          }));
+        }
+        setAllUsers((prev: any[]) => prev.map(u => u.id === student.id ? { ...u, ...userUpdates } : u));
       }
 
-      await batch.commit();
-      alert('Metode pembayaran berhasil diperbarui!');
+      alert('Riwayat transaksi pembayaran siswa berhasil diperbarui beserta penyesuaian saldo & tunggakan otomatis!');
       setShowRevisionModal(false);
       setEditingPayment(null);
     } catch (error) {
       console.error(error);
-      alert('Gagal memperbarui metode pembayaran.');
+      alert('Gagal memperbarui transaksi pembayaran.');
     }
+  };
+
+  const handleUpdatePaymentMethod = async (payment: any, newMethod: 'Tunai' | 'Transfer' | 'Tabungan') => {
+    setEditPayMethod(newMethod);
+    setNewPaymentMethod(newMethod);
   };
 
   const handleOneClickPaymentFromTabungan = async (student: any, detail: any) => {
@@ -3580,185 +3817,207 @@ export default function DashboardAdmin() {
 
   const NavItems = () => {
     const pendingCount = payments.filter(p => p.status === 'pending').length;
-    
-    const items = [
-      { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'users', label: 'Users', icon: Users },
-      { id: 'academic', label: 'Akademik', icon: BookOpen },
-      { id: 'hafalan', label: 'Hafalan', icon: Star },
-      { id: 'competitions', label: 'Lomba', icon: Award },
-      { id: 'finance', label: 'Keuangan', icon: CreditCard, count: pendingCount },
-      { id: 'finance-arus', label: 'Arus Kas', icon: TrendingUp },
+
+    const dataItems = [
+      { id: 'users', label: 'User Management', icon: Users },
+      { id: 'academic', label: 'Akademik & Rapor', icon: BookOpen },
+      { id: 'hafalan', label: 'Modul Hafalan', icon: Star },
+      { id: 'competitions', label: 'Hasil Lomba & Piagam', icon: Award },
+      { id: 'finance', label: 'Administrasi', icon: CreditCard, count: pendingCount, hasChevron: true },
+      { id: 'finance-arus', label: 'Arus Keuangan', icon: TrendingUp },
       { id: 'attendance', label: 'Absensi', icon: CheckCircle },
-      { id: 'calendar', label: 'Kaldik', icon: Calendar },
-      { id: 'achievements', label: 'Prestasi', icon: Trophy },
-      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'calendar', label: 'Kalender Pendidikan', icon: Calendar },
+      { id: 'achievements', label: 'Siswa Berprestasi', icon: Trophy },
     ];
 
+    const otherItems = [
+      { id: 'announcements', label: 'Pengumuman', icon: Megaphone },
+      { id: 'profile', label: 'Profil Admin', icon: User },
+      { id: 'settings', label: 'Pengaturan', icon: Settings },
+    ];
+
+    const isOverview = activeTab === 'overview';
+
     return (
-      <div className="flex flex-col items-center gap-3 w-full">
-        {items.map((item) => {
-          const isActive = activeTab === item.id || (item.id === 'finance' && activeTab === 'finance');
-          return (
-            <div key={item.id} className="relative group">
+      <div className="flex flex-col gap-5 w-full text-left">
+        {/* Top Dashboard Active Button */}
+        <div>
+          <button
+            onClick={() => {
+              setActiveTab('overview');
+              setIsSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+              isOverview
+                ? 'bg-[#059669] text-white shadow-md shadow-emerald-600/20'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Home size={18} strokeWidth={isOverview ? 2.5 : 2} />
+            <span>Dashboard</span>
+          </button>
+        </div>
+
+        {/* DATA & INFORMASI Section */}
+        <div className="space-y-1">
+          <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+            DATA & INFORMASI
+          </p>
+          {dataItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
               <button
-                onClick={() => { 
-                  setActiveTab(item.id); 
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
                   if (item.id === 'finance') setFinanceSubTab('dashboard');
-                  setIsSidebarOpen(false); 
+                  setIsSidebarOpen(false);
                 }}
-                className={`sidebar-icon ${isActive ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-700 font-black'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
               >
-                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                {item.count ? (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
-                    {item.count}
-                  </span>
-                ) : null}
+                <div className="flex items-center gap-3 min-w-0">
+                  <item.icon
+                    size={17}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className={isActive ? 'text-emerald-600 shrink-0' : 'text-slate-400 group-hover:text-slate-600 shrink-0'}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {item.count ? (
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full">
+                      {item.count}
+                    </span>
+                  ) : null}
+                  {item.hasChevron && (
+                    <ChevronDown size={14} className="text-slate-400" />
+                  )}
+                </div>
               </button>
-              
-              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-[60] shadow-xl">
-                {item.label}
-                <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* LAINNYA Section */}
+        <div className="space-y-1 pt-2 border-t border-slate-100">
+          <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+            LAINNYA
+          </p>
+          {otherItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-700 font-black'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <item.icon
+                  size={17}
+                  strokeWidth={isActive ? 2.5 : 2}
+                  className={isActive ? 'text-emerald-600 shrink-0' : 'text-slate-400 group-hover:text-slate-600 shrink-0'}
+                />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
 
-  
   return (
-    <div className="flex h-screen bg-[#f1f5f3] overflow-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
-      {/* Premium Slim Sidebar (Desktop) */}
-      <aside className="w-20 bg-white border-r border-slate-100 hidden md:flex flex-col items-center py-8 gap-10 z-50 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        {/* Brand Logo */}
-        <div 
+    <div className="flex h-screen bg-[#f8faf9] overflow-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      {/* Desktop Sidebar with Text Labels (Matching Screenshot 2) */}
+      <aside className="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col py-6 px-4 z-50 shrink-0">
+        {/* Brand Header */}
+        <div
           onClick={() => setActiveTab('overview')}
-          className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+          className="flex items-center gap-3 px-2 mb-6 cursor-pointer group"
         >
-          <img 
-            src="/logo_ra.jpeg" 
-            alt="Logo RA" 
-            className="w-8 h-8 rounded-lg object-contain brightness-0 invert" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-white font-black text-xl">RA</span>';
-            }}
-          />
+          <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+            <img
+              src={settings?.logoUrl || '/assets/aistudio/image_24fdf8ff.png'}
+              alt="Logo RA"
+              className="w-8 h-8 object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo_ra.jpeg';
+              }}
+            />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-slate-900 tracking-tight leading-tight truncate">
+              RA Darusyifa
+            </h2>
+            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest leading-tight">
+              ARJAWINANGUN
+            </p>
+          </div>
         </div>
 
-        {/* Scrollable Nav Items */}
-        <div className="flex-1 flex flex-col items-center gap-4 w-full px-2 overflow-y-auto custom-scrollbar no-scrollbar">
+        {/* Scrollable Nav Items with Text */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar pr-1">
           <NavItems />
-        </div>
-
-        {/* Footer Actions */}
-        <div className="flex flex-col items-center gap-4 mt-auto">
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`sidebar-icon ${activeTab === 'profile' ? 'sidebar-icon-active' : 'sidebar-icon-inactive'}`}
-            title="Profil"
-          >
-            <User size={20} />
-          </button>
-          <button 
-            onClick={() => auth.signOut()}
-            className="sidebar-icon sidebar-icon-inactive text-rose-400 hover:text-rose-600 hover:bg-rose-50"
-            title="Keluar"
-          >
-            <LogOut size={20} />
-          </button>
         </div>
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <div className="fixed inset-0 z-[100] md:hidden overflow-hidden">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 left-0 bottom-0 w-4/5 max-w-sm bg-white shadow-2xl flex flex-col"
-            >
-              <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                    <img src="/logo_ra.jpeg" className="w-6 h-6 rounded-lg brightness-0 invert" alt="Logo" />
-                  </div>
-                  <span className="font-display font-black text-slate-800 tracking-tight">RA Darusyifa</span>
-                </div>
-                <button 
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:text-slate-600 transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
-                <NavItems />
-              </div>
-              <div className="p-8 border-t border-slate-50 bg-slate-50/50 mt-auto">
-                <button 
-                  onClick={() => auth.signOut()}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest"
-                >
-                  <LogOut size={18} /> Keluar Sistem
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Main Workspace */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f1f5f3]">
-        {/* Premium Header */}
-        <header className="h-20 bg-white border-b border-slate-100 px-6 md:px-10 flex items-center justify-between shrink-0 z-40">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#f8faf9]">
+        {/* Header: Mobile matches Screenshot 1, Desktop matches Screenshot 2 */}
+        <header className="h-16 md:h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between shrink-0 z-40">
+          {/* Mobile Left: Brand Logo & Name */}
+          <div className="flex md:hidden items-center gap-3">
+            <div
+              onClick={() => setActiveTab('overview')}
+              className="flex items-center gap-2.5 cursor-pointer"
             >
-              <Menu size={24} />
-            </button>
-            <div className="flex flex-col">
-              <h1 className="text-lg md:text-xl font-display font-black text-slate-900 tracking-tight leading-none uppercase">
-                {activeTab === 'overview' && 'Dashboard Overview'}
-                {activeTab === 'users' && 'User Management'}
-                {activeTab === 'academic' && 'Akademik & Rapor'}
-                {activeTab === 'hafalan' && 'Modul Hafalan'}
-                {activeTab === 'finance' && 'Administrasi Keuangan'}
-                {activeTab === 'finance-arus' && 'Laporan Arus Kas'}
-                {activeTab === 'attendance' && 'Absensi Harian'}
-                {activeTab === 'calendar' && 'Kalender Pendidikan'}
-                {activeTab === 'achievements' && 'Siswa Berprestasi'}
-                {activeTab === 'settings' && 'Sistem & Pengaturan'}
-                {activeTab === 'profile' && 'Profil Administrator'}
-                {activeTab === 'competitions' && 'Hasil Lomba'}
-              </h1>
-              <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 hidden sm:block">
-                Portal RA Darusyifa Arjawinangun
-              </p>
+              <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img
+                  src={settings?.logoUrl || '/assets/aistudio/image_24fdf8ff.png'}
+                  alt="Logo RA"
+                  className="w-7 h-7 object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/logo_ra.jpeg';
+                  }}
+                />
+              </div>
+              <div>
+                <h1 className="text-sm font-black text-slate-900 leading-tight">RA Darusyifa</h1>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
+                  ARJAWINANGUN
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 md:gap-8">
-            <div className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-400 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:bg-white transition-all">
-              <Search size={16} />
-              <input 
-                type="text" 
-                placeholder="Cari data..." 
+          {/* Mobile Right: Bell Icon with Red Dot */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setActiveTab('announcements')}
+              className="relative p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+            >
+              <Bell size={21} />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white" />
+            </button>
+          </div>
+
+          {/* Desktop Left: Search Bar */}
+          <div className="hidden md:flex items-center flex-1 max-w-md">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 border border-slate-200/70 rounded-full text-slate-400 w-full focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:bg-white transition-all">
+              <Search size={16} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Cari siswa, NISN, atau transaksi..."
                 value={globalSearchQuery}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -3766,25 +4025,64 @@ export default function DashboardAdmin() {
                   setFilterFinanceStudentName(val);
                   setFilterName(val);
                 }}
-                className="bg-transparent border-none outline-none text-sm w-48 text-slate-700 placeholder:text-slate-300 font-medium"
+                className="bg-transparent border-none outline-none text-xs w-full text-slate-700 placeholder:text-slate-400 font-medium"
               />
             </div>
+          </div>
 
-            <div className="flex items-center gap-3 pl-4 md:pl-8 border-l border-slate-100">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-900 leading-none">Administrator</p>
-                <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">Full Access</p>
-              </div>
-              <div 
+          {/* Desktop Right: Date + Notification + Admin Profile + Keluar Button */}
+          <div className="hidden md:flex items-center gap-5">
+            <div className="flex items-center gap-2 text-slate-600 text-xs font-bold">
+              <Calendar size={15} className="text-slate-400" />
+              <span>
+                {new Date().toLocaleDateString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setActiveTab('announcements')}
+              className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
+              title="Notifikasi & Pengumuman"
+            >
+              <Bell size={18} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
+            </button>
+
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
+              <div
                 onClick={() => setActiveTab('profile')}
-                className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform overflow-hidden shadow-sm shadow-emerald-600/5"
+                className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center cursor-pointer overflow-hidden shrink-0"
               >
                 {userData?.photoURL ? (
                   <img src={userData.photoURL} alt="Admin" className="w-full h-full object-cover" />
                 ) : (
-                  <Users size={20} className="text-emerald-600" />
+                  <User size={18} className="text-emerald-700" />
                 )}
               </div>
+              <div
+                onClick={() => setActiveTab('profile')}
+                className="text-left cursor-pointer"
+              >
+                <p className="text-xs font-black text-slate-900 leading-none uppercase">
+                  {settings?.schoolName || 'RA DARUSYIFA ARJAWINANGUN'}
+                </p>
+                <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-wider">
+                  SUPER ADMIN
+                </p>
+              </div>
+
+              <button
+                onClick={() => auth.signOut()}
+                className="ml-2 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <LogOut size={14} />
+                <span>Keluar</span>
+              </button>
             </div>
           </div>
         </header>
@@ -5340,6 +5638,8 @@ export default function DashboardAdmin() {
                     setEditingPayment={setEditingPayment}
                     setShowRevisionModal={setShowRevisionModal}
                     setNewPaymentMethod={setNewPaymentMethod}
+                    handleOpenEditPayment={handleOpenEditPayment}
+                    handleDeletePayment={handleDeletePayment}
                   />
                 )}
 
@@ -6688,19 +6988,15 @@ export default function DashboardAdmin() {
                           <div className="flex items-center gap-4">
                             <span className={`w-2 h-2 rounded-full ${p.status === 'lunas' ? 'bg-emerald-500' : p.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
                             <div className="flex flex-col">
-                              <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranName || p.type}</span>
-                              <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{formatDateForUI(p.createdAt || p.timestamp || p.date)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
+                              <span className="font-black text-gray-800 text-[10px] uppercase tracking-tighter">{p.iuranCategory || p.category || p.iuranName || p.type}</span>
+                              <span className="text-[9px] font-bold text-gray-400 tracking-widest italic">{p.date || formatDateForUI(p.createdAt || p.timestamp)} - {p.method} {p.description ? `(${p.description})` : ''}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <button 
-                              onClick={() => {
-                                setEditingPayment(p);
-                                setNewPaymentMethod(p.method as any);
-                                setShowRevisionModal(true);
-                              }}
-                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
-                              title="Revisi Metode Bayar"
+                              onClick={() => handleOpenEditPayment(p)}
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100 cursor-pointer"
+                              title="Edit Lengkap Transaksi"
                             >
                               <Edit size={12} />
                             </button>
@@ -7189,6 +7485,63 @@ export default function DashboardAdmin() {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Mobile Bottom Navigation Bar (matching WhatsApp mobile screenshot) */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-3 py-2 flex items-center justify-between z-[90] shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-colors ${
+              activeTab === 'overview' ? 'text-[#059669]' : 'text-slate-400'
+            }`}
+          >
+            <Home size={20} strokeWidth={activeTab === 'overview' ? 2.5 : 2} />
+            <span className="text-[11px] font-bold tracking-tight">Beranda</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('finance');
+              setFinanceSubTab('riwayat');
+            }}
+            className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-colors ${
+              activeTab === 'finance' ? 'text-[#059669]' : 'text-slate-400'
+            }`}
+          >
+            <CreditCard size={20} strokeWidth={activeTab === 'finance' ? 2.5 : 2} />
+            <span className="text-[11px] font-bold tracking-tight">Transaksi</span>
+          </button>
+
+          {/* Center Floating QR / Quick Action Button */}
+          <div className="flex-1 flex justify-center -mt-7">
+            <button
+              onClick={() => setActiveTab('attendance')}
+              className="w-14 h-14 rounded-full bg-[#059669] text-white border-4 border-white shadow-lg shadow-emerald-600/30 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              title="Presensi & Scan QR"
+            >
+              <QrCode size={24} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setActiveTab('announcements')}
+            className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-colors ${
+              activeTab === 'announcements' ? 'text-[#059669]' : 'text-slate-400'
+            }`}
+          >
+            <Bell size={20} strokeWidth={activeTab === 'announcements' ? 2.5 : 2} />
+            <span className="text-[11px] font-bold tracking-tight">Notifikasi</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-colors ${
+              activeTab === 'profile' ? 'text-[#059669]' : 'text-slate-400'
+            }`}
+          >
+            <User size={20} strokeWidth={activeTab === 'profile' ? 2.5 : 2} />
+            <span className="text-[11px] font-bold tracking-tight">Profil</span>
+          </button>
+        </nav>
  </main>
 
  {/* Modal Add Kaldik */}
@@ -7319,94 +7672,245 @@ export default function DashboardAdmin() {
  </div>
  )}
 
-  {/* Revision Payment Method Modal */}
+  {/* Full Edit Student Payment History Modal */}
   <AnimatePresence>
     {showRevisionModal && editingPayment && (
-      <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 overflow-y-auto">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => { setShowRevisionModal(false); setEditingPayment(null); }}
-          className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md"
         />
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0, y: 30 }}
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 30 }}
-          className="relative w-full max-w-md bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 p-10"
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          className="relative w-full max-w-lg bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 p-6 sm:p-8 my-8 max-h-[90vh] overflow-y-auto"
         >
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
-                <RefreshCw size={24} />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+                <Edit size={22} />
               </div>
               <div className="text-left">
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Revisi Pembayaran</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Koreksi Metode Pembayaran</p>
+                <h3 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">Edit Riwayat Transaksi Siswa</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Edit Lengkap Nominal, Tanggal, Kategori, Metode & Status</p>
               </div>
             </div>
             <button 
               onClick={() => { setShowRevisionModal(false); setEditingPayment(null); }}
-              className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-slate-600 bg-slate-50 rounded-xl transition-all"
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-50 rounded-xl transition-all cursor-pointer"
             >
               <X size={20} />
             </button>
           </div>
 
-          <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 mb-8 space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Siswa</span>
-              <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{allUsers.find(u => u.id === editingPayment.studentId)?.name || 'Unknown'}</span>
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-6 flex justify-between items-center">
+            <div>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Nama Siswa</span>
+              <span className="text-xs font-black text-slate-800 uppercase">{allUsers.find(u => u.id === editingPayment.studentId)?.name || editingPayment.studentName || 'Siswa'}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal</span>
-              <span className="text-sm font-black text-indigo-600">Rp {(editingPayment.amount || 0).toLocaleString('id-ID')}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Lama</span>
-              <span className="px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest">{editingPayment.method}</span>
+            <div className="text-right">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">ID Transaksi</span>
+              <span className="text-[10px] font-mono font-bold text-slate-500">#{editingPayment.id?.slice(0, 8)}</span>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 text-left">Pilih Metode Baru</label>
-            <div className="grid grid-cols-1 gap-3">
-              {['Tunai', 'Transfer', 'Tabungan'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setNewPaymentMethod(m as any)}
-                  className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all group ${
-                    newPaymentMethod === m 
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-inner' 
-                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                      newPaymentMethod === m ? 'bg-indigo-600 text-white rotate-6' : 'bg-white text-slate-300'
-                    }`}>
-                      {m === 'Tunai' ? <Banknote size={20} /> : m === 'Transfer' ? <CreditCard size={20} /> : <Wallet size={20} />}
-                    </div>
-                    <span className={`text-xs font-black uppercase tracking-widest ${newPaymentMethod === m ? 'text-indigo-900' : 'text-slate-500'}`}>{m}</span>
-                  </div>
-                  {newPaymentMethod === m && (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                      <CheckCircle size={20} className="text-indigo-600" />
-                    </motion.div>
-                  )}
-                </button>
-              ))}
+          <form onSubmit={handleSaveFullEditPayment} className="space-y-4 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nominal Pembayaran (Rp)</label>
+                <input
+                  type="number"
+                  required
+                  value={editPayAmount}
+                  onChange={(e) => setEditPayAmount(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 focus:bg-white focus:border-indigo-500 outline-none"
+                  placeholder="Contoh: 150000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tanggal Transaksi</label>
+                <input
+                  type="date"
+                  required
+                  value={editPayDate}
+                  onChange={(e) => setEditPayDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
             </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Kategori Pembayaran</label>
+              <input
+                type="text"
+                list="edit-payment-categories"
+                value={editPayCategory}
+                onChange={(e) => setEditPayCategory(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 uppercase focus:bg-white focus:border-indigo-500 outline-none"
+                placeholder="Pilih atau ketik kategori (misal: SPP BULANAN, TABUNGAN)"
+              />
+              <datalist id="edit-payment-categories">
+                <option value="SPP" />
+                <option value="TABUNGAN" />
+                <option value="SERAGAM" />
+                <option value="BUKU" />
+                <option value="KEGIATAN" />
+                {iuranCategories.map((c: any) => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Keterangan / Deskripsi Transaksi</label>
+              <input
+                type="text"
+                required
+                value={editPayDescription}
+                onChange={(e) => setEditPayDescription(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:bg-white focus:border-indigo-500 outline-none"
+                placeholder="Keterangan pembayaran..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Metode Pembayaran</label>
+              <div className="grid grid-cols-3 gap-2.5">
+                {(['Tunai', 'Transfer', 'Tabungan'] as const).map((m) => (
+                  <button
+                    type="button"
+                    key={m}
+                    onClick={() => {
+                      setEditPayMethod(m);
+                      setNewPaymentMethod(m);
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                      editPayMethod === m 
+                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900' 
+                        : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                    }`}
+                  >
+                    {m === 'Tunai' ? <Banknote size={18} /> : m === 'Transfer' ? <CreditCard size={18} /> : <Wallet size={18} />}
+                    <span className="text-[10px] font-black uppercase tracking-wider mt-1">{m}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status Transaksi</label>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { id: 'lunas', label: 'Lunas / Disetujui', color: 'emerald' },
+                  { id: 'pending', label: 'Pending', color: 'amber' },
+                  { id: 'ditolak', label: 'Ditolak', color: 'rose' },
+                ].map((s) => (
+                  <button
+                    type="button"
+                    key={s.id}
+                    onClick={() => setEditPayStatus(s.id as any)}
+                    className={`py-2.5 px-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      editPayStatus === s.id
+                        ? s.id === 'lunas'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          : s.id === 'pending'
+                          ? 'border-amber-500 bg-amber-50 text-amber-800'
+                          : 'border-rose-600 bg-rose-50 text-rose-800'
+                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Automatic Balance & Arrears Adjustment Preview */}
+            {(() => {
+              const targetStudent = allUsers.find(u => u.id === editingPayment.studentId);
+              if (!targetStudent) return null;
+              const currentSavings = Number(targetStudent.savings) || 0;
+              const currentArrears = Number(targetStudent.arrears) || 0;
+              const oldAmt = Number(editingPayment.amount) || 0;
+              const newAmt = Number(editPayAmount) || 0;
+              const oldStat = editingPayment.status || 'lunas';
+              const oldMeth = editingPayment.method || 'Tunai';
+              const txType = editingPayment.type || 'pembayaran';
+              const isSavDep = txType === 'tabungan' || txType === 'tabungan_masuk';
+              const isSavWith = txType === 'tabungan_keluar';
+              const isSavTx = isSavDep || isSavWith;
+              const wasApp = oldStat === 'lunas' || oldStat === 'cicilan';
+              const willApp = editPayStatus === 'lunas';
+
+              let oldSavContrib = 0;
+              let newSavContrib = 0;
+              if (isSavDep) {
+                oldSavContrib = wasApp ? oldAmt : 0;
+                newSavContrib = willApp ? newAmt : 0;
+              } else if (isSavWith) {
+                oldSavContrib = wasApp ? -oldAmt : 0;
+                newSavContrib = willApp ? -newAmt : 0;
+              } else {
+                const oldDed = wasApp ? (oldMeth === 'Tabungan' ? (Number(editingPayment.amountFromSavings) || oldAmt) : (Number(editingPayment.amountFromSavings) || 0)) : 0;
+                const newDed = (willApp && editPayMethod === 'Tabungan') ? newAmt : 0;
+                oldSavContrib = -oldDed;
+                newSavContrib = -newDed;
+              }
+              const previewSavingsDelta = newSavContrib - oldSavContrib;
+              const estimatedSavings = currentSavings + previewSavingsDelta;
+
+              const oldPaid = (!isSavTx && wasApp) ? oldAmt : 0;
+              const newPaid = (!isSavTx && willApp) ? newAmt : 0;
+              const previewPaidDelta = newPaid - oldPaid;
+              const estimatedArrears = Math.max(0, currentArrears - previewPaidDelta);
+
+              return (
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2.5">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                    <span>Simulasi Penyesuaian Otomatis</span>
+                    <span className="text-indigo-600">Real-Time</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white p-3 rounded-xl border border-slate-100">
+                      <span className="text-[9px] font-black text-slate-400 uppercase block">Saldo Tabungan Siswa</span>
+                      <div className="font-black text-slate-800 mt-0.5 tabular-nums">
+                        Rp {Math.max(0, estimatedSavings).toLocaleString('id-ID')}
+                      </div>
+                      {previewSavingsDelta !== 0 && (
+                        <span className={`text-[10px] font-bold block mt-0.5 tabular-nums ${previewSavingsDelta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {previewSavingsDelta > 0 ? `+Rp ${previewSavingsDelta.toLocaleString('id-ID')}` : `-Rp ${Math.abs(previewSavingsDelta).toLocaleString('id-ID')}`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-100">
+                      <span className="text-[9px] font-black text-slate-400 uppercase block">Sisa Tunggakan Siswa</span>
+                      <div className="font-black text-slate-800 mt-0.5 tabular-nums">
+                        Rp {estimatedArrears.toLocaleString('id-ID')}
+                      </div>
+                      {previewPaidDelta !== 0 && (
+                        <span className={`text-[10px] font-bold block mt-0.5 tabular-nums ${previewPaidDelta > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {previewPaidDelta > 0 ? `Berkurang Rp ${previewPaidDelta.toLocaleString('id-ID')}` : `Bertambah Rp ${Math.abs(previewPaidDelta).toLocaleString('id-ID')}`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <button
-              onClick={() => handleUpdatePaymentMethod(editingPayment, newPaymentMethod)}
-              className="w-full mt-8 py-5 bg-indigo-600 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group hover:scale-[1.02] active:scale-95"
+              type="submit"
+              className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Save size={18} className="group-hover:-rotate-12 transition-transform" />
-              Simpan Perubahan
+              <Save size={18} />
+              Simpan Perubahan Transaksi
             </button>
-          </div>
+          </form>
         </motion.div>
       </div>
     )}
