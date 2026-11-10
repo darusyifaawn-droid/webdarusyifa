@@ -281,15 +281,18 @@ export default function FinanceRiwayatTab({
  >
  <Printer size={15} />
  </button>
- {pay.proofStr && (
- <button 
- onClick={() => setSelectedPhoto(pay.proofStr)}
- className="p-2 text-indigo-400 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
- title="Lihat Bukti"
- >
- <ImageIcon size={15} />
- </button>
- )}
+ {(() => {
+   const proofPhoto = pay.proofStr || pay.proofUrl || pay.proof || pay.proofImage || pay.photo || null;
+   return proofPhoto ? (
+     <button 
+       onClick={() => setSelectedPhoto(proofPhoto)}
+       className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+       title="Lihat Bukti Transfer / Struk"
+     >
+       <ImageIcon size={15} />
+     </button>
+   ) : null;
+ })()}
  <button 
  onClick={async () => {
  if (handleDeletePayment) {
@@ -387,14 +390,17 @@ export default function FinanceRiwayatTab({
  >
  <Printer size={14} /> Cetak
  </button>
- {pay.proofStr && (
- <button 
- onClick={() => setSelectedPhoto(pay.proofStr)}
- className="px-4 py-2.5 bg-white border border-slate-100 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
- >
- <ImageIcon size={14} /> Bukti
- </button>
- )}
+ {(() => {
+   const proofPhoto = pay.proofStr || pay.proofUrl || pay.proof || pay.proofImage || pay.photo || null;
+   return proofPhoto ? (
+     <button 
+       onClick={() => setSelectedPhoto(proofPhoto)}
+       className="px-4 py-2.5 bg-white border border-slate-100 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+     >
+       <ImageIcon size={14} /> Bukti
+     </button>
+   ) : null;
+ })()}
  <button 
  onClick={async () => {
  if (handleDeletePayment) {

@@ -815,7 +815,7 @@ export default function DashboardSiswa() {
   const handleSubmitBillPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || payAmount <= 0) return;
-    if (payMethod === 'Transfer' && !payProofImage) {
+    if ((payMethod === 'Transfer' || payMethod === 'Campuran') && !payProofImage) {
       alert('Silakan unggah foto bukti transfer terlebih dahulu.');
       return;
     }
@@ -854,8 +854,10 @@ export default function DashboardSiswa() {
         description: desc,
         date: new Date().toISOString().split('T')[0],
         method: payMethod,
-        transferChannel: payMethod === 'Transfer' ? payChannel : null,
+        transferChannel: payMethod === 'Transfer' || payMethod === 'Campuran' ? payChannel : null,
         proofUrl: payProofImage || null,
+        proofStr: payProofImage || null,
+        proofImage: payProofImage || null,
         status: payMethod === 'Tabungan' ? 'lunas' : 'pending',
         billId: selectedBillItem?.id || null,
         createdAt: serverTimestamp()

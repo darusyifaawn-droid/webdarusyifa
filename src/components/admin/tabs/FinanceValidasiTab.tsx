@@ -51,59 +51,70 @@ export default function FinanceValidasiTab({
 
               return (
                 <div key={pay.id} className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex-1 min-w-0 space-y-3.5 text-left">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border ${
-                        isSavings 
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                          : 'bg-slate-50 text-slate-400 border-slate-100'
-                      }`}>
-                        {student?.name?.charAt(0) || pay.studentName?.charAt(0) || '?'}
-                      </div>
-                      <div className="min-w-0">
+                  {(() => {
+                    const proofPhoto = pay.proofStr || pay.proofUrl || pay.proof || pay.proofImage || pay.photo || pay.proofImageStr || null;
+                    const isTransferMethod = pay.method === 'Transfer' || pay.method === 'Campuran' || pay.transferChannel || (pay.description && pay.description.toLowerCase().includes('transfer'));
+
+                    return (
+                      <div className="flex-1 min-w-0 space-y-3.5 text-left">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border ${
+                            isSavings 
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                              : 'bg-slate-50 text-slate-400 border-slate-100'
+                          }`}>
+                            {student?.name?.charAt(0) || pay.studentName?.charAt(0) || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-black text-gray-800 text-base uppercase tracking-tight truncate">
+                                {student?.name || pay.studentName || 'Unknown'}
+                              </p>
+                              {isSavings && (
+                                <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                                  <Wallet size={11} /> TABUNGAN ONLINE
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">
+                              {student?.kelas || pay.kelas || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-black text-gray-800 text-base uppercase tracking-tight truncate">
-                            {student?.name || pay.studentName || 'Unknown'}
-                          </p>
-                          {isSavings && (
-                            <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
-                              <Wallet size={11} /> TABUNGAN ONLINE
-                            </span>
+                          <div className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 truncate max-w-[320px]">
+                            {pay.description || 'Pembayaran'}
+                          </div>
+
+                          {pay.transferChannel && (
+                            <div className="px-3 py-1.5 bg-emerald-50 text-emerald-800 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-200">
+                              {pay.transferChannel}
+                            </div>
+                          )}
+                          
+                          {proofPhoto ? (
+                            <button 
+                              onClick={() => setSelectedPhoto(proofPhoto)}
+                              className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-blue-100 cursor-pointer shadow-2xs"
+                            >
+                              <ImageIcon size={12} /> LIHAT STRUK / BUKTI
+                            </button>
+                          ) : isTransferMethod ? (
+                            <div className="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-rose-200 flex items-center gap-1">
+                              <span>⚠️ BUKTI TF TIDAK TERSEDIA</span>
+                            </div>
+                          ) : null}
+
+                          {pay.method === 'Tunai' && pay.meetDate && (
+                            <div className="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-amber-100">
+                              <Calendar size={12} /> {pay.meetDate}
+                            </div>
                           )}
                         </div>
-                        <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">
-                          {student?.kelas || pay.kelas || 'N/A'}
-                        </p>
                       </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest border border-gray-100 truncate max-w-[320px]">
-                        {pay.description || 'Pembayaran'}
-                      </div>
-
-                      {pay.transferChannel && (
-                        <div className="px-3 py-1.5 bg-emerald-50 text-emerald-800 rounded-xl text-[9px] font-black uppercase tracking-widest border border-emerald-200">
-                          {pay.transferChannel}
-                        </div>
-                      )}
-                      
-                      {pay.proofStr && (
-                        <button 
-                          onClick={() => setSelectedPhoto(pay.proofStr)}
-                          className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-blue-100 cursor-pointer"
-                        >
-                          <ImageIcon size={12} /> LIHAT STRUK
-                        </button>
-                      )}
-
-                      {pay.method === 'Tunai' && pay.meetDate && (
-                        <div className="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-amber-100">
-                          <Calendar size={12} /> {pay.meetDate}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto p-4 md:p-0 bg-slate-50 md:bg-transparent rounded-2xl border border-slate-100 md:border-none">
                     <div className="text-left md:text-right">
