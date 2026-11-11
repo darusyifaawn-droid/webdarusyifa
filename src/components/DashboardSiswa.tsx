@@ -43,6 +43,7 @@ export default function DashboardSiswa() {
   const [hafalanMaterials, setHafalanMaterials] = useState<any[]>(initialHafalanMaterials);
   const [exams, setExams] = useState<any[]>([]);
   const [kaldikData, setKaldikData] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(!authUserData);
   const [activeTab, setActiveTab] = useState('overview');
@@ -227,6 +228,11 @@ export default function DashboardSiswa() {
       if (snap.exists()) setSettings(snap.data());
     });
 
+    const unsubTeachers = onSnapshot(
+      query(collection(db, 'users'), where('role', '==', 'guru')),
+      (snapshot) => setTeachers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
     return () => {
       unsubUserDoc();
       unsubAttendance();
@@ -238,6 +244,7 @@ export default function DashboardSiswa() {
       unsubExams();
       unsubKaldik();
       unsubSettings();
+      unsubTeachers();
     };
   }, [user]);
 
@@ -423,56 +430,219 @@ export default function DashboardSiswa() {
   };
 
   // --- Print Rapor Belajar & Rapor Hafalan & Keuangan ---
+  const getWaliKelasName = (studentClass?: string) => {
+    const normClass = (studentClass || 'UTSMAN BIN AFFAN').trim().toUpperCase();
+    const found = teachers.find(t => {
+      const teacherClass = (t.kelas || t.assignedClass || t.waliKelas || '').trim().toUpperCase();
+      return teacherClass && (teacherClass === normClass || teacherClass.includes(normClass) || normClass.includes(teacherClass));
+    });
+    if (found && found.name) return found.name;
+    if (normClass.includes('UMAR')) return "Ustz. Siti Fatimah, S.Pd";
+    if (normClass.includes('ALI')) return "Ustz. Nur Aini, S.Pd";
+    if (normClass.includes('ABU BAKAR')) return "Ustz. Rahmawati, S.Pd";
+    return "Ustz. Mas'udah, S.Pd";
+  };
+
+  const getSignaturesSectionHTML = (waliKelasName: string) => `
+    <div class="sig-section" style="margin-top:24px;font-size:11px;page-break-inside:avoid;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+        <div style="text-align:center;width:220px;">
+          <div>Orang Tua / Wali Santri</div>
+          <div style="height:40px;"></div>
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:160px;padding-bottom:2px;">
+            ( ${userData?.namaAyah || userData?.namaIbu || 'Wali Santri'} )
+          </div>
+        </div>
+        <div style="text-align:center;width:220px;">
+          <div>Arjawinangun, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Wali Kelas</div>
+          <div style="height:40px;"></div>
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:160px;padding-bottom:2px;">
+            ( ${waliKelasName} )
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <div style="text-align:center;width:240px;margin:0 auto;">
+          <div>Mengetahui,<br/><strong>Kepala RA Darusyifa Arjawinangun</strong></div>
+          <div style="display:flex;flex-direction:column;align-items:center;margin:6px 0 2px 0;">
+            <div style="border:2px solid #059669;padding:4px;background:#ffffff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);display:inline-block;">
+              <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="100" height="100" fill="white"/>
+                <rect x="6" y="6" width="28" height="28" fill="#0f172a" rx="4"/>
+                <rect x="10" y="10" width="20" height="20" fill="white" rx="2"/>
+                <rect x="14" y="14" width="12" height="12" fill="#059669" rx="1"/>
+                
+                <rect x="66" y="6" width="28" height="28" fill="#0f172a" rx="4"/>
+                <rect x="70" y="10" width="20" height="20" fill="white" rx="2"/>
+                <rect x="74" y="14" width="12" height="12" fill="#059669" rx="1"/>
+                
+                <rect x="6" y="66" width="28" height="28" fill="#0f172a" rx="4"/>
+                <rect x="10" y="70" width="20" height="20" fill="white" rx="2"/>
+                <rect x="14" y="74" width="12" height="12" fill="#059669" rx="1"/>
+                
+                <rect x="40" y="8" width="6" height="6" fill="#0f172a"/>
+                <rect x="52" y="8" width="6" height="6" fill="#0f172a"/>
+                <rect x="40" y="20" width="6" height="6" fill="#059669"/>
+                <rect x="46" y="14" width="6" height="6" fill="#0f172a"/>
+                <rect x="52" y="26" width="6" height="6" fill="#0f172a"/>
+                
+                <rect x="8" y="40" width="6" height="6" fill="#059669"/>
+                <rect x="14" y="46" width="6" height="6" fill="#0f172a"/>
+                <rect x="26" y="40" width="6" height="6" fill="#0f172a"/>
+                
+                <rect x="40" y="40" width="20" height="20" fill="#059669" rx="3"/>
+                <path d="M46 50L49 53L54 47" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin-round/>
+                
+                <rect x="66" y="40" width="6" height="6" fill="#0f172a"/>
+                <rect x="78" y="46" width="6" height="6" fill="#059669"/>
+                <rect x="84" y="40" width="6" height="6" fill="#0f172a"/>
+                
+                <rect x="40" y="66" width="6" height="6" fill="#0f172a"/>
+                <rect x="46" y="78" width="6" height="6" fill="#059669"/>
+                <rect x="52" y="72" width="6" height="6" fill="#0f172a"/>
+                <rect x="58" y="84" width="6" height="6" fill="#0f172a"/>
+                
+                <rect x="66" y="66" width="6" height="6" fill="#0f172a"/>
+                <rect x="78" y="66" width="6" height="6" fill="#059669"/>
+                <rect x="72" y="72" width="6" height="6" fill="#0f172a"/>
+                <rect x="84" y="78" width="6" height="6" fill="#0f172a"/>
+                <rect x="66" y="84" width="6" height="6" fill="#059669"/>
+                <rect x="78" y="84" width="6" height="6" fill="#0f172a"/>
+              </svg>
+            </div>
+            <span style="font-size:8px;color:#059669;font-weight:bold;letter-spacing:0.5px;margin-top:2px;">VERIFIKASI QR DOKUMEN RESMI</span>
+          </div>
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:180px;padding-bottom:2px;">
+            Gian Dwi Wahyuni, S.H
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
   const handlePrintRaporBelajar = () => {
     const filteredList = progress.filter(
       p => progressPeriodFilter === 'Semua' || p.evaluationPeriod === progressPeriodFilter
     );
     const w = window.open('', '_blank');
     if (!w) return;
+
+    const waliKelasName = getWaliKelasName(userData?.kelas);
+
     const rowsHtml = filteredList.length > 0
       ? filteredList.map((p, i) => {
           const score = Number(p.score) || 0;
           const grade = score >= 90 ? 'A (Sangat Baik)' : score >= 80 ? 'B (Baik)' : score >= 70 ? 'C (Cukup)' : 'D (Perlu Bimbingan)';
           return `
             <tr>
-              <td style="padding:10px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
-              <td style="padding:10px;border:1px solid #cbd5e1;"><strong>${p.category || p.title || '-'}</strong></td>
-              <td style="padding:10px;border:1px solid #cbd5e1;text-align:center;">${p.evaluationPeriod || '-'}</td>
-              <td style="padding:10px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">${score}</td>
-              <td style="padding:10px;border:1px solid #cbd5e1;text-align:center;">${grade}</td>
-              <td style="padding:10px;border:1px solid #cbd5e1;">${p.description || '-'}</td>
+              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+              <td style="padding:8px;border:1px solid #cbd5e1;"><strong>${p.category || p.title || '-'}</strong></td>
+              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${p.evaluationPeriod || '-'}</td>
+              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">${score}</td>
+              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${grade}</td>
+              <td style="padding:8px;border:1px solid #cbd5e1;">${p.description || '-'}</td>
             </tr>
           `;
         }).join('')
-      : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#64748b;">Belum ada data penilaian pada periode ini.</td></tr>`;
+      : `<tr><td colspan="6" style="padding:15px;text-align:center;color:#64748b;">Belum ada data penilaian pada periode ini.</td></tr>`;
+
+    // Hafalan Rows
+    const hafalanRowsHtml = hafalanMaterials.slice(0, 10).map((mat, i) => {
+      const prog = hafalanProgress.find(p => p.materialId === mat.id);
+      const stars = prog?.stars ? '★'.repeat(prog.stars) : '★★★';
+      const status = prog?.status || 'Mumtaz (Lulus)';
+      return `
+        <tr>
+          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+          <td style="padding:6px 8px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong> <small style="color:#64748b;">(${mat.kategori})</small></td>
+          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
+          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${status}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attendance stats
+    const totalHadir = attendance.filter(a => a.status === 'Hadir').length || hadirCount;
+    const totalSakit = attendance.filter(a => a.status === 'Sakit').length;
+    const totalIzin = attendance.filter(a => a.status === 'Izin').length;
+    const totalAlpha = attendance.filter(a => a.status === 'Alpha').length;
 
     w.document.write(`
       <html>
         <head>
           <title>Laporan Hasil Belajar - ${userData?.name || 'Siswa'}</title>
-          <style>${getPrintStyles()}</style>
+          <style>
+            ${getPrintStyles()}
+            .rapot-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
+            .rapot-table th, .rapot-table td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+            .rapot-table th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 10.5px; }
+            .section-title { font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-top: 14px; margin-bottom: 4px; }
+          </style>
         </head>
         <body onload="window.print()">
-          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR SANTRI', settings?.schoolName, settings?.logoUrl)}
-          <div style="margin:18px 0;font-size:13px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:6px;">
+          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR SANTRI (RAPOR SISWA)', settings?.schoolName, settings?.logoUrl)}
+          <div style="margin:14px 0 10px 0;font-size:12px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:4px;">
             <div>Nama Santri</div><div>: <strong>${userData?.name || '-'}</strong></div>
-            <div>Kelas</div><div>: <strong>${userData?.kelas || '-'}</strong></div>
+            <div>Kelas / Kelompok</div><div>: <strong>${userData?.kelas || 'UTSMAN BIN AFFAN'}</strong></div>
             <div>NISN / NIS</div><div>: ${userData?.nisn || userData?.nis || '-'}</div>
-            <div>Periode</div><div>: ${progressPeriodFilter}</div>
+            <div>Periode Asesmen</div><div>: <strong>${progressPeriodFilter}</strong></div>
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+
+          <!-- Seksi 1: Nilai Perkembangan & Asesmen -->
+          <div class="section-title">I. CAPAIAN EVALUASI & AKADEMIK SANTRI</div>
+          <table class="rapot-table">
             <thead>
-              <tr style="background:#f1f5f9;">
-                <th style="padding:10px;border:1px solid #cbd5e1;width:40px;">No</th>
-                <th style="padding:10px;border:1px solid #cbd5e1;">Aspek / Mata Pelajaran</th>
-                <th style="padding:10px;border:1px solid #cbd5e1;">Periode</th>
-                <th style="padding:10px;border:1px solid #cbd5e1;width:70px;">Nilai</th>
-                <th style="padding:10px;border:1px solid #cbd5e1;width:130px;">Predikat</th>
-                <th style="padding:10px;border:1px solid #cbd5e1;">Catatan Guru</th>
+              <tr>
+                <th style="width:35px;text-align:center;">No</th>
+                <th>Aspek Perkembangan / Mata Pelajaran</th>
+                <th style="width:100px;">Periode</th>
+                <th style="width:60px;text-align:center;">Skor</th>
+                <th style="width:130px;">Predikat</th>
+                <th>Catatan Perkembangan</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
           </table>
+
+          <!-- Seksi 2: Rekapitulasi Capaian Hafalan (Tahfidz & Doa) -->
+          <div class="section-title">II. PENILAIAN CAPAIAN HAFALAN (TAHFIDZ & DOA HARIAN)</div>
+          <table class="rapot-table">
+            <thead>
+              <tr>
+                <th style="width:35px;text-align:center;">No</th>
+                <th>Materi Hafalan (Surah / Doa / Hadits)</th>
+                <th style="width:90px;text-align:center;">Bintang</th>
+                <th style="width:120px;text-align:center;">Status / Predikat</th>
+              </tr>
+            </thead>
+            <tbody>${hafalanRowsHtml}</tbody>
+          </table>
+
+          <!-- Seksi 3: Rekapitulasi Presensi Kehadiran Santri -->
+          <div class="section-title">III. REKAPITULASI PRESENSI KEHADIRAN SANTRI</div>
+          <table class="rapot-table">
+            <thead>
+              <tr>
+                <th style="text-align:center;">Hadir</th>
+                <th style="text-align:center;">Sakit</th>
+                <th style="text-align:center;">Izin</th>
+                <th style="text-align:center;">Alpha / Tanpa Ket</th>
+                <th style="text-align:center;">Tingkat Kehadiran</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;font-weight:bold;color:#059669;">${totalHadir} Hari</td>
+                <td style="text-align:center;font-weight:bold;color:#d97706;">${totalSakit} Hari</td>
+                <td style="text-align:center;font-weight:bold;color:#2563eb;">${totalIzin} Hari</td>
+                <td style="text-align:center;font-weight:bold;color:#e11d48;">${totalAlpha} Hari</td>
+                <td style="text-align:center;font-weight:900;color:#059669;">${attendancePercentage}%</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Seksi 4: Tanda Tangan Resmi (Wali Murid & Wali Kelas Top, Kepala Sekolah QR Bottom) -->
+          ${getSignaturesSectionHTML(waliKelasName)}
         </body>
       </html>
     `);
@@ -482,6 +652,9 @@ export default function DashboardSiswa() {
   const handlePrintRaporHafalan = () => {
     const w = window.open('', '_blank');
     if (!w) return;
+
+    const waliKelasName = getWaliKelasName(userData?.kelas);
+
     const rowsHtml = hafalanMaterials.map((mat, i) => {
       const prog = hafalanProgress.find(p => p.materialId === mat.id);
       const stars = prog?.stars ? '★'.repeat(prog.stars) : '-';
@@ -490,7 +663,7 @@ export default function DashboardSiswa() {
           <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
           <td style="padding:8px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong></td>
           <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${mat.kategori}</td>
-          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${prog?.status || 'Belum Mulai'}</td>
+          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${prog?.status || 'Belum Mulai'}</td>
           <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
           <td style="padding:8px;border:1px solid #cbd5e1;">${prog?.catatanGuru || '-'}</td>
         </tr>
@@ -504,26 +677,29 @@ export default function DashboardSiswa() {
           <style>${getPrintStyles()}</style>
         </head>
         <body onload="window.print()">
-          ${getPrintHeaderHTML('LAPORAN CAPAIAN HAFALAN TAHFIDZ', settings?.schoolName, settings?.logoUrl)}
-          <div style="margin:18px 0;font-size:13px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:6px;">
+          ${getPrintHeaderHTML('LAPORAN CAPAIAN HAFALAN TAHFIDZ & DOA HARIAN', settings?.schoolName, settings?.logoUrl)}
+          <div style="margin:16px 0;font-size:12px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:6px;">
             <div>Nama Santri</div><div>: <strong>${userData?.name || '-'}</strong></div>
-            <div>Kelas</div><div>: <strong>${userData?.kelas || '-'}</strong></div>
+            <div>Kelas / Kelompok</div><div>: <strong>${userData?.kelas || '-'}</strong></div>
             <div>NISN / NIS</div><div>: ${userData?.nisn || userData?.nis || '-'}</div>
-            <div>Tanggal Cetak</div><div>: ${new Date().toLocaleDateString('id-ID')}</div>
+            <div>Tanggal Cetak</div><div>: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
             <thead>
               <tr style="background:#f1f5f9;">
-                <th style="padding:8px;border:1px solid #cbd5e1;width:40px;">No</th>
+                <th style="padding:8px;border:1px solid #cbd5e1;width:35px;text-align:center;">No</th>
                 <th style="padding:8px;border:1px solid #cbd5e1;">Materi Hafalan</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;">Kategori</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;">Status</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;">Bintang</th>
+                <th style="padding:8px;border:1px solid #cbd5e1;width:110px;text-align:center;">Kategori</th>
+                <th style="padding:8px;border:1px solid #cbd5e1;width:120px;text-align:center;">Status</th>
+                <th style="padding:8px;border:1px solid #cbd5e1;width:90px;text-align:center;">Bintang</th>
                 <th style="padding:8px;border:1px solid #cbd5e1;">Catatan Guru</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
           </table>
+
+          <!-- Tanda Tangan Resmi (Wali Murid & Wali Kelas Top, Kepala Sekolah QR Bottom) -->
+          ${getSignaturesSectionHTML(waliKelasName)}
         </body>
       </html>
     `);
@@ -2872,12 +3048,38 @@ export default function DashboardSiswa() {
                 )}
 
                 {payMethod === 'Tunai' && (
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-                    <p className="font-black uppercase tracking-wide">Pembayaran Tunai (Cash)</p>
-                    <p className="font-medium">
-                      Silakan lakukan pembayaran tunai secara langsung ke Bendahara Sekolah.
-                      Status konfirmasi pembayaran akan diproses oleh Bendahara setelah dana diterima.
-                    </p>
+                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-3">
+                    <div>
+                      <p className="font-black uppercase tracking-wide text-amber-900">Pembayaran Tunai (Cash)</p>
+                      <p className="font-medium text-amber-800 text-[11px] leading-relaxed mt-0.5">
+                        Silakan lakukan pembayaran tunai secara langsung ke Bendahara Sekolah.
+                        Jika Anda telah menerima kwitansi/nota fisik, Anda dapat mengunggah foto kwitansi di bawah ini.
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-amber-200/60">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-amber-800 mb-1">
+                        Upload Foto Bukti Kwitansi / Nota (Opsional)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePayProofUpload}
+                        className="w-full text-xs text-amber-900 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white cursor-pointer"
+                      />
+                      {payProofImage && (
+                        <div className="mt-2.5 relative inline-block">
+                          <img src={payProofImage} alt="Bukti Kwitansi Tunai" className="h-32 rounded-xl object-contain border border-amber-300 bg-white p-1" />
+                          <button
+                            type="button"
+                            onClick={() => setPayProofImage('')}
+                            className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

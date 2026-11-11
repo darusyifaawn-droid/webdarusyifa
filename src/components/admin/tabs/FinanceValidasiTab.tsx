@@ -96,13 +96,21 @@ export default function FinanceValidasiTab({
                           {proofPhoto ? (
                             <button 
                               onClick={() => setSelectedPhoto(proofPhoto)}
-                              className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border border-blue-100 cursor-pointer shadow-2xs"
+                              className={`px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 border cursor-pointer shadow-xs active:scale-95 ${
+                                pay.method === 'Tunai'
+                                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border-emerald-200'
+                                  : 'bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border-blue-200'
+                              }`}
                             >
-                              <ImageIcon size={12} /> LIHAT STRUK / BUKTI
+                              <ImageIcon size={13} /> {pay.method === 'Tunai' ? '🧾 LIHAT KWITANSI TUNAI' : '📸 LIHAT STRUK / BUKTI'}
                             </button>
                           ) : isTransferMethod ? (
                             <div className="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-rose-200 flex items-center gap-1">
                               <span>⚠️ BUKTI TF TIDAK TERSEDIA</span>
+                            </div>
+                          ) : pay.method === 'Tunai' ? (
+                            <div className="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-amber-200 flex items-center gap-1 font-bold">
+                              <span>💵 BAYAR TUNAI (TANPA KWITANSI)</span>
                             </div>
                           ) : null}
 

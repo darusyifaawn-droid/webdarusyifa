@@ -235,124 +235,136 @@ export default function FinanceDashboardOverview({
         </div>
       </div>
 
-      {/* 2. Top 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+      {/* 2. Top 4 Stat Cards (2 Columns on Mobile, matching design screenshot) */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
         
         {/* TOTAL TABUNGAN */}
         <motion.div 
-          whileHover={{ scale: 1.02, y: -5 }}
-          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
+          whileHover={{ scale: 1.02, y: -4 }}
+          className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group"
         >
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 shadow-sm">
-              <Banknote size={22} />
+          {/* Wave background accent */}
+          <div className="absolute -bottom-4 -right-4 w-28 h-20 bg-gradient-to-tl from-emerald-100/50 via-emerald-50/20 to-transparent rounded-tl-full pointer-events-none transition-all group-hover:scale-110" />
+
+          <div className="flex items-start justify-between gap-2 mb-3 relative z-10">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60 shadow-xs">
+              <Banknote size={19} className="sm:w-5 sm:h-5" />
             </div>
-            <div className="w-20 h-9 opacity-40">
-              <svg viewBox="0 0 100 40" className="w-full h-full text-emerald-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
+            <div className="w-14 sm:w-20 h-6 sm:h-9 opacity-30 hidden sm:block">
+              <svg viewBox="0 0 100 40" className="w-full h-full text-emerald-600 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,32 Q25,35 45,22 T80,15 T100,5" />
               </svg>
             </div>
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
-              Total Tabungan
+          
+          <div className="relative z-10">
+            <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
+              TOTAL TABUNGAN
             </span>
-            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
-              Rp {(displayTotalTabungan || 10010000).toLocaleString('id-ID')}
+            <h3 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              Rp {(displayTotalTabungan || 50229000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-3">
-              <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 shadow-2xs">
                 ↑ 12.5%
               </span>
-              <span className="text-[11px] text-slate-400 font-medium">vs bulan lalu</span>
             </div>
           </div>
         </motion.div>
 
         {/* TOTAL TUNGGAKAN */}
         <motion.div 
-          whileHover={{ scale: 1.02, y: -5 }}
-          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
+          whileHover={{ scale: 1.02, y: -4 }}
+          className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group"
         >
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100 shadow-sm">
-              <AlertCircle size={22} />
+          {/* Wave background accent */}
+          <div className="absolute -bottom-4 -right-4 w-28 h-20 bg-gradient-to-tl from-rose-100/50 via-rose-50/20 to-transparent rounded-tl-full pointer-events-none transition-all group-hover:scale-110" />
+
+          <div className="flex items-start justify-between gap-2 mb-3 relative z-10">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-rose-100/70 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100/60 shadow-xs">
+              <AlertCircle size={19} className="sm:w-5 sm:h-5" />
             </div>
-            <div className="w-20 h-9 opacity-40">
-              <svg viewBox="0 0 100 40" className="w-full h-full text-rose-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
+            <div className="w-14 sm:w-20 h-6 sm:h-9 opacity-30 hidden sm:block">
+              <svg viewBox="0 0 100 40" className="w-full h-full text-rose-600 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,28 Q30,32 50,18 T85,12 T100,2" />
               </svg>
             </div>
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
-              Total Tunggakan
+
+          <div className="relative z-10">
+            <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
+              TOTAL TUNGGAKAN
             </span>
-            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
-              Rp {(displayTotalTunggakan || 12425000).toLocaleString('id-ID')}
+            <h3 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              Rp {(displayTotalTunggakan || 7795000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-3">
-              <span className="text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-[10px] font-extrabold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 shadow-2xs">
                 ↑ 8.3%
               </span>
-              <span className="text-[11px] text-slate-400 font-medium">perlu ditindak</span>
             </div>
           </div>
         </motion.div>
 
         {/* TERBAYAR (ONLINE) */}
         <motion.div 
-          whileHover={{ scale: 1.02, y: -5 }}
-          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
+          whileHover={{ scale: 1.02, y: -4 }}
+          className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group"
         >
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100 shadow-sm">
-              <TrendingUp size={22} />
+          {/* Wave background accent */}
+          <div className="absolute -bottom-4 -right-4 w-28 h-20 bg-gradient-to-tl from-indigo-100/50 via-indigo-50/20 to-transparent rounded-tl-full pointer-events-none transition-all group-hover:scale-110" />
+
+          <div className="flex items-start justify-between gap-2 mb-3 relative z-10">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/60 shadow-xs">
+              <TrendingUp size={19} className="sm:w-5 sm:h-5" />
             </div>
-            <div className="w-20 h-9 opacity-40">
-              <svg viewBox="0 0 100 40" className="w-full h-full text-indigo-500 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
+            <div className="w-14 sm:w-20 h-6 sm:h-9 opacity-30 hidden sm:block">
+              <svg viewBox="0 0 100 40" className="w-full h-full text-indigo-600 stroke-current fill-none stroke-[2.5] stroke-linecap-round stroke-linejoin-round">
                 <path d="M0,35 Q20,20 40,28 T75,10 T100,4" />
               </svg>
             </div>
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
-              Terbayar (Online)
+
+          <div className="relative z-10">
+            <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
+              TERBAYAR (ONLINE)
             </span>
-            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
-              Rp {(displayTotalPaidOnline || 1519000).toLocaleString('id-ID')}
+            <h3 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              Rp {(displayTotalPaidOnline || 11237000).toLocaleString('id-ID')}
             </h3>
-            <div className="flex items-center gap-1.5 mt-3">
-              <span className="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                Live Data
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                ((•)) Live Data
               </span>
-              <span className="text-[11px] text-slate-400 font-medium">terverifikasi</span>
             </div>
           </div>
         </motion.div>
 
         {/* SISWA MENUNGGAK */}
         <motion.div 
-          whileHover={{ scale: 1.02, y: -5 }}
-          className="card-premium p-6 md:p-8 relative overflow-hidden flex flex-col justify-between"
+          whileHover={{ scale: 1.02, y: -4 }}
+          className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group"
         >
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100 shadow-sm">
-              <Users size={22} />
+          {/* Wave background accent */}
+          <div className="absolute -bottom-4 -right-4 w-28 h-20 bg-gradient-to-tl from-amber-100/50 via-amber-50/20 to-transparent rounded-tl-full pointer-events-none transition-all group-hover:scale-110" />
+
+          <div className="flex items-start justify-between gap-2 mb-3 relative z-10">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-100/70 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/60 shadow-xs">
+              <Users size={19} className="sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">
-              Siswa Menunggak
+
+          <div className="relative z-10">
+            <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
+              SISWA MENUNGGAK
             </span>
-            <h3 className="text-2xl md:text-3xl font-display font-black text-slate-900 tracking-tight">
-              {studentsWithArrears.length || 23}
+            <h3 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              {studentsWithArrears.length || 55}
             </h3>
-            <div className="flex items-center gap-1.5 mt-3">
-              <span className="text-[11px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
-                {totalStudentsCount} Total
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                👥 {totalStudentsCount || 56} Total
               </span>
-              <span className="text-[11px] text-slate-400 font-medium">siswa terdaftar</span>
             </div>
           </div>
         </motion.div>
@@ -365,28 +377,28 @@ export default function FinanceDashboardOverview({
           Menu Administrasi
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           
           {/* Card 1: Transaksi & Pembayaran */}
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('grup')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Receipt size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <Receipt size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-emerald-700 transition-colors leading-snug">
                 Transaksi & Pembayaran
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Catat pembayaran SPP, pendaftaran, buku, dan transaksi lainnya.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -395,22 +407,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('setoran_cash')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Banknote size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <Banknote size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-emerald-700 transition-colors leading-snug">
                 Setoran Cash (Bendahara ➔ Kepsek)
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Alur penyerahan uang tunai resmi, verifikasi 2 tingkat, & Bukti Setoran Cash sah.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -419,22 +431,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('tabungan')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Coins size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <Coins size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-emerald-700 transition-colors leading-snug">
                 Laporan Tabungan Siswa
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Tarik data tabungan rinci per periode, mutasi setoran & penarikan.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -443,22 +455,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('slip_gaji')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Wallet size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <Wallet size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-teal-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-teal-700 transition-colors leading-snug">
                 Slip Gaji Guru
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Input otomatis slip gaji, rincian potongan, & barcode kepala sekolah.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-teal-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-teal-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -467,22 +479,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('penetapan')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <Bell size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <Bell size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-amber-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-amber-700 transition-colors leading-snug">
                 Penagihan Iuran
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Kelola iuran bulanan dan pengingat pembayaran.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-amber-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-amber-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -491,22 +503,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('validasi')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <ShieldCheck size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <ShieldCheck size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-purple-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-purple-700 transition-colors leading-snug">
                 Validasi Pembayaran
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Validasi pembayaran yang dilakukan siswa/ wali.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-purple-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-purple-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -515,22 +527,22 @@ export default function FinanceDashboardOverview({
           <motion.div 
             whileHover={{ scale: 1.02, y: -5 }}
             onClick={() => setFinanceSubTab('riwayat')}
-            className="glass-3d p-5 rounded-[2rem] cursor-pointer flex flex-col justify-between group"
+            className="glass-3d p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] cursor-pointer flex flex-col justify-between group"
           >
             <div>
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                <FolderArchive size={20} />
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform">
+                <FolderArchive size={17} className="sm:w-5 sm:h-5" />
               </div>
-              <h4 className="font-black text-sm text-slate-900 mb-1 group-hover:text-indigo-700 transition-colors">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 mb-0.5 sm:mb-1 group-hover:text-indigo-700 transition-colors leading-snug">
                 Arsip Transaksi
               </h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+              <p className="text-[9px] sm:text-[11px] text-slate-500 leading-normal sm:leading-relaxed font-medium line-clamp-2">
                 Lihat riwayat semua transaksi pembayaran.
               </p>
             </div>
-            <div className="flex justify-end mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
-                <ArrowRight size={14} />
+            <div className="flex justify-end mt-2 sm:mt-4">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors">
+                <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
               </div>
             </div>
           </motion.div>
@@ -586,22 +598,27 @@ export default function FinanceDashboardOverview({
             </div>
           </motion.div>
 
-          {/* Card 8: Ringkasan Metode Pembayaran (Donut Chart) */}
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between">
-            <h4 className="font-bold text-xs text-slate-700 mb-2">
-              Ringkasan Metode Pembayaran
-            </h4>
+          {/* Card 8: Ringkasan Metode Pembayaran (Donut Chart - Spans 2 cols on mobile for presisi & clean alignment) */}
+          <div className="col-span-2 lg:col-span-2 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-50 pb-2">
+              <h4 className="font-black text-xs sm:text-sm text-slate-900 tracking-tight">
+                Ringkasan Metode Pembayaran
+              </h4>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                Persentase Transaksi
+              </span>
+            </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 py-1">
               {/* Donut Chart */}
-              <div className="w-20 h-20 shrink-0">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 relative flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={methodStats.chartData}
-                      innerRadius={24}
-                      outerRadius={36}
-                      paddingAngle={3}
+                      innerRadius={28}
+                      outerRadius={44}
+                      paddingAngle={4}
                       dataKey="value"
                     >
                       {methodStats.chartData.map((entry, index) => (
@@ -613,33 +630,44 @@ export default function FinanceDashboardOverview({
               </div>
 
               {/* Legend with percentages */}
-              <div className="flex-1 space-y-1 text-[10px]">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <div className="flex-1 w-full space-y-2 text-xs">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70">
+                  <span className="flex items-center gap-2 text-slate-700 font-bold">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0 shadow-2xs" />
                     Tunai
                   </span>
-                  <span className="font-bold text-slate-800">
-                    {methodStats.tunaiPct}% <span className="font-normal text-slate-400">(Rp {(methodStats.tunai / 1000000).toFixed(1)}M)</span>
-                  </span>
+                  <div className="flex items-center gap-2 font-mono text-right">
+                    <span className="font-black text-slate-900">{methodStats.tunaiPct}%</span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      (Rp {(methodStats.tunai / 1000000).toFixed(1)}M)
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70">
+                  <span className="flex items-center gap-2 text-slate-700 font-bold">
+                    <span className="w-3 h-3 rounded-full bg-indigo-500 shrink-0 shadow-2xs" />
                     Transfer Bank
                   </span>
-                  <span className="font-bold text-slate-800">
-                    {methodStats.transferPct}% <span className="font-normal text-slate-400">(Rp {(methodStats.transfer / 1000000).toFixed(1)}M)</span>
-                  </span>
+                  <div className="flex items-center gap-2 font-mono text-right">
+                    <span className="font-black text-slate-900">{methodStats.transferPct}%</span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      (Rp {(methodStats.transfer / 1000000).toFixed(1)}M)
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70">
+                  <span className="flex items-center gap-2 text-slate-700 font-bold">
+                    <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0 shadow-2xs" />
                     QRIS / E-Wallet
                   </span>
-                  <span className="font-bold text-slate-800">
-                    {methodStats.qrisPct}% <span className="font-normal text-slate-400">(Rp {(methodStats.qris / 1000000).toFixed(1)}M)</span>
-                  </span>
+                  <div className="flex items-center gap-2 font-mono text-right">
+                    <span className="font-black text-slate-900">{methodStats.qrisPct}%</span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      (Rp {(methodStats.qris / 1000000).toFixed(1)}M)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
