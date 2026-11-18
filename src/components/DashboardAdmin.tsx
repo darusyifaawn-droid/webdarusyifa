@@ -10,7 +10,7 @@ import {
   RefreshCw, Calendar, Save, Trophy, Star, GraduationCap, ChevronDown, ChevronUp, 
   ChevronRight, ArrowRight, ArrowLeft, Search, PlusCircle, History as HistoryIcon, 
   ExternalLink, Sun, Moon, Wallet, QrCode, Scan, Home, LayoutDashboard, Check, 
-  Sparkles, Layers, Coins, Banknote, Award, Filter
+  Sparkles, Layers, Coins, Banknote, Award, Filter, Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
@@ -7417,6 +7417,194 @@ export default function DashboardAdmin() {
 
  {activeTab === 'settings' && (
  <div className="space-y-6">
+ {/* Card 1: White-label & Identity Settings for Multi-School */}
+ <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-slate-100">
+ <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center shadow-inner">
+ <Building2 size={28} />
+ </div>
+ <div>
+ <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Pengaturan Identitas & Logo Sekolah (White-label)</h2>
+ <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Kustomisasi nama, logo, TTD kepala sekolah & data untuk 5+ RA berbeda</p>
+ </div>
+ </div>
+ <a 
+ href="/panduan-deployment" 
+ target="_blank" 
+ rel="noopener noreferrer"
+ className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+ >
+ <FileText size={16} /> Panduan Deployment PDF
+ </a>
+ </div>
+
+ <form onSubmit={handleUpdateSettings} className="space-y-6">
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Nama Yayasan / Naungan</label>
+ <input
+ type="text"
+ value={settings?.foundationName || 'YAYASAN DARUSYIFA AL ISLAMIYAH'}
+ onChange={(e) => setSettings({ ...settings, foundationName: e.target.value })}
+ placeholder="Contoh: YAYASAN DARUSYIFA AL ISLAMIYAH"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Nama Sekolah / RA</label>
+ <input
+ type="text"
+ value={settings?.schoolName || 'RAUDHATUL ATHFAL (RA) DARUSYIFA ARJAWINANGUN'}
+ onChange={(e) => setSettings({ ...settings, schoolName: e.target.value })}
+ placeholder="Contoh: RA AL-HIDAYAH"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Nomor Statistik / NPSN</label>
+ <input
+ type="text"
+ value={settings?.nsraNpsn || 'NSRA : 101232090331 / NPSN : 69993923'}
+ onChange={(e) => setSettings({ ...settings, nsraNpsn: e.target.value })}
+ placeholder="Contoh: NSRA : 101232090331 / NPSN : 69993923"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Nama Kepala Sekolah (TTD Resmi)</label>
+ <input
+ type="text"
+ value={settings?.principalName || 'Gian Dwi Wahyuni, S.H'}
+ onChange={(e) => setSettings({ ...settings, principalName: e.target.value })}
+ placeholder="Contoh: Gian Dwi Wahyuni, S.H"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Kota / Kabupaten Sekolah</label>
+ <input
+ type="text"
+ value={settings?.city || 'Arjawinangun'}
+ onChange={(e) => setSettings({ ...settings, city: e.target.value })}
+ placeholder="Contoh: Cirebon"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">No. Telepon / WhatsApp Sekolah</label>
+ <input
+ type="text"
+ value={settings?.phone || '08123456789'}
+ onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+ placeholder="Contoh: 08123456789"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div className="md:col-span-2">
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Alamat Lengkap Sekolah</label>
+ <textarea
+ rows={2}
+ value={settings?.address || 'Blok Telar Baru RT.004 RW.014 Desa/Kecamatan Arjawinangun Kabupaten Cirebon'}
+ onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+ placeholder="Tuliskan alamat lengkap sekolah..."
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Tahun Ajaran Aktif</label>
+ <input
+ type="text"
+ value={settings?.academicYear || '2024/2025'}
+ onChange={(e) => setSettings({ ...settings, academicYear: e.target.value })}
+ placeholder="Contoh: 2024/2025"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Logo Resmi Sekolah (Upload / URL)</label>
+ <div className="flex gap-2 items-center">
+ <input
+ type="text"
+ value={settings?.logoUrl || ''}
+ onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+ placeholder="URL logo atau Upload foto ->"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ <label className="px-4 py-3.5 bg-emerald-600 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-emerald-700 flex-shrink-0 flex items-center gap-1">
+ <Upload size={14} /> Upload
+ <input
+ type="file"
+ accept="image/*"
+ className="hidden"
+ onChange={async (e) => {
+ const file = e.target.files?.[0];
+ if (file) {
+ const reader = new FileReader();
+ reader.onloadend = async () => {
+ const compressed = await compressImage(reader.result as string, 500, 500, 0.8);
+ setSettings((prev: any) => ({ ...prev, logoUrl: compressed }));
+ };
+ reader.readAsDataURL(file);
+ }
+ }}
+ />
+ </label>
+ </div>
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Nama Bank & No. Rekening Pembayaran</label>
+ <div className="grid grid-cols-2 gap-2">
+ <input
+ type="text"
+ value={settings?.bankName || 'BRI'}
+ onChange={(e) => setSettings({ ...settings, bankName: e.target.value })}
+ placeholder="Nama Bank (BRI/BSI)"
+ className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ <input
+ type="text"
+ value={settings?.bankAccount || '4259-01-029482-53-1'}
+ onChange={(e) => setSettings({ ...settings, bankAccount: e.target.value })}
+ placeholder="Nomor Rekening"
+ className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+ </div>
+
+ <div>
+ <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Atas Nama Rekening</label>
+ <input
+ type="text"
+ value={settings?.bankHolder || 'RA DARUSYIFA'}
+ onChange={(e) => setSettings({ ...settings, bankHolder: e.target.value })}
+ placeholder="Contoh: RA DARUSYIFA"
+ className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+ />
+ </div>
+ </div>
+
+ <div className="flex justify-end pt-4">
+ <button
+ type="submit"
+ className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
+ >
+ <Save size={18} /> Simpan Identitas & Branding Sekolah
+ </button>
+ </div>
+ </form>
+ </div>
+
+ {/* Card 2: Security & Database Settings */}
  <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 transition-colors">
  <div className="flex items-center gap-6 mb-8">
  <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 shadow-inner">

@@ -432,41 +432,69 @@ export default function DashboardSiswa() {
   // --- Print Rapor Belajar & Rapor Hafalan & Keuangan ---
   const getWaliKelasName = (studentClass?: string) => {
     const normClass = (studentClass || 'UTSMAN BIN AFFAN').trim().toUpperCase();
+
+    // 1. For UTSMAN BIN AFFAN / UTSMAN: look for teacher profile containing 'Supriyatin' first
+    if (normClass.includes('UTSMAN')) {
+      const supriyatin = teachers.find(t => (t.name || '').toLowerCase().includes('supriyatin'));
+      if (supriyatin && supriyatin.name) {
+        return supriyatin.name.trim();
+      }
+      return "Supriyatin, S.Pd";
+    }
+
+    // 2. For UMAR BIN KHATTAB / UMAR: look for teacher profile containing 'Marfuah' first
+    if (normClass.includes('UMAR')) {
+      const marfuah = teachers.find(t => (t.name || '').toLowerCase().includes('marfuah'));
+      if (marfuah && marfuah.name) {
+        return marfuah.name.trim();
+      }
+      return "Marfuah";
+    }
+
+    // 3. Dynamic lookup in teachers list for other classes
     const found = teachers.find(t => {
       const teacherClass = (t.kelas || t.assignedClass || t.waliKelas || '').trim().toUpperCase();
-      return teacherClass && (teacherClass === normClass || teacherClass.includes(normClass) || normClass.includes(teacherClass));
+      return teacherClass && (teacherClass === normClass || (teacherClass.length >= 3 && normClass.includes(teacherClass)));
     });
-    if (found && found.name) return found.name;
-    if (normClass.includes('UMAR')) return "Ustz. Siti Fatimah, S.Pd";
-    if (normClass.includes('ALI')) return "Ustz. Nur Aini, S.Pd";
-    if (normClass.includes('ABU BAKAR')) return "Ustz. Rahmawati, S.Pd";
-    return "Ustz. Mas'udah, S.Pd";
+
+    if (found && found.name) {
+      return found.name.trim();
+    }
+
+    if (normClass.includes('ALI')) return "Nur Aini, S.Pd";
+    if (normClass.includes('ABU BAKAR')) return "Rahmawati, S.Pd";
+    return "Supriyatin, S.Pd";
   };
 
-  const getSignaturesSectionHTML = (waliKelasName: string) => `
-    <div class="sig-section" style="margin-top:24px;font-size:11px;page-break-inside:avoid;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
-        <div style="text-align:center;width:220px;">
+  const getSignaturesSectionHTML = (waliKelasName: string) => {
+    const cityName = settings?.city || 'Arjawinangun';
+    const schoolName = settings?.schoolName || 'RA Darusyifa Arjawinangun';
+    const principalName = settings?.principalName || 'Gian Dwi Wahyuni, S.H';
+
+    return `
+    <div class="sig-section" style="margin-top:14px;font-size:10px;page-break-inside:avoid;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <div style="text-align:center;width:200px;">
           <div>Orang Tua / Wali Santri</div>
-          <div style="height:40px;"></div>
-          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:160px;padding-bottom:2px;">
+          <div style="height:32px;"></div>
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:150px;padding-bottom:1px;">
             ( ${userData?.namaAyah || userData?.namaIbu || 'Wali Santri'} )
           </div>
         </div>
-        <div style="text-align:center;width:220px;">
-          <div>Arjawinangun, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Wali Kelas</div>
-          <div style="height:40px;"></div>
-          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:160px;padding-bottom:2px;">
+        <div style="text-align:center;width:200px;">
+          <div>${cityName}, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Wali Kelas</div>
+          <div style="height:32px;"></div>
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:150px;padding-bottom:1px;">
             ( ${waliKelasName} )
           </div>
         </div>
       </div>
       <div style="text-align:center;">
-        <div style="text-align:center;width:240px;margin:0 auto;">
-          <div>Mengetahui,<br/><strong>Kepala RA Darusyifa Arjawinangun</strong></div>
-          <div style="display:flex;flex-direction:column;align-items:center;margin:6px 0 2px 0;">
-            <div style="border:2px solid #059669;padding:4px;background:#ffffff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);display:inline-block;">
-              <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div style="text-align:center;width:220px;margin:0 auto;">
+          <div>Mengetahui,<br/><strong>Kepala ${schoolName}</strong></div>
+          <div style="display:flex;flex-direction:column;align-items:center;margin:4px 0 2px 0;">
+            <div style="border:1.5px solid #059669;padding:2.5px;background:#ffffff;border-radius:6px;display:inline-block;">
+              <svg width="44" height="44" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="0" y="0" width="100" height="100" fill="white"/>
                 <rect x="6" y="6" width="28" height="28" fill="#0f172a" rx="4"/>
                 <rect x="10" y="10" width="20" height="20" fill="white" rx="2"/>
@@ -510,15 +538,16 @@ export default function DashboardSiswa() {
                 <rect x="78" y="84" width="6" height="6" fill="#0f172a"/>
               </svg>
             </div>
-            <span style="font-size:8px;color:#059669;font-weight:bold;letter-spacing:0.5px;margin-top:2px;">VERIFIKASI QR DOKUMEN RESMI</span>
+            <span style="font-size:7.5px;color:#059669;font-weight:bold;letter-spacing:0.3px;">VERIFIKASI QR DOKUMEN RESMI</span>
           </div>
-          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:180px;padding-bottom:2px;">
-            Gian Dwi Wahyuni, S.H
+          <div style="font-weight:bold;border-bottom:1px solid #334155;display:inline-block;min-width:160px;padding-bottom:1px;">
+            ${principalName}
           </div>
         </div>
       </div>
     </div>
   `;
+  };
 
   const handlePrintRaporBelajar = () => {
     const filteredList = progress.filter(
@@ -529,34 +558,35 @@ export default function DashboardSiswa() {
 
     const waliKelasName = getWaliKelasName(userData?.kelas);
 
+    // Render ALL evaluation items for selected period without slicing
     const rowsHtml = filteredList.length > 0
       ? filteredList.map((p, i) => {
           const score = Number(p.score) || 0;
           const grade = score >= 90 ? 'A (Sangat Baik)' : score >= 80 ? 'B (Baik)' : score >= 70 ? 'C (Cukup)' : 'D (Perlu Bimbingan)';
           return `
             <tr>
-              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
-              <td style="padding:8px;border:1px solid #cbd5e1;"><strong>${p.category || p.title || '-'}</strong></td>
-              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${p.evaluationPeriod || '-'}</td>
-              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">${score}</td>
-              <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${grade}</td>
-              <td style="padding:8px;border:1px solid #cbd5e1;">${p.description || '-'}</td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;"><strong>${p.category || p.title || '-'}</strong></td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;">${p.evaluationPeriod || '-'}</td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;">${score}</td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;">${grade}</td>
+              <td style="padding:3.5px 6px;border:1px solid #cbd5e1;">${p.description || '-'}</td>
             </tr>
           `;
         }).join('')
-      : `<tr><td colspan="6" style="padding:15px;text-align:center;color:#64748b;">Belum ada data penilaian pada periode ini.</td></tr>`;
+      : `<tr><td colspan="6" style="padding:10px;text-align:center;color:#64748b;">Belum ada data penilaian pada periode ${progressPeriodFilter}.</td></tr>`;
 
-    // Hafalan Rows
-    const hafalanRowsHtml = hafalanMaterials.slice(0, 10).map((mat, i) => {
+    // Hafalan Rows Summary
+    const hafalanRowsHtml = hafalanMaterials.slice(0, 6).map((mat, i) => {
       const prog = hafalanProgress.find(p => p.materialId === mat.id);
       const stars = prog?.stars ? '★'.repeat(prog.stars) : '★★★';
       const status = prog?.status || 'Mumtaz (Lulus)';
       return `
         <tr>
-          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
-          <td style="padding:6px 8px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong> <small style="color:#64748b;">(${mat.kategori})</small></td>
-          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
-          <td style="padding:6px 8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${status}</td>
+          <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+          <td style="padding:3.5px 6px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong> <small style="color:#64748b;">(${mat.kategori})</small></td>
+          <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
+          <td style="padding:3.5px 6px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${status}</td>
         </tr>
       `;
     }).join('');
@@ -570,18 +600,37 @@ export default function DashboardSiswa() {
     w.document.write(`
       <html>
         <head>
-          <title>Laporan Hasil Belajar - ${userData?.name || 'Siswa'}</title>
+          <title>Laporan Hasil Belajar (${progressPeriodFilter}) - ${userData?.name || 'Siswa'}</title>
           <style>
-            ${getPrintStyles()}
-            .rapot-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
-            .rapot-table th, .rapot-table td { border: 1px solid #cbd5e1; padding: 6px 8px; }
-            .rapot-table th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 10.5px; }
-            .section-title { font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-top: 14px; margin-bottom: 4px; }
+            @page { size: A4 portrait; margin: 8mm 10mm; }
+            @media print {
+              html, body {
+                width: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+              }
+              .sig-section { page-break-inside: avoid; }
+            }
+            body { font-family: 'Inter', sans-serif; font-size: 10px; color: #0f172a; padding: 6px 12px; }
+            .kop-surat { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 2px; }
+            .kop-surat .logo-container img { max-width: 54px; height: auto; }
+            .kop-surat .kop-text { text-align: center; }
+            .kop-surat .kop-text h2 { margin: 0; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; }
+            .kop-surat .kop-text h1 { margin: 1px 0; font-size: 13.5px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+            .kop-surat .kop-text p { margin: 0; font-size: 9px; color: #475569; font-weight: 800; }
+            .kop-surat .kop-text p.address { font-size: 8px; font-weight: 500; color: #64748b; }
+            .kop-separator { border: 0; border-top: 2px solid #0f172a; border-bottom: 1px solid #0f172a; height: 1px; margin: 3px 0 6px 0; }
+            .doc-title { text-align: center; margin-bottom: 4px; font-size: 11.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; }
+            .rapot-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 3px; }
+            .rapot-table th, .rapot-table td { border: 1px solid #cbd5e1; padding: 3.5px 6px; line-height: 1.25; }
+            .rapot-table th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 9px; }
+            .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-top: 8px; margin-bottom: 2px; }
           </style>
         </head>
         <body onload="window.print()">
-          ${getPrintHeaderHTML('LAPORAN HASIL BELAJAR SANTRI (RAPOR SISWA)', settings?.schoolName, settings?.logoUrl)}
-          <div style="margin:14px 0 10px 0;font-size:12px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:4px;">
+          ${getPrintHeaderHTML(`LAPORAN HASIL BELAJAR SANTRI (${progressPeriodFilter.toUpperCase()})`, settings?.schoolName, settings?.logoUrl)}
+          <div style="margin:6px 0;font-size:10.5px;display:grid;grid-template-columns:110px 1fr 110px 1fr;gap:2px 6px;line-height:1.2;">
             <div>Nama Santri</div><div>: <strong>${userData?.name || '-'}</strong></div>
             <div>Kelas / Kelompok</div><div>: <strong>${userData?.kelas || 'UTSMAN BIN AFFAN'}</strong></div>
             <div>NISN / NIS</div><div>: ${userData?.nisn || userData?.nis || '-'}</div>
@@ -593,11 +642,11 @@ export default function DashboardSiswa() {
           <table class="rapot-table">
             <thead>
               <tr>
-                <th style="width:35px;text-align:center;">No</th>
+                <th style="width:30px;text-align:center;">No</th>
                 <th>Aspek Perkembangan / Mata Pelajaran</th>
-                <th style="width:100px;">Periode</th>
-                <th style="width:60px;text-align:center;">Skor</th>
-                <th style="width:130px;">Predikat</th>
+                <th style="width:90px;">Periode</th>
+                <th style="width:50px;text-align:center;">Skor</th>
+                <th style="width:110px;">Predikat</th>
                 <th>Catatan Perkembangan</th>
               </tr>
             </thead>
@@ -609,10 +658,10 @@ export default function DashboardSiswa() {
           <table class="rapot-table">
             <thead>
               <tr>
-                <th style="width:35px;text-align:center;">No</th>
+                <th style="width:30px;text-align:center;">No</th>
                 <th>Materi Hafalan (Surah / Doa / Hadits)</th>
-                <th style="width:90px;text-align:center;">Bintang</th>
-                <th style="width:120px;text-align:center;">Status / Predikat</th>
+                <th style="width:80px;text-align:center;">Bintang</th>
+                <th style="width:110px;text-align:center;">Status / Predikat</th>
               </tr>
             </thead>
             <tbody>${hafalanRowsHtml}</tbody>
@@ -655,17 +704,17 @@ export default function DashboardSiswa() {
 
     const waliKelasName = getWaliKelasName(userData?.kelas);
 
-    const rowsHtml = hafalanMaterials.map((mat, i) => {
+    const rowsHtml = hafalanMaterials.slice(0, 10).map((mat, i) => {
       const prog = hafalanProgress.find(p => p.materialId === mat.id);
       const stars = prog?.stars ? '★'.repeat(prog.stars) : '-';
       return `
         <tr>
-          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
-          <td style="padding:8px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong></td>
-          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${mat.kategori}</td>
-          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${prog?.status || 'Belum Mulai'}</td>
-          <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
-          <td style="padding:8px;border:1px solid #cbd5e1;">${prog?.catatanGuru || '-'}</td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;"><strong>${mat.judul}</strong></td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;text-align:center;">${mat.kategori}</td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;text-align:center;font-weight:bold;color:#059669;">${prog?.status || 'Belum Mulai'}</td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;text-align:center;color:#d97706;">${stars}</td>
+          <td style="padding:3px 5px;border:1px solid #cbd5e1;">${prog?.catatanGuru || '-'}</td>
         </tr>
       `;
     }).join('');
@@ -674,25 +723,50 @@ export default function DashboardSiswa() {
       <html>
         <head>
           <title>Rapor Hafalan Tahfidz - ${userData?.name || 'Siswa'}</title>
-          <style>${getPrintStyles()}</style>
+          <style>
+            @page { size: A4 portrait; margin: 6mm 8mm; }
+            @media print {
+              html, body {
+                width: 100%;
+                height: 100%;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 4px 10px !important;
+                box-sizing: border-box !important;
+              }
+            }
+            body { font-family: 'Inter', sans-serif; font-size: 10px; color: #0f172a; padding: 6px 12px; }
+            .kop-surat { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 2px; }
+            .kop-surat .logo-container img { max-width: 52px; height: auto; }
+            .kop-surat .kop-text { text-align: center; }
+            .kop-surat .kop-text h2 { margin: 0; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; }
+            .kop-surat .kop-text h1 { margin: 1px 0; font-size: 13.5px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+            .kop-surat .kop-text p { margin: 0; font-size: 9px; color: #475569; font-weight: 800; }
+            .kop-surat .kop-text p.address { font-size: 8px; font-weight: 500; color: #64748b; }
+            .kop-separator { border: 0; border-top: 2px solid #0f172a; border-bottom: 1px solid #0f172a; height: 1px; margin: 3px 0 5px 0; }
+            .doc-title { text-align: center; margin-bottom: 4px; font-size: 11.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0f172a; }
+            .rapot-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 3px; }
+            .rapot-table th, .rapot-table td { border: 1px solid #cbd5e1; padding: 3px 5px; line-height: 1.2; }
+            .rapot-table th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; font-size: 9px; }
+          </style>
         </head>
         <body onload="window.print()">
           ${getPrintHeaderHTML('LAPORAN CAPAIAN HAFALAN TAHFIDZ & DOA HARIAN', settings?.schoolName, settings?.logoUrl)}
-          <div style="margin:16px 0;font-size:12px;display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:6px;">
+          <div style="margin:6px 0;font-size:10.5px;display:grid;grid-template-columns:110px 1fr 110px 1fr;gap:2px 6px;line-height:1.2;">
             <div>Nama Santri</div><div>: <strong>${userData?.name || '-'}</strong></div>
             <div>Kelas / Kelompok</div><div>: <strong>${userData?.kelas || '-'}</strong></div>
             <div>NISN / NIS</div><div>: ${userData?.nisn || userData?.nis || '-'}</div>
             <div>Tanggal Cetak</div><div>: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+          <table class="rapot-table">
             <thead>
               <tr style="background:#f1f5f9;">
-                <th style="padding:8px;border:1px solid #cbd5e1;width:35px;text-align:center;">No</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;">Materi Hafalan</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;width:110px;text-align:center;">Kategori</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;width:120px;text-align:center;">Status</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;width:90px;text-align:center;">Bintang</th>
-                <th style="padding:8px;border:1px solid #cbd5e1;">Catatan Guru</th>
+                <th style="width:30px;text-align:center;">No</th>
+                <th>Materi Hafalan</th>
+                <th style="width:100px;text-align:center;">Kategori</th>
+                <th style="width:110px;text-align:center;">Status</th>
+                <th style="width:80px;text-align:center;">Bintang</th>
+                <th>Catatan Guru</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -1036,6 +1110,7 @@ export default function DashboardSiswa() {
         proofImage: payProofImage || null,
         status: payMethod === 'Tabungan' ? 'lunas' : 'pending',
         billId: selectedBillItem?.id || null,
+        arrearDetailId: selectedBillItem?.id || null,
         createdAt: serverTimestamp()
       });
 
@@ -1046,6 +1121,21 @@ export default function DashboardSiswa() {
         const tabDeduct = Math.min(userData?.savings || 0, payAmount);
         const newSavings = Math.max(0, (userData?.savings || 0) - tabDeduct);
         await updateDoc(doc(db, 'users', user.uid), { savings: newSavings });
+      }
+
+      if (selectedBillItem?.id && userData?.arrears_details) {
+        const currentDetails = [...userData.arrears_details];
+        const idx = currentDetails.findIndex((d: any) => d.id === selectedBillItem.id);
+        if (idx >= 0) {
+          const existingPaid = Number(currentDetails[idx].paidAmount) || 0;
+          currentDetails[idx] = {
+            ...currentDetails[idx],
+            paidAmount: existingPaid + Number(payAmount)
+          };
+          await updateDoc(doc(db, 'users', user.uid), {
+            arrears_details: currentDetails
+          });
+        }
       }
 
       alert('Konfirmasi pembayaran berhasil dikirim!');
@@ -1132,7 +1222,28 @@ export default function DashboardSiswa() {
   const totalArrears = Number(userData?.arrears) || 0;
   const hasArrears = totalArrears > 0;
   const arrearsDetails: any[] = Array.isArray(userData?.arrears_details) && userData.arrears_details.length > 0
-    ? userData.arrears_details.filter((d: any) => d.status !== 'lunas')
+    ? userData.arrears_details.map((item: any) => {
+        const itemName = (item.categoryName || item.month || item.name || '').trim().toLowerCase();
+        const itemPayments = payments.filter(p => {
+          if (p.arrearDetailId === item.id || p.billId === item.id) return true;
+          const pCat = (p.category || p.categoryName || p.iuranCategory || p.description || '').toLowerCase();
+          return itemName && pCat.includes(itemName);
+        });
+        const totalPaidFromPayments = itemPayments
+          .filter(p => p.status === 'pending' || p.status === 'lunas' || p.status === 'LUNAS' || p.status === 'approved' || p.status === 'verified')
+          .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const effectivePaid = Math.max(Number(item.paidAmount) || 0, totalPaidFromPayments);
+        const isPaidInFull = effectivePaid >= (Number(item.amount) || 0) || itemPayments.some(p => (p.status === 'lunas' || p.status === 'LUNAS' || p.status === 'approved') && (Number(p.amount) || 0) >= (Number(item.amount) || 0));
+        return {
+          ...item,
+          paidAmount: effectivePaid,
+          status: isPaidInFull ? 'lunas' : item.status
+        };
+      }).filter((d: any) => {
+        const totalNom = Number(d.amount) || 0;
+        const paidNom = Number(d.paidAmount) || 0;
+        return (totalNom - paidNom) > 0 && d.status !== 'lunas';
+      })
     : (hasArrears ? [{ id: 'spp_default', categoryName: 'SPP Bulanan / Iuran Administrasi', amount: totalArrears, paidAmount: 0, dueDate: '10 Nopember 2026' }] : []);
 
   const hafalanCategories = Array.from(
@@ -2278,12 +2389,18 @@ export default function DashboardSiswa() {
                                   <p className="text-[10px] font-black uppercase text-slate-400">Sisa Tagihan</p>
                                   <p className="text-base font-black text-rose-600">Rp {remaining.toLocaleString('id-ID')}</p>
                                 </div>
-                                <button
-                                  onClick={() => handleOpenBayarModal(item)}
-                                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md shadow-rose-600/20 shrink-0"
-                                >
-                                  BAYAR SEKARANG
-                                </button>
+                                {payments.some(p => p.status === 'pending' && (p.arrearDetailId === item.id || p.billId === item.id)) ? (
+                                  <span className="px-4 py-2 bg-amber-100 text-amber-800 rounded-xl text-xs font-black uppercase tracking-wider">
+                                    Menunggu Validasi
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleOpenBayarModal(item)}
+                                    className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md shadow-rose-600/20 shrink-0"
+                                  >
+                                    BAYAR SEKARANG
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
