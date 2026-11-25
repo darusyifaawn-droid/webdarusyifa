@@ -55,12 +55,44 @@ export default function DashboardSiswa() {
 
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<any | null>(null);
 
+  const isTagihanCreationRecord = (pay: any) => {
+    const desc = (pay?.description || '').toString().trim().toLowerCase();
+    return pay?.type === 'tagihan' || desc.startsWith('tagihan baru');
+  };
+
+  const isSavingsTransactionRecord = (pay: any) => {
+    if (isTagihanCreationRecord(pay)) return false;
+    const type = (pay?.type || '').toString().toLowerCase();
+    if (type === 'tabungan' || type === 'tabungan_masuk' || type === 'tabungan_keluar' || pay?.isSavingsDeposit === true) {
+      return true;
+    }
+    const desc = (pay?.description || '').toString().trim().toLowerCase();
+    if (desc.startsWith('bayar ')) return false;
+    if (
+      desc.startsWith('nabung') ||
+      desc.includes('setoran tabungan') ||
+      desc.includes('koreksi saldo') ||
+      desc.includes('update manual tabungan') ||
+      desc.includes('tarik tabungan')
+    ) {
+      return true;
+    }
+    const cat = (pay?.category || pay?.categoryName || pay?.iuranCategory || '').toString().toLowerCase();
+    if (cat.includes('tabungan') && !cat.includes('spp') && !cat.includes('iuran') && !cat.includes('pembayaran')) {
+      return true;
+    }
+    return false;
+  };
+
+  const isFeePaymentRecord = (pay: any) => {
+    return !isTagihanCreationRecord(pay) && !isSavingsTransactionRecord(pay);
+  };
+
   const isPaymentCategory = (pay: any) => {
-    const isLunas = pay?.status === 'lunas' || pay?.status === 'LUNAS';
+    const statusLower = (pay?.status || '').toString().toLowerCase();
+    const isLunas = statusLower === 'lunas' || statusLower === 'cicilan' || statusLower === 'approved' || statusLower === 'verified';
     if (!isLunas) return false;
-    const cat = (pay?.category || pay?.categoryName || pay?.iuranCategory || pay?.description || '').toString().toLowerCase();
-    if (cat.includes('tabungan') && !cat.includes('spp') && !cat.includes('iuran') && !cat.includes('pembayaran')) return false;
-    return true;
+    return isFeePaymentRecord(pay);
   };
 
   const stripCodeAndTags = (raw?: string) => {
@@ -784,16 +816,23 @@ export default function DashboardSiswa() {
     const w = window.open('', '_blank');
     if (!w) return;
     const rowsHtml = payments.length > 0
-      ? payments.map((p, i) => `
+      ? payments.map((p, i) => {
+          const isFeePayment = isFeePaymentRecord(p);
+          const statusLower = (p.status || '').toString().toLowerCase();
+          const statusDisplay = isFeePayment
+            ? (p.status || 'lunas')
+            : (statusLower === 'pending' || statusLower === 'ditolak' || statusLower === 'rejected' ? p.status : '-');
+          return `
           <tr>
             <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
             <td style="padding:8px;border:1px solid #cbd5e1;">${p.date || '-'}</td>
             <td style="padding:8px;border:1px solid #cbd5e1;"><strong>${p.category || p.categoryName || 'Pembayaran'}</strong><br/><small>${p.description || '-'}</small></td>
             <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;">${p.method || 'Tunai'}</td>
-            <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;text-transform:uppercase;">${p.status || 'lunas'}</td>
+            <td style="padding:8px;border:1px solid #cbd5e1;text-align:center;text-transform:uppercase;">${statusDisplay}</td>
             <td style="padding:8px;border:1px solid #cbd5e1;text-align:right;font-weight:bold;">Rp ${(Number(p.amount) || 0).toLocaleString('id-ID')}</td>
           </tr>
-        `).join('')
+        `;
+        }).join('')
       : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#64748b;">Belum ada riwayat transaksi.</td></tr>`;
 
     w.document.write(`
@@ -1278,15 +1317,37 @@ export default function DashboardSiswa() {
 
     // Add payments
     payments.slice(0, 5).forEach((p) => {
-      const isLunas = p.status === 'lunas' || p.status === 'LUNAS';
+      const statusLower = (p.status || '').toString().toLowerCase();
+      const isTagihan = isTagihanCreationRecord(p);
+      const isSavings = isSavingsTransactionRecord(p);
+      const isLunas = !isTagihan && !isSavings && (statusLower === 'lunas' || statusLower === 'approved' || statusLower === 'verified');
+      const activityStatus = isTagihan
+        ? 'TAGIHAN'
+        : isSavings
+        ? (statusLower === 'pending' ? 'PENDING' : statusLower === 'ditolak' || statusLower === 'rejected' ? 'DITOLAK' : 'TABUNGAN')
+        : isLunas
+        ? 'LUNAS'
+        : statusLower === 'ditolak' || statusLower === 'rejected'
+        ? 'DITOLAK'
+        : 'PENDING';
+      const badgeColor = isTagihan
+        ? 'bg-slate-100 text-slate-600'
+        : isSavings
+        ? (statusLower === 'pending' ? 'bg-amber-100 text-amber-700' : statusLower === 'ditolak' || statusLower === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700')
+        : isLunas
+        ? 'bg-emerald-100 text-[#059669]'
+        : statusLower === 'ditolak' || statusLower === 'rejected'
+        ? 'bg-rose-100 text-rose-700'
+        : 'bg-amber-100 text-amber-700';
+
       list.push({
         id: `pay_${p.id || Math.random()}`,
         type: 'payment',
         title: p.category || p.categoryName || p.iuranCategory || 'Transaksi Keuangan',
         subtitle: `Rp ${(Number(p.amount) || 0).toLocaleString('id-ID')} (${p.method || 'Transfer'})`,
         date: p.date || (p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('id-ID') : 'Terbaru'),
-        status: isLunas ? 'LUNAS' : 'PENDING',
-        statusBadgeColor: isLunas ? 'bg-emerald-100 text-[#059669]' : 'bg-amber-100 text-amber-700',
+        status: activityStatus,
+        statusBadgeColor: badgeColor,
         iconBg: 'bg-purple-100 text-purple-600',
         icon: Wallet,
         timestamp: p.createdAt?.toDate ? p.createdAt.toDate().getTime() : Date.now()
@@ -2440,20 +2501,34 @@ export default function DashboardSiswa() {
                             <tr key={pay.id || idx} className="hover:bg-slate-50/70 transition-all">
                               <td className="px-3 sm:px-6 py-3.5">
                                 <p className="font-black text-slate-900 text-xs sm:text-sm line-clamp-2 leading-snug">{pay.description || pay.category || 'Transaksi'}</p>
-                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                                  <span className={`text-[8px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-md inline-block tracking-wider ${
-                                    pay.status === 'lunas' || pay.status === 'LUNAS'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : pay.status === 'ditolak'
-                                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  }`}>
-                                    {pay.status || 'lunas'}
-                                  </span>
-                                  <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold sm:hidden uppercase">
-                                    • {pay.category || pay.categoryName || 'Umum'}
-                                  </span>
-                                </div>
+                                {(() => {
+                                  const isFeePayment = isFeePaymentRecord(pay);
+                                  const statusLower = (pay.status || '').toString().toLowerCase();
+                                  const showStatusBadge = isFeePayment
+                                    ? Boolean(pay.status)
+                                    : (statusLower === 'pending' || statusLower === 'ditolak' || statusLower === 'rejected');
+                                  const isLunasBadge = isFeePayment && (statusLower === 'lunas' || statusLower === 'approved' || statusLower === 'verified');
+                                  const isRejectedBadge = statusLower === 'ditolak' || statusLower === 'rejected';
+
+                                  return (
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                      {showStatusBadge && (
+                                        <span className={`text-[8px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-md inline-block tracking-wider ${
+                                          isLunasBadge
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : isRejectedBadge
+                                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        }`}>
+                                          {isLunasBadge ? 'lunas' : pay.status}
+                                        </span>
+                                      )}
+                                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold sm:hidden uppercase">
+                                        {showStatusBadge ? '• ' : ''}{pay.category || pay.categoryName || 'Umum'}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td className="px-4 sm:px-6 py-3.5 text-xs font-black text-slate-600 uppercase hidden sm:table-cell">
                                 {pay.category || pay.categoryName || 'Umum'}

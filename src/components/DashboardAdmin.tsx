@@ -1452,6 +1452,8 @@ export default function DashboardAdmin() {
  amount: numAmount,
  description: `Tagihan Baru: ${desc}`,
  type: 'tagihan',
+ iuranName: desc,
+ arrearDetailId: newArrearDetail.id,
  date: new Date().toISOString().split('T')[0],
  createdAt: serverTimestamp()
  });
@@ -1460,9 +1462,11 @@ export default function DashboardAdmin() {
  setSelectedStudentForFinance((prev: any) => ({
  ...prev,
  arrears: newArrears,
- arrears_details: newDetails
+ arrears_details: newDetails,
+ viewArrears: newArrears
  }));
  }
+ setAllUsers((prev: any[]) => prev.map(u => u.id === student.id ? { ...u, arrears: newArrears, arrears_details: newDetails } : u));
 
  alert('Tagihan berhasil ditambahkan!');
  } catch (error) {
@@ -1862,9 +1866,11 @@ export default function DashboardAdmin() {
  await addDoc(collection(db, 'payments'), {
  studentId: student.id,
  amount: amount,
- description: `Tagihan Baru [${categoryName}]: ${financeIuranName}`,
+ description: `Tagihan Baru [${categoryName}]: ${effectiveIuranName}`,
  type: 'tagihan',
  iuranCategory: categoryName,
+ iuranName: effectiveIuranName,
+ arrearDetailId: specificDetail.id,
  date: new Date().toISOString().split('T')[0],
  createdAt: serverTimestamp()
  });
@@ -2050,13 +2056,133 @@ export default function DashboardAdmin() {
  };
 
   const handleDeletePayment = async (pay: any) => {
-    if (!window.confirm('Hapus riwayat transaksi ini secara permanen? Saldo tabungan dan tunggakan siswa terkait akan disesuaikan otomatis.')) return;
+    const isTagihanCreation =
+      pay.type === 'tagihan' ||
+      (typeof pay.description === 'string' && pay.description.trim().toLowerCase().startsWith('tagihan baru'));
+    const confirmMsg = isTagihanCreation
+      ? 'Hapus catatan penetapan tagihan ini secara permanen? Tagihan terkait di Rekap Admin dan Portal Siswa akan ikut terhapus otomatis.'
+      : 'Hapus riwayat transaksi ini secara permanen? Saldo tabungan dan tunggakan siswa terkait akan disesuaikan otomatis.';
+    if (!window.confirm(confirmMsg)) return;
+
     try {
       const student = allUsers.find(u => u.id === pay.studentId);
       const payAmount = Number(pay.amount) || 0;
       const isApproved = pay.status === 'lunas' || pay.status === 'cicilan';
+      const isPending = pay.status === 'pending';
 
-      if (student && isApproved && payAmount > 0) {
+      if (student && isTagihanCreation) {
+        let updatedDetails = Array.isArray(student.arrears_details)
+          ? student.arrears_details.map((d: any) => ({ ...d }))
+          : [];
+        const userUpdates: Record<string, any> = {};
+
+        const rawDesc = String(pay.description || '').trim();
+        const colonIdx = rawDesc.indexOf(':');
+        const parsedNameFromDesc = colonIdx >= 0 ? rawDesc.slice(colonIdx + 1).trim() : '';
+        const bracketMatch = rawDesc.match(/\[([^\]]+)\]/);
+        const parsedCatFromDesc = bracketMatch ? bracketMatch[1].trim() : '';
+
+        const targetId = pay.arrearDetailId || pay.billId;
+        const targetCat = (pay.iuranCategory || pay.category || pay.categoryName || parsedCatFromDesc || '').trim();
+        const targetName = (pay.iuranName || parsedNameFromDesc || targetCat || '').trim();
+        const payDate = typeof pay.date === 'string' ? pay.date.slice(0, 10) : '';
+
+        let matchIdx = -1;
+        if (targetId) {
+          matchIdx = updatedDetails.findIndex((d: any) => d.id === targetId);
+        }
+        if (matchIdx < 0 && updatedDetails.length > 0) {
+          // Prioritaskan kecocokan nama/kategori + nominal + tanggal yang sama
+          matchIdx = updatedDetails.findIndex((d: any) => {
+            const nameMatch =
+              (targetName && String(d.name || '').trim().toLowerCase() === targetName.toLowerCase()) ||
+              (targetCat && isFinanceCategoryMatch(d.category, d.name, '', targetCat)) ||
+              (targetName && isFinanceCategoryMatch(d.category, d.name, '', targetName));
+            const amountMatch = payAmount > 0 && Number(d.amount || 0) === payAmount;
+            const dateMatch = payDate && typeof d.date === 'string' && d.date.slice(0, 10) === payDate;
+            return Boolean(nameMatch && amountMatch && dateMatch);
+          });
+        }
+        if (matchIdx < 0 && updatedDetails.length > 0) {
+          // Cocokkan nama/kategori + nominal
+          matchIdx = updatedDetails.findIndex((d: any) => {
+            const nameMatch =
+              (targetName && String(d.name || '').trim().toLowerCase() === targetName.toLowerCase()) ||
+              (targetCat && isFinanceCategoryMatch(d.category, d.name, '', targetCat)) ||
+              (targetName && isFinanceCategoryMatch(d.category, d.name, '', targetName));
+            const amountMatch = payAmount > 0 && Number(d.amount || 0) === payAmount;
+            return Boolean(nameMatch && amountMatch);
+          });
+        }
+        if (matchIdx < 0 && updatedDetails.length > 0) {
+          // Cocokkan nama/kategori saja (misal sudah pernah dicicil sebagian)
+          matchIdx = updatedDetails.findIndex((d: any) =>
+            (targetName && String(d.name || '').trim().toLowerCase() === targetName.toLowerCase()) ||
+            (targetName && String(d.name || '').trim().toLowerCase().includes(targetName.toLowerCase())) ||
+            (targetCat && isFinanceCategoryMatch(d.category, d.name, '', targetCat)) ||
+            (targetName && isFinanceCategoryMatch(d.category, d.name, '', targetName))
+          );
+        }
+
+        let newArrears = Number(student.arrears) || 0;
+        if (matchIdx >= 0) {
+          updatedDetails.splice(matchIdx, 1);
+          newArrears = updatedDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+          userUpdates.arrears_details = updatedDetails;
+          userUpdates.arrears = newArrears;
+        } else if (updatedDetails.length === 0 && newArrears > 0 && payAmount > 0) {
+          newArrears = Math.max(0, newArrears - payAmount);
+          userUpdates.arrears_details = [];
+          userUpdates.arrears = newArrears;
+        }
+
+        if (Object.keys(userUpdates).length > 0) {
+          await updateDoc(doc(db, 'users', pay.studentId), userUpdates);
+          if (selectedStudentForFinance?.id === pay.studentId) {
+            setSelectedStudentForFinance((prev: any) => ({
+              ...prev,
+              ...userUpdates,
+              viewArrears: newArrears
+            }));
+          }
+          setAllUsers((prev: any[]) => prev.map(u => u.id === pay.studentId ? { ...u, ...userUpdates } : u));
+        }
+      } else if (student && isPending && payAmount > 0) {
+        const userUpdates: Record<string, any> = {};
+        if (pay.method === 'Campuran') {
+          const deductedFromSavings = Number(pay.amountFromSavings) || Number(pay.mixedDetails?.fromSavings) || 0;
+          if (deductedFromSavings > 0) {
+            userUpdates.savings = (Number(student.savings) || 0) + deductedFromSavings;
+          }
+        }
+        const targetId = pay.arrearDetailId || pay.billId;
+        if (targetId && Array.isArray(student.arrears_details)) {
+          let modified = false;
+          const updatedDetails = student.arrears_details.map((d: any) => {
+            if (d.id === targetId && (Number(d.paidAmount) || 0) > 0) {
+              modified = true;
+              return {
+                ...d,
+                paidAmount: Math.max(0, (Number(d.paidAmount) || 0) - payAmount)
+              };
+            }
+            return d;
+          });
+          if (modified) {
+            userUpdates.arrears_details = updatedDetails;
+          }
+        }
+        if (Object.keys(userUpdates).length > 0) {
+          await updateDoc(doc(db, 'users', pay.studentId), userUpdates);
+          if (selectedStudentForFinance?.id === pay.studentId) {
+            setSelectedStudentForFinance((prev: any) => ({
+              ...prev,
+              ...userUpdates
+            }));
+          }
+          setAllUsers((prev: any[]) => prev.map(u => u.id === pay.studentId ? { ...u, ...userUpdates } : u));
+        }
+      } else if (student && isApproved && payAmount > 0) {
         let newSavings = Number(student.savings) || 0;
         let updatedDetails = Array.isArray(student.arrears_details)
           ? student.arrears_details.map((d: any) => ({ ...d }))
@@ -2071,28 +2197,38 @@ export default function DashboardAdmin() {
           newSavings += payAmount;
           userUpdates.savings = newSavings;
         } else {
-          // Pembayaran iuran sekolah
+          // Pembayaran iuran sekolah: kembalikan nominal ke tunggakan siswa (belum lunas)
           const deductedFromSavings = pay.method === 'Tabungan'
             ? (Number(pay.amountFromSavings) || payAmount)
+            : pay.method === 'Campuran'
+            ? (Number(pay.amountFromSavings) || Number(pay.mixedDetails?.fromSavings) || 0)
             : (Number(pay.amountFromSavings) || 0);
           if (deductedFromSavings > 0) {
             newSavings += deductedFromSavings;
             userUpdates.savings = newSavings;
           }
 
-          // Kembalikan nominal yang sebelumnya telah dibayar ke tunggakan siswa
+          const targetId = pay.arrearDetailId || pay.billId;
           const targetCat = pay.iuranCategory || pay.category || pay.categoryName || 'Umum';
           const targetName = pay.iuranName || targetCat || 'Tagihan Iuran';
           const matchIdx = updatedDetails.findIndex((d: any) =>
+            (targetId && d.id === targetId) ||
             isFinanceCategoryMatch(d.category, d.name, '', targetCat) ||
             String(d.name || '').toLowerCase() === String(targetName).toLowerCase()
           );
 
           if (matchIdx >= 0) {
-            updatedDetails[matchIdx].amount = (Number(updatedDetails[matchIdx].amount) || 0) + payAmount;
+            const currentPaid = Number(updatedDetails[matchIdx].paidAmount) || 0;
+            const currentAmt = Number(updatedDetails[matchIdx].amount) || 0;
+            if (currentPaid > 0) {
+              // Bila sebelumnya tercatat di paidAmount (pengajuan siswa), kurangi paidAmount tanpa menggandakan amount
+              updatedDetails[matchIdx].paidAmount = Math.max(0, currentPaid - payAmount);
+            } else {
+              updatedDetails[matchIdx].amount = currentAmt + payAmount;
+            }
           } else {
             updatedDetails.push({
-              id: `restored-${pay.id}-${Date.now()}`,
+              id: targetId || `restored-${pay.id}-${Date.now()}`,
               name: targetName,
               category: targetCat,
               amount: payAmount,
@@ -2110,7 +2246,8 @@ export default function DashboardAdmin() {
           if (selectedStudentForFinance?.id === pay.studentId) {
             setSelectedStudentForFinance((prev: any) => ({
               ...prev,
-              ...userUpdates
+              ...userUpdates,
+              ...(userUpdates.arrears !== undefined ? { viewArrears: userUpdates.arrears } : {})
             }));
           }
           setAllUsers((prev: any[]) => prev.map(u => u.id === pay.studentId ? { ...u, ...userUpdates } : u));
@@ -2118,7 +2255,9 @@ export default function DashboardAdmin() {
       }
 
       await deleteDoc(doc(db, 'payments', pay.id));
-      alert('Riwayat transaksi berhasil dihapus dan saldo/tunggakan siswa telah disesuaikan.');
+      alert(isTagihanCreation
+        ? 'Catatan tagihan berhasil dihapus dari Arsip Transaksi, Rekap Admin, dan Portal Siswa.'
+        : 'Riwayat transaksi berhasil dihapus dan saldo/tunggakan siswa telah disesuaikan.');
     } catch (error) {
       console.error("Error deleting payment:", error);
       alert('Gagal menghapus riwayat transaksi.');
@@ -2611,38 +2750,56 @@ export default function DashboardAdmin() {
     return handleOneClickPayment(student, detail, 'Tabungan');
   };
 
-  const handleDeleteArrear = async (studentId: string, arrearId: string) => {
- if (!window.confirm('Hapus rincian tunggakan ini? Tindakan ini akan mengurangi total tunggakan siswa secara otomatis.')) return;
- try {
- const student = allUsers.find(u => u.id === studentId);
- if (student) {
- const detailToDelete = student.arrears_details?.find((d: any) => d.id === arrearId);
- if (!detailToDelete) return;
+  const handleDeleteArrear = async (studentId: string, arrearId: string, fallbackAmount?: number) => {
+    if (!window.confirm('Hapus rincian tagihan ini? Tindakan ini akan mengurangi total tunggakan di Rekap Admin dan Portal Siswa secara otomatis.')) return;
+    try {
+      const student = allUsers.find(u => u.id === studentId);
+      if (!student) return;
 
- const newArrears = Math.max(0, (student.arrears || 0) - (detailToDelete.amount || 0));
- const newDetails = student.arrears_details.filter((d: any) => d.id !== arrearId);
+      const currentDetails = Array.isArray(student.arrears_details) ? student.arrears_details : [];
+      const detailToDelete = currentDetails.find((d: any) => d.id === arrearId);
 
- await updateDoc(doc(db, 'users', studentId), {
- arrears: newArrears,
- arrears_details: newDetails
- });
- 
- // Update selected student in modal if it's the same one
- if (selectedStudentForFinance?.id === studentId) {
- setSelectedStudentForFinance({
- ...selectedStudentForFinance,
- arrears: newArrears,
- arrears_details: newDetails
- });
- }
- 
- alert('Rincian tunggakan berhasil dihapus.');
- }
- } catch (error) {
- console.error("Error deleting arrear:", error);
- alert('Gagal menghapus tunggakan.');
- }
- };
+      let newDetails = currentDetails;
+      let newArrears = Number(student.arrears) || 0;
+      let deductedAmount = 0;
+
+      if (detailToDelete) {
+        deductedAmount = Number(detailToDelete.amount) || 0;
+        newDetails = currentDetails.filter((d: any) => d.id !== arrearId);
+        newArrears = newDetails.length > 0
+          ? newDetails.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0)
+          : Math.max(0, newArrears - deductedAmount);
+      } else if (arrearId === 'general' || String(arrearId).startsWith('cat-')) {
+        deductedAmount = Number(fallbackAmount) || newArrears;
+        newArrears = Math.max(0, newArrears - deductedAmount);
+      } else {
+        return;
+      }
+
+      const userUpdates = {
+        arrears: newArrears,
+        arrears_details: newDetails
+      };
+
+      await updateDoc(doc(db, 'users', studentId), userUpdates);
+
+      if (selectedStudentForFinance?.id === studentId) {
+        setSelectedStudentForFinance((prev: any) => ({
+          ...prev,
+          ...userUpdates,
+          viewArrears: prev?.viewArrears !== undefined
+            ? Math.max(0, (Number(prev.viewArrears) || 0) - deductedAmount)
+            : newArrears
+        }));
+      }
+      setAllUsers((prev: any[]) => prev.map(u => u.id === studentId ? { ...u, ...userUpdates } : u));
+
+      alert('Rincian tagihan berhasil dihapus.');
+    } catch (error) {
+      console.error("Error deleting arrear:", error);
+      alert('Gagal menghapus tagihan.');
+    }
+  };
 
  const handleMassDeleteIuran = async (e: React.FormEvent) => {
  e.preventDefault();
@@ -6958,6 +7115,15 @@ export default function DashboardAdmin() {
                               >
                                 <Wallet size={12} className="text-amber-600" />
                                 Bayar Tabungan
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleDeleteArrear(selectedStudentForFinance.id, item.id, item.amount)}
+                                className="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border border-rose-200 shrink-0 flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                                title="Hapus tagihan ini dari siswa"
+                              >
+                                <Trash2 size={12} />
+                                Hapus
                               </button>
                             </div>
                           </div>

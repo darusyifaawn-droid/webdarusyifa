@@ -28,26 +28,17 @@ export default function LoginPage() {
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'landingPage'), (snap) => {
       if (snap.exists()) {
-        setLogoUrl(snap.data().logoUrl);
+        const data = snap.data();
+        setLogoUrl(data.logoUrl || '');
+        setHasAdminAccount(true);
+      } else {
+        setHasAdminAccount(false);
       }
     }, (error) => {
       console.error("Error fetching landing page settings:", error);
+      setHasAdminAccount(true); // safe fallback
     });
     return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const checkAdmins = async () => {
-      try {
-        const q = query(collection(db, 'users'), where('role', '==', 'admin'));
-        const snap = await getDocs(q);
-        setHasAdminAccount(!snap.empty);
-      } catch (err) {
-        console.error("Error checking admin accounts:", err);
-        setHasAdminAccount(true); // default safe fallback
-      }
-    };
-    checkAdmins();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -165,6 +156,7 @@ export default function LoginPage() {
       };
 
       await setDoc(doc(db, 'users', uid), adminData);
+      await setDoc(doc(db, 'settings', 'landingPage'), { adminInitialized: true }, { merge: true }).catch(() => {});
       try {
         localStorage.setItem('darusyifa_auth_cache', JSON.stringify(adminData));
       } catch {}
@@ -260,53 +252,53 @@ export default function LoginPage() {
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-50/50 rounded-full blur-3xl" />
       </div>
 
-      <div className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] w-full max-w-md border border-slate-100 relative z-10">
+      <div className="skeuo-card-raised p-8 md:p-12 w-full max-w-md relative z-10">
         <div className="text-center mb-10">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-bold text-xs uppercase tracking-widest mb-8 transition-colors group"
+            className="inline-flex items-center gap-2 text-[#16834B] hover:text-[#105C38] font-black text-xs uppercase tracking-widest mb-8 transition-colors group"
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
             <span>Beranda Utama</span>
           </Link>
 
           {logoUrl ? (
-            <div className="w-24 h-24 mx-auto mb-6 overflow-hidden rounded-[2rem] border-4 border-emerald-50 p-2 bg-white shadow-inner">
+            <div className="w-24 h-24 mx-auto mb-6 overflow-hidden rounded-[2rem] border-2 border-[#DFE8E0] p-2 bg-white shadow-md">
               <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
           ) : (
-            <div className="w-20 h-20 bg-emerald-600 rounded-[2rem] flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-xl shadow-emerald-100">RA</div>
+            <div className="w-20 h-20 bg-gradient-to-b from-[#16834B] to-[#105C38] rounded-[2rem] flex items-center justify-center text-white font-black text-3xl mx-auto mb-6 shadow-lg shadow-[#16834B]/20">RA</div>
           )}
-          <h2 className="text-3xl font-display font-extrabold text-slate-800 tracking-tight">Portal Digital</h2>
-          <p className="text-slate-500 text-sm mt-2 font-medium">Sistem Informasi Manajemen RA</p>
+          <h2 className="text-3xl font-display font-black text-[#24352B] tracking-tight">Portal Digital</h2>
+          <p className="text-[#718078] text-xs mt-2 font-bold uppercase tracking-wider">Sistem Informasi Manajemen RA</p>
         </div>
 
         {error && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm flex gap-3 items-start animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs flex gap-3 items-start shadow-sm">
             <AlertCircle className="shrink-0 mt-0.5" size={18} />
-            <span className="font-medium leading-relaxed">{error}</span>
+            <span className="font-bold leading-relaxed">{error}</span>
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 ml-4">Alamat Email</label>
+            <label className="text-[11px] font-black uppercase tracking-wider text-[#718078] ml-2">Alamat Email</label>
             <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#718078] group-focus-within:text-[#16834B] transition-colors" size={18} />
               <input 
                 type="email" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder="email@sekolah.com" 
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="input-skeuo pl-12 pr-4" 
                 required 
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center ml-4">
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">Kata Sandi</label>
+            <div className="flex justify-between items-center ml-2">
+              <label className="text-[11px] font-black uppercase tracking-wider text-[#718078]">Kata Sandi</label>
               <button 
                 type="button"
                 onClick={async () => {
@@ -322,25 +314,25 @@ export default function LoginPage() {
                     setError('Gagal mengirim link reset password: ' + err.message);
                   }
                 }}
-                className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-tighter"
+                className="text-[10px] font-black text-[#16834B] hover:text-[#105C38] uppercase tracking-wider"
               >
                 Lupa Password?
               </button>
             </div>
             <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#718078] group-focus-within:text-[#16834B] transition-colors" size={18} />
               <input 
                 type={showPassword ? "text" : "password"} 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 placeholder="••••••••" 
-                className="w-full pl-12 pr-12 py-4 bg-slate-50 border-2 border-transparent rounded-[1.25rem] outline-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all font-medium text-slate-700 placeholder:text-slate-300" 
+                className="input-skeuo pl-12 pr-12" 
                 required 
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 focus:text-emerald-600 transition-colors p-1"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#718078] hover:text-[#16834B] transition-colors p-1"
                 title={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
                 aria-label={showPassword ? "Sembunyikan Kata Sandi" : "Tampilkan Kata Sandi"}
               >
@@ -352,12 +344,12 @@ export default function LoginPage() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-emerald-600 text-white py-4 rounded-[1.25rem] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+            className="btn-skeuo-primary w-full py-4 text-sm uppercase tracking-wider"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <><LogIn size={20} /> <span className="tracking-tight">Masuk Portal</span></>
+              <><LogIn size={20} /> <span className="font-black">Masuk Portal</span></>
             )}
           </button>
         </form>
